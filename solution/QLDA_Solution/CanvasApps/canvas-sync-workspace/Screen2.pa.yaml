@@ -184,6 +184,8 @@ Screens:
                                       Id: GUID(),
                                       TaskName: txtTaskName.Text,
                                       AssignedToName: txtAssignedTo.Text,
+                                      ProjectName: If(IsBlank(varEditTask), "General", Coalesce(varEditTask.ProjectName, "General")),
+                                      Department: If(IsBlank(varEditTask), "General", Coalesce(varEditTask.Department, "General")),
                                       Status: ddStatus.Selected.Value,
                                       Priority: ddPriority.Selected.Value,
                                       DueDate: dpDueDate.SelectedDate,
@@ -205,6 +207,8 @@ Screens:
                                       Patch(colTasks, oldTask, {
                                           TaskName: txtTaskName.Text,
                                           AssignedToName: txtAssignedTo.Text,
+                                          ProjectName: Coalesce(oldTask.ProjectName, "General"),
+                                          Department: Coalesce(oldTask.Department, "General"),
                                           Status: ddStatus.Selected.Value,
                                           Priority: ddPriority.Selected.Value,
                                           DueDate: dpDueDate.SelectedDate,

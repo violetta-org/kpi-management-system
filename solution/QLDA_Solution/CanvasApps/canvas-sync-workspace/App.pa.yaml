@@ -13,48 +13,55 @@ App:
       clrBorder = RGBA(225, 223, 221, 1);
     OnStart: |-
       =Set(varCurrentUser, User().FullName);
-      Set(varSelectedTab, "All");
       Set(varEditTask, Blank());
       Set(varSearchText, "");
       Set(varFilterStatus, "All");
       Set(varFilterPriority, "All");
-      
-      If(IsEmpty(colBuckets),
-          ClearCollect(colBuckets,
-              { Status: "Todo" },
-              { Status: "In Progress" },
-              { Status: "Done" }
-          )
+      Set(varFilterAssignee, "All");
+      Set(varFilterProject, "All");
+      Set(varFilterDueDays, "All");
+      Set(varFormError, "");
+
+      ClearCollect(colBuckets,
+          { Status: "Todo" },
+          { Status: "In Progress" },
+          { Status: "Done" }
       );
+
+      ClearCollect(colTasks,
+          { Id: "task1", TaskName: "Finalize sprint backlog", ProjectName: "Website Revamp", Department: "Engineering", AssignedToName: "An", Status: "In Progress", Priority: "High", DueDate: Today()+2, Description: "Confirm deliverables with team leads", CreatedAt: Now()-4, CreatedBy: "Admin" },
+          { Id: "task2", TaskName: "Department KPI review", ProjectName: "Q2 Sales", Department: "Sales", AssignedToName: "Binh", Status: "Todo", Priority: "High", DueDate: Today()+1, Description: "Prepare KPI risk report", CreatedAt: Now()-3, CreatedBy: "Manager" },
+          { Id: "task3", TaskName: "Prepare onboarding checklist", ProjectName: "HR Onboarding", Department: "HR", AssignedToName: "Chi", Status: "Done", Priority: "Medium", DueDate: Today()-1, Description: "Checklist for new hires", CreatedAt: Now()-2, CreatedBy: "Admin" },
+          { Id: "task4", TaskName: "Legal review for vendor contract", ProjectName: "Website Revamp", Department: "Operations", AssignedToName: "Dung", Status: "Todo", Priority: "Urgent", DueDate: Today()+3, Description: "Contract review before procurement", CreatedAt: Now()-1, CreatedBy: "Admin" }
+      );
+
       ClearCollect(colFilterStatuses, {Value: "All"});
       ForAll(colBuckets, Collect(colFilterStatuses, {Value: Status}));
-      
-      // Init collections if empty
-      If(IsEmpty(colTasks),
-          ClearCollect(colTasks,
-              { Id: "task1", TaskName: "Setup environment", AssignedToName: varCurrentUser, Status: "Done", Priority: "High", DueDate: Today()-2, Description: "Install Node and PowerApps CLI", CreatedAt: Now()-3, CreatedBy: "Admin" },
-              { Id: "task2", TaskName: "Design UI mockups", AssignedToName: "Violet", Status: "In Progress", Priority: "Medium", DueDate: Today()+1, Description: "Command center aesthetic", CreatedAt: Now()-2, CreatedBy: varCurrentUser },
-              { Id: "task3", TaskName: "Integrate Dataverse", AssignedToName: varCurrentUser, Status: "Todo", Priority: "High", DueDate: Today()+5, Description: "Connect colTasks to cr_tasks", CreatedAt: Now()-1, CreatedBy: "Admin" }
-          )
+
+      ClearCollect(colFilterPriorities,
+          {Value: "All"},
+          {Value: "Low"},
+          {Value: "Medium"},
+          {Value: "High"},
+          {Value: "Urgent"}
       );
-      
-      Set(varDetailTask, LookUp(colTasks, false));
-      
-      If(IsEmpty(colComments),
-          ClearCollect(colComments,
-              { Id: "com1", TaskId: "task1", CommentText: "Done! Ready for review.", CreatedBy: varCurrentUser, CreatedAt: Now()-1 },
-              { Id: "com2", TaskId: "task2", CommentText: "Working on the color palette.", CreatedBy: "Violet", CreatedAt: Now() }
-          )
+
+      ClearCollect(colFilterDueDays,
+          {Value: "All"},
+          {Value: "Overdue"},
+          {Value: "Next 7 days"}
       );
-      If(IsEmpty(colAuditLog),
-          ClearCollect(colAuditLog,
-              { Id: "log1", TaskId: "task1", Action: "Status changed", ChangedBy: varCurrentUser, ChangedAt: Now()-2, OldValue: "In Progress", NewValue: "Done" },
-              { Id: "log2", TaskId: "task2", Action: "Created", ChangedBy: varCurrentUser, ChangedAt: Now()-2, OldValue: "", NewValue: "Created" }
-          )
-      );
-      If(IsEmpty(colAttachments),
-          ClearCollect(colAttachments,
-              { Id: "att1", TaskId: "task1", FileName: "screenshot.png", Url: "" }
-          )
-      )
+
+      ClearCollect(colFilterAssignees, {Value: "All"});
+      ForAll(Distinct(colTasks, AssignedToName), Collect(colFilterAssignees, {Value: Value}));
+
+      ClearCollect(colFilterProjects, {Value: "All"});
+      ForAll(Distinct(colTasks, ProjectName), Collect(colFilterProjects, {Value: Value}));
+
+
+      ClearCollect(colAuditLog);
+      ClearCollect(colComments);
+      ClearCollect(colAttachments);
+
+      Set(varDetailTask, Blank())
     Theme: =PowerAppsTheme
