@@ -1,0 +1,74 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github@2025.4.8"
+      ]
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@2.1.4"
+      ]
+    },
+    "exa": {
+      "type": "http",
+      "url": "https://mcp.exa.ai/mcp"
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory@2026.1.26"
+      ]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.69",
+        "--extension"
+      ]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking@2025.12.18"
+      ]
+    },
+    "canvas-authoring": {
+      "command": "dotnet",
+      "args": [
+        "dnx",
+        "Microsoft.PowerApps.CanvasAuthoring.McpServer",
+        "--yes",
+        "--prerelease",
+        "--source",
+        "https://api.nuget.org/v3/index.json"
+      ],
+      "env": {
+        "CANVAS_ENVIRONMENT_ID": "84534e74-80d5-e347-ade4-4236f035288a",
+        "CANVAS_APP_ID": "1ab4ac12-b2e4-4db9-9a88-8f65641cf313",
+        "CANVAS_CLUSTER_CATEGORY": "prod"
+      }
+    },
+    "powerplatform": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "powerplatform-mcp"
+      ]
+    },
+    "powerbi": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@microsoft/powerbi-modeling-mcp"
+      ]
+    }
+  }
+}

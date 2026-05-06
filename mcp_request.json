@@ -1,0 +1,11 @@
+{
+  "id": 11,
+  "method": "tools/call",
+  "jsonrpc": "2.0",
+  "params": {
+    "name": "compile_canvas",
+    "arguments": {
+      "directoryPath": "C:\\Users\\violet\\Documents\\MQF\\Study Materials\\Sixth Semester\\QLDA\\solution\\QLDA_Solution\\CanvasApps\\canvas-sync-workspace"
+    }
+  }
+}

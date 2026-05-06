@@ -1,0 +1,13 @@
+/*
+!/solution
+!/.github
+!/.power-platform-skills
+!/.agent
+!/.cursor
+!/.gemini
+!/libraries
+!/.env.template
+!/mcp_request.json
+!/.gitignore
+*.exe
+*.vsix

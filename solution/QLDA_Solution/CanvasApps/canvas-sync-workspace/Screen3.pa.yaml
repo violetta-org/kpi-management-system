@@ -1,0 +1,336 @@
+
+Screens:
+  Screen3:
+    Properties:
+      Fill: =clrBg
+    Children:
+      - KanbanContainer:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            Fill: =clrBg
+            Height: =Parent.Height
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutGap: =16
+            LayoutOverflowY: =LayoutOverflow.Scroll
+            PaddingBottom: =24
+            PaddingLeft: =24
+            PaddingRight: =24
+            PaddingTop: =24
+            Width: =Parent.Width
+          Children:
+            - KanbanHeader:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.Semilight
+                  Fill: =clrSurface
+                  FillPortions: =0
+                  Height: =64
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutGap: =16
+                  PaddingLeft: =20
+                  PaddingRight: =20
+                  RadiusBottomLeft: =12
+                  RadiusBottomRight: =12
+                  RadiusTopLeft: =12
+                  RadiusTopRight: =12
+                Children:
+                  - btnBackKanban:
+                      Control: ModernButton
+                      Properties:
+                        BasePaletteColor: =clrTextSecondary
+                        OnSelect: =Navigate(Screen1)
+                        Text: ="← Back"
+                  - lblKanbanTitle:
+                      Control: ModernText
+                      Properties:
+                        Color: =clrAccent
+                        FontWeight: =FontWeight.Bold
+                        Size: =20
+                        Text: ="Kanban Board"
+                  - ddKanbanFilter:
+                      Control: ModernDropdown
+                      Properties:
+                        Default: |-
+                          ={Value: "All"}
+                        Items: =["All", "My Tasks"]
+                        ItemDisplayText: ="Value"
+                        OnChange: =Set(varKanbanFilter, Self.Selected.Value)
+                        Width: =150
+            - ColumnsContainer:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutGap: =16
+                  LayoutMinWidth: =0
+                  LayoutMinHeight: =0
+                Children:
+                  - TodoColumn:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.Semilight
+                        Fill: =clrSurface
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutGap: =8
+                        PaddingBottom: =12
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =12
+                        RadiusBottomLeft: =12
+                        RadiusBottomRight: =12
+                        RadiusTopLeft: =12
+                        RadiusTopRight: =12
+                        Width: =300
+                        LayoutMinHeight: =0
+                      Children:
+                        - lblTodoHeader:
+                            Control: ModernText
+                            Properties:
+                              Color: =clrTextPrimary
+                              FontWeight: =FontWeight.Semibold
+                              Size: =16
+                              Text: ="To Do"
+                        - galTodo:
+                            Control: Gallery
+                            Variant: Vertical
+                            Properties:
+                              Items: |-
+                                =Filter(
+                                  colTasks,
+                                  Status = "Todo" &&
+                                  (varKanbanFilter = "All" || AssignedToName = varCurrentUser)
+                                )
+                              TemplatePadding: =4
+                              TemplateSize: =80
+                            Children:
+                              - CardTodo:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    Fill: =clrSurface2
+                                    LayoutDirection: =LayoutDirection.Vertical
+                                    LayoutGap: =4
+                                    PaddingBottom: =8
+                                    PaddingLeft: =10
+                                    PaddingRight: =10
+                                    PaddingTop: =8
+                                    RadiusBottomLeft: =8
+                                    RadiusBottomRight: =8
+                                    RadiusTopLeft: =8
+                                    RadiusTopRight: =8
+                                  Children:
+                                    - lblKanbanTaskName:
+                                        Control: ModernText
+                                        Properties:
+                                          Color: =clrTextPrimary
+                                          Size: =14
+                                          FontWeight: =FontWeight.Semibold
+                                          Text: =ThisItem.TaskName
+                                    - lblKanbanMeta:
+                                        Control: ModernText
+                                        Properties:
+                                          Color: =clrTextSecondary
+                                          Size: =12
+                                          Text: =ThisItem.AssignedToName & " · " & ThisItem.Priority
+                                    - MoveButtonsTodo:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          LayoutDirection: =LayoutDirection.Horizontal
+                                          LayoutGap: =4
+                                        Children:
+                                          - btnMoveRightTodo:
+                                              Control: ModernButton
+                                              Properties:
+                                                BasePaletteColor: =clrAccent
+                                                Height: =24
+                                                Width: =30
+                                                Text: ="→"
+                                                OnSelect: |-
+                                                  =Patch(colTasks, ThisItem, {Status: "In Progress"});
+                                                  Collect(colAuditLog, {Id: GUID(), TaskId: ThisItem.Id, Action: "Status changed to In Progress", ChangedBy: varCurrentUser, ChangedAt: Now(), OldValue: "Todo", NewValue: "In Progress"})
+                  - InProgressColumn:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.Semilight
+                        Fill: =clrSurface
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutGap: =8
+                        PaddingBottom: =12
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =12
+                        RadiusBottomLeft: =12
+                        RadiusBottomRight: =12
+                        RadiusTopLeft: =12
+                        RadiusTopRight: =12
+                        Width: =300
+                        LayoutMinHeight: =0
+                      Children:
+                        - lblInProgressHeader:
+                            Control: ModernText
+                            Properties:
+                              Color: =clrTextPrimary
+                              FontWeight: =FontWeight.Semibold
+                              Size: =16
+                              Text: ="In Progress"
+                        - galInProgress:
+                            Control: Gallery
+                            Variant: Vertical
+                            Properties:
+                              Items: |-
+                                =Filter(
+                                  colTasks,
+                                  Status = "In Progress" &&
+                                  (varKanbanFilter = "All" || AssignedToName = varCurrentUser)
+                                )
+                              TemplatePadding: =4
+                              TemplateSize: =80
+                            Children:
+                              - CardInProgress:- CardInProgress:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    Fill: =clrSurface2
+                                    LayoutDirection: =LayoutDirection.Vertical
+                                    LayoutGap: =4
+                                    PaddingBottom: =8
+                                    PaddingLeft: =10
+                                    PaddingRight: =10
+                                    PaddingTop: =8
+                                    RadiusBottomLeft: =8
+                                    RadiusBottomRight: =8
+                                    RadiusTopLeft: =8
+                                    RadiusTopRight: =8
+                                  Children:
+                                    - lblKanbanTaskNameInProg:
+                                        Control: ModernText
+                                        Properties:
+                                          Color: =clrTextPrimary
+                                          Size: =14
+                                          FontWeight: =FontWeight.Semibold
+                                          Text: =ThisItem.TaskName
+                                    - lblKanbanMetaInProg:
+                                        Control: ModernText
+                                        Properties:
+                                          Color: =clrTextSecondary
+                                          Size: =12
+                                          Text: =ThisItem.AssignedToName & " · " & ThisItem.Priority
+                                    - MoveButtonsInProgCol:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          LayoutDirection: =LayoutDirection.Horizontal
+                                          LayoutGap: =4
+                                        Children:
+                                          - btnMoveLeftInProg:
+                                              Control: ModernButton
+                                              Properties:
+                                                BasePaletteColor: =clrAccentWarm
+                                                Height: =24
+                                                Width: =30
+                                                Text: ="←"
+                                                OnSelect: |-
+                                                  =Patch(colTasks, ThisItem, {Status: "Todo"});
+                                                  Collect(colAuditLog, {Id: GUID(), TaskId: ThisItem.Id, Action: "Status changed to Todo", ChangedBy: varCurrentUser, ChangedAt: Now(), OldValue: "In Progress", NewValue: "Todo"})
+                                          - btnMoveRightInProg:
+                                              Control: ModernButton
+                                              Properties:
+                                                BasePaletteColor: =clrAccent
+                                                Height: =24
+                                                Width: =30
+                                                Text: ="→"
+                                                OnSelect: |-
+                                                  =Patch(colTasks, ThisItem, {Status: "Done"});
+                                                  Collect(colAuditLog, {Id: GUID(), TaskId: ThisItem.Id, Action: "Status changed to Done", ChangedBy: varCurrentUser, ChangedAt: Now(), OldValue: "In Progress", NewValue: "Done"})
+                  - DoneColumn:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        DropShadow: =DropShadow.Semilight
+                        Fill: =clrSurface
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutGap: =8
+                        PaddingBottom: =12
+                        PaddingLeft: =12
+                        PaddingRight: =12
+                        PaddingTop: =12
+                        RadiusBottomLeft: =12
+                        RadiusBottomRight: =12
+                        RadiusTopLeft: =12
+                        RadiusTopRight: =12
+                        Width: =300
+                        LayoutMinHeight: =0
+                      Children:
+                        - lblDoneHeader:
+                            Control: ModernText
+                            Properties:
+                              Color: =clrTextPrimary
+                              FontWeight: =FontWeight.Semibold
+                              Size: =16
+                              Text: ="Done"
+                        - galDone:
+                            Control: Gallery
+                            Variant: Vertical
+                            Properties:
+                              Items: |-
+                                =Filter(
+                                  colTasks,
+                                  Status = "Done" &&
+                                  (varKanbanFilter = "All" || AssignedToName = varCurrentUser)
+                                )
+                              TemplatePadding: =4
+                              TemplateSize: =80
+                            Children:
+                              - CardDone:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    Fill: =clrSurface2
+                                    LayoutDirection: =LayoutDirection.Vertical
+                                    LayoutGap: =4
+                                    PaddingBottom: =8
+                                    PaddingLeft: =10
+                                    PaddingRight: =10
+                                    PaddingTop: =8
+                                    RadiusBottomLeft: =8
+                                    RadiusBottomRight: =8
+                                    RadiusTopLeft: =8
+                                    RadiusTopRight: =8
+                                  Children:
+                                    - lblKanbanTaskNameDone:
+                                        Control: ModernText
+                                        Properties:
+                                          Color: =clrTextPrimary
+                                          Size: =14
+                                          FontWeight: =FontWeight.Semibold
+                                          Text: =ThisItem.TaskName
+                                    - lblKanbanMetaDone:
+                                        Control: ModernText
+                                        Properties:
+                                          Color: =clrTextSecondary
+                                          Size: =12
+                                          Text: =ThisItem.AssignedToName & " · " & ThisItem.Priority
+                                    - MoveButtonsDoneCol:
+                                        Control: GroupContainer
+                                        Variant: AutoLayout
+                                        Properties:
+                                          LayoutDirection: =LayoutDirection.Horizontal
+                                          LayoutGap: =4
+                                        Children:
+                                          - btnMoveLeftDone:
+                                              Control: ModernButton
+                                              Properties:
+                                                BasePaletteColor: =clrAccentWarm
+                                                Height: =24
+                                                Width: =30
+                                                Text: ="←"
+                                                OnSelect: |-
+                                                  =Patch(colTasks, ThisItem, {Status: "In Progress"});
+                                                  Collect(colAuditLog, {Id: GUID(), TaskId: ThisItem.Id, Action: "Status changed to In Progress", ChangedBy: varCurrentUser, ChangedAt: Now(), OldValue: "Done", NewValue: "In Progress"})
+

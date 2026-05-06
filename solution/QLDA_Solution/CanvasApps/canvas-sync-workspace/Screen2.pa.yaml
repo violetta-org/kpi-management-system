@@ -1,0 +1,238 @@
+Screens:
+  Screen2:
+    Properties:
+      Fill: =clrBg
+    Children:
+      - ScreenContainer2:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            Fill: =clrBg
+            Height: =Parent.Height
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutGap: =24
+            LayoutOverflowY: =LayoutOverflow.Scroll
+            PaddingBottom: =24
+            PaddingLeft: =32
+            PaddingRight: =32
+            PaddingTop: =24
+            Width: =Parent.Width
+          Children:
+            - FormHeader:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.Semilight
+                  Fill: =clrSurface
+                  FillPortions: =0
+                  Height: =64
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutGap: =16
+                  PaddingLeft: =20
+                  PaddingRight: =20
+                  RadiusBottomLeft: =12
+                  RadiusBottomRight: =12
+                  RadiusTopLeft: =12
+                  RadiusTopRight: =12
+                Children:
+                  - btnBack:
+                      Control: ModernButton
+                      Properties:
+                        BasePaletteColor: =clrTextSecondary
+                        OnSelect: =Navigate(Screen1)
+                        Text: ="← Back"
+                  - lblFormTitle:
+                      Control: ModernText
+                      Properties:
+                        Color: =clrAccent
+                        FontWeight: =FontWeight.Bold
+                        Size: =20
+                        Text: =If(IsBlank(varEditTask), "Create New Task", "Edit Task")
+            - FormBody:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.Semilight
+                  Fill: =clrSurface
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =24
+                  LayoutMinHeight: =0
+                  LayoutMinWidth: =0
+                  LayoutOverflowY: =LayoutOverflow.Scroll
+                  PaddingBottom: =20
+                  PaddingLeft: =20
+                  PaddingRight: =20
+                  PaddingTop: =20
+                  RadiusBottomLeft: =12
+                  RadiusBottomRight: =12
+                  RadiusTopLeft: =12
+                  RadiusTopRight: =12
+                Children:
+                  - SectionTaskInfo:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutGap: =16
+                        LayoutMinWidth: =0
+                      Children:
+                        - lblTaskInfoTitle:
+                            Control: ModernText
+                            Properties:
+                              Color: =clrAccent
+                              FontWeight: =FontWeight.Semibold
+                              Size: =13
+                              Text: ="TASK INFORMATION"
+                        - txtTaskName:
+                            Control: ModernTextInput
+                            Properties:
+                              Default: =If(IsBlank(varEditTask), "", varEditTask.TaskName)
+                              Placeholder: ="Enter task name..."
+                        - txtAssignedTo:
+                            Control: ModernTextInput
+                            Properties:
+                              Default: =If(IsBlank(varEditTask), varCurrentUser, varEditTask.AssignedToName)
+                              Placeholder: ="Assignee name..."
+                        - txtDescription:
+                            Control: ModernTextInput
+                            Properties:
+                              Default: =If(IsBlank(varEditTask), "", varEditTask.Description)
+                              Height: =100
+                              Placeholder: ="Task description (optional)..."
+                              Type: =TextInputType.Multiline
+                  - SectionClassification:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        FillPortions: =0
+                        LayoutDirection: =LayoutDirection.Vertical
+                        LayoutGap: =16
+                        LayoutMinWidth: =0
+                      Children:
+                        - lblClassificationTitle:
+                            Control: ModernText
+                            Properties:
+                              Color: =clrAccent
+                              FontWeight: =FontWeight.Semibold
+                              Size: =13
+                              Text: ="CLASSIFICATION"
+                        - ddStatus:
+                            Control: ModernDropdown
+                            Properties:
+                              Default: |-
+                                =If(IsBlank(varEditTask), {Value: "Todo"}, {Value: varEditTask.Status})
+                              Items: =["Todo", "In Progress", "Done"]
+                              ItemDisplayText: ="Value"
+                        - ddPriority:
+                            Control: ModernDropdown
+                            Properties:
+                              Default: |-
+                                =If(IsBlank(varEditTask), {Value: "Medium"}, {Value: varEditTask.Priority})
+                              Items: =["Low", "Medium", "High"]
+                              ItemDisplayText: ="Value"
+                        - dpDueDate:
+                            Control: ModernDatePicker
+                            Properties:
+                              DefaultDate: =If(IsBlank(varEditTask), Today()+7, varEditTask.DueDate)
+                  - lblError:
+                      Control: ModernText
+                      Properties:
+                        Color: =clrDanger
+                        Text: =varFormError
+                        Visible: =!IsBlank(varFormError)
+            - FormFooter:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  DropShadow: =DropShadow.Semilight
+                  Fill: =clrSurface
+                  FillPortions: =0
+                  Height: =72
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutGap: =16
+                  LayoutJustifyContent: =LayoutJustifyContent.End
+                  PaddingLeft: =20
+                  PaddingRight: =20
+                  RadiusBottomLeft: =12
+                  RadiusBottomRight: =12
+                  RadiusTopLeft: =12
+                  RadiusTopRight: =12
+                Children:
+                  - btnCancel:
+                      Control: ModernButton
+                      Properties:
+                        BasePaletteColor: =clrTextSecondary
+                        OnSelect: =Navigate(Screen1)
+                        Text: ="Cancel"
+                  - btnSave:
+                      Control: ModernButton
+                      Properties:
+                        BasePaletteColor: =clrAccent
+                        OnSelect: |-
+                          =If(
+                              IsBlank(txtTaskName.Text),
+                              Set(varFormError, "Task Name is required."),
+                              IsBlank(txtAssignedTo.Text),
+                              Set(varFormError, "Assignee is required."),
+                              /* Valid */
+                              If(IsBlank(varEditTask),
+                                  /* Create */
+                                  Collect(colTasks, {
+                                      Id: GUID(),
+                                      TaskName: txtTaskName.Text,
+                                      AssignedToName: txtAssignedTo.Text,
+                                      Status: ddStatus.Selected.Value,
+                                      Priority: ddPriority.Selected.Value,
+                                      DueDate: dpDueDate.SelectedDate,
+                                      Description: txtDescription.Text,
+                                      CreatedAt: Now(),
+                                      CreatedBy: varCurrentUser
+                                  });
+                                  Collect(colAuditLog, {
+                                      Id: GUID(),
+                                      TaskId: Last(colTasks).Id,
+                                      Action: "Created",
+                                      ChangedBy: varCurrentUser,
+                                      ChangedAt: Now(),
+                                      OldValue: "",
+                                      NewValue: "Task created"
+                                  }),
+                                  /* Edit */
+                                  With({oldTask: varEditTask},
+                                      Patch(colTasks, oldTask, {
+                                          TaskName: txtTaskName.Text,
+                                          AssignedToName: txtAssignedTo.Text,
+                                          Status: ddStatus.Selected.Value,
+                                          Priority: ddPriority.Selected.Value,
+                                          DueDate: dpDueDate.SelectedDate,
+                                          Description: txtDescription.Text
+                                      });
+                                      /* Log changes only for changed fields */
+                                      ForAll(
+                                          [{Field:"TaskName", Old:oldTask.TaskName, New:txtTaskName.Text},
+                                           {Field:"AssignedToName", Old:oldTask.AssignedToName, New:txtAssignedTo.Text},
+                                           {Field:"Status", Old:oldTask.Status, New:ddStatus.Selected.Value},
+                                           {Field:"Priority", Old:oldTask.Priority, New:ddPriority.Selected.Value},
+                                           {Field:"DueDate", Old:oldTask.DueDate, New:dpDueDate.SelectedDate},
+                                           {Field:"Description", Old:oldTask.Description, New:txtDescription.Text}],
+                                          If(Old <> New,
+                                              Collect(colAuditLog, {
+                                                  Id: GUID(),
+                                                  TaskId: oldTask.Id,
+                                                  Action: "Field Changed",
+                                                  ChangedBy: varCurrentUser,
+                                                  ChangedAt: Now(),
+                                                  OldValue: Old,
+                                                  NewValue: New
+                                              })
+                                          )
+                                      )
+                                  )
+                              );
+                              Set(varFormError, "");
+                              Navigate(Screen1)
+                          )
+                        Text: ="Save Task"

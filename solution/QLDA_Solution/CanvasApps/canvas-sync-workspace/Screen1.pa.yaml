@@ -1,0 +1,283 @@
+Screens:
+  Screen1:
+    Properties:
+      Fill: =clrBg
+    Children:
+      - AppHeader:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            DropShadow: =DropShadow.Semilight
+            Fill: =clrSurface
+            FillPortions: =0
+            Height: =70
+            LayoutAlignItems: =LayoutAlignItems.Center
+            LayoutDirection: =LayoutDirection.Horizontal
+            LayoutJustifyContent: =LayoutJustifyContent.SpaceBetween
+            PaddingLeft: =16
+            PaddingRight: =16
+            Width: =Parent.Width
+          Children:
+            - lblAppTitle:
+                Control: ModernText
+                Properties:
+                  Color: =clrAccent
+                  FontWeight: =FontWeight.Bold
+                  Size: =20
+                  Text: ="QLDA TASK"
+            - HeaderRight:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  FillPortions: =0
+                  LayoutAlignItems: =LayoutAlignItems.Center
+                  LayoutDirection: =LayoutDirection.Horizontal
+                  LayoutGap: =12
+                Children:
+                  - lblUser:
+                      Control: Label
+                      Properties:
+                        Color: =clrTextSecondary
+                        Size: =13
+                        Text: =varCurrentUser
+                  - avUser:
+                      Control: Avatar
+                      Properties:
+                        Height: =36
+                        Name: =varCurrentUser
+                        Width: =36
+      - ScreenContainer1:
+          Control: GroupContainer
+          Variant: AutoLayout
+          Properties:
+            Fill: =clrBg
+            Height: =Parent.Height - AppHeader.Height
+            LayoutDirection: =LayoutDirection.Vertical
+            LayoutGap: =16
+            LayoutOverflowY: =LayoutOverflow.Scroll
+            PaddingBottom: =20
+            PaddingLeft: =24
+            PaddingRight: =24
+            PaddingTop: =20
+            Width: =Parent.Width
+            Y: =AppHeader.Height
+          Children:
+            - galBuckets:
+                Control: Gallery
+                Variant: Horizontal
+                Properties:
+                  FillPortions: =0
+                  Height: =100
+                  Items: =colBuckets
+                  LayoutMinWidth: =0
+                  TemplatePadding: =8
+                  TemplateSize: =200
+                Children:
+                  - BucketCard:
+                      Control: ModernCard
+                      Properties:
+                        Height: =Parent.TemplateHeight - 16
+                        Width: =Parent.TemplateWidth - 16
+                        Subtitle: =Text(CountIf(colTasks, Status = ThisItem.Status))
+                        Title: =ThisItem.Status
+            - ContentSection:
+                Control: GroupContainer
+                Variant: AutoLayout
+                Properties:
+                  LayoutDirection: =LayoutDirection.Vertical
+                  LayoutGap: =12
+                Children:
+                  - FilterBar:
+                      Control: GroupContainer
+                      Variant: AutoLayout
+                      Properties:
+                        FillPortions: =0
+                        Height: =40
+                        LayoutDirection: =LayoutDirection.Horizontal
+                        LayoutGap: =10
+                        LayoutAlignItems: =LayoutAlignItems.Center
+                      Children:
+                        - txtSearch:
+                            Control: ModernTextInput
+                            Properties:
+                              Default: =varSearchText
+                              FillPortions: =2
+                              Height: =40
+                              OnChange: =Set(varSearchText, Self.Text)
+                              Placeholder: ="Search tasks..."
+                        - ddStatusFilter:
+                            Control: Dropdown
+                            Properties:
+                              Items: =colFilterStatuses
+                              OnChange: =Set(varFilterStatus, Self.Selected.Value)
+                              FillPortions: =1
+                              Height: =40
+                        - ddPriorityFilter:
+                            Control: Dropdown
+                            Properties:
+                              Items: |-
+                                =Table({Value: "All"}, {Value: "Low"}, {Value: "Medium"}, {Value: "High"})
+                              OnChange: =Set(varFilterPriority, Self.Selected.Value)
+                              FillPortions: =1
+                              Height: =40
+                        - btnNewTask:
+                            Control: ModernButton
+                            Properties:
+                              BasePaletteColor: =clrAccent
+                              FillPortions: =0
+                              Height: =40
+                              Width: =120
+                              OnSelect: |-
+                                =Set(varEditTask, Blank());
+                                Navigate(Screen2)
+                              Text: ="+ New Task"
+                  - galTasks:
+                      Control: Gallery
+                      Variant: Vertical
+                      Properties:
+                        Items: |-
+                          =Filter(
+                            colTasks,
+                            (varFilterStatus = "All" || Status = varFilterStatus) &&
+                            (varFilterPriority = "All" || Priority = varFilterPriority) &&
+                            (IsBlank(varSearchText) || StartsWith(TaskName, varSearchText))
+                          )
+                        TemplatePadding: =10
+                        TemplateSize: =95
+                      Children:
+                        - TaskCard:
+                            Control: GroupContainer
+                            Variant: AutoLayout
+                            Properties:
+                              DropShadow: =DropShadow.Semilight
+                              Fill: =clrSurface
+                              Height: =Parent.TemplateHeight - 12
+                              LayoutAlignItems: =LayoutAlignItems.Center
+                              LayoutDirection: =LayoutDirection.Horizontal
+                              LayoutGap: =10
+                              PaddingBottom: =10
+                              PaddingLeft: =14
+                              PaddingRight: =10
+                              PaddingTop: =10
+                              RadiusBottomLeft: =8
+                              RadiusBottomRight: =8
+                              RadiusTopLeft: =8
+                              RadiusTopRight: =8
+                              Width: =Parent.TemplateWidth - 12
+                            Children:
+                              - TaskInfo:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    LayoutDirection: =LayoutDirection.Vertical
+                                    LayoutGap: =2
+                                    FillPortions: =2
+                                  Children:
+                                    - lblTaskName:
+                                        Control: Label
+                                        Properties:
+                                          Color: =clrTextPrimary
+                                          FontWeight: =FontWeight.Semibold
+                                          Size: =13
+                                          Text: =ThisItem.TaskName
+                                          Wrap: =false
+                                    - lblAssignee:
+                                        Control: Label
+                                        Properties:
+                                          Color: =clrTextSecondary
+                                          Size: =11
+                                          Text: =ThisItem.AssignedToName
+                                          Wrap: =false
+                              - StatusBadge:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    Fill: =If(ThisItem.Status="Done", clrSuccess, ThisItem.Status="In Progress", clrAccent, clrTextSecondary)
+                                    FillPortions: =0
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutJustifyContent: =LayoutJustifyContent.Center
+                                    Height: =28
+                                    Width: =85
+                                    PaddingBottom: =4
+                                    PaddingLeft: =8
+                                    PaddingRight: =8
+                                    PaddingTop: =4
+                                    RadiusBottomLeft: =4
+                                    RadiusBottomRight: =4
+                                    RadiusTopLeft: =4
+                                    RadiusTopRight: =4
+                                  Children:
+                                    - lblStatus:
+                                        Control: Label
+                                        Properties:
+                                          Align: =Align.Center
+                                          Color: =clrBg
+                                          FontWeight: =FontWeight.Semibold
+                                          Size: =10
+                                          Text: =ThisItem.Status
+                              - PriorityBadge:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    Fill: =If(ThisItem.Priority="High", clrDanger, ThisItem.Priority="Medium", clrAccentWarm, clrTextSecondary)
+                                    FillPortions: =0
+                                    LayoutAlignItems: =LayoutAlignItems.Center
+                                    LayoutJustifyContent: =LayoutJustifyContent.Center
+                                    Height: =28
+                                    Width: =70
+                                    PaddingBottom: =4
+                                    PaddingLeft: =8
+                                    PaddingRight: =8
+                                    PaddingTop: =4
+                                    RadiusBottomLeft: =4
+                                    RadiusBottomRight: =4
+                                    RadiusTopLeft: =4
+                                    RadiusTopRight: =4
+                                  Children:
+                                    - lblPriority:
+                                        Control: Label
+                                        Properties:
+                                          Align: =Align.Center
+                                          Color: =clrBg
+                                          FontWeight: =FontWeight.Semibold
+                                          Size: =10
+                                          Text: =ThisItem.Priority
+                              - ActionGroup:
+                                  Control: GroupContainer
+                                  Variant: AutoLayout
+                                  Properties:
+                                    LayoutDirection: =LayoutDirection.Horizontal
+                                    LayoutGap: =6
+                                    FillPortions: =0
+                                  Children:
+                                    - btnEdit:
+                                        Control: ModernButton
+                                        Properties:
+                                          BasePaletteColor: =clrAccent
+                                          FontWeight: =FontWeight.Semibold
+                                          Width: =60
+                                          Text: ="Edit"
+                                          OnSelect: |-
+                                            =Set(varEditTask, ThisItem);
+                                            Navigate(Screen2)
+                                    - btnDelete:
+                                        Control: ModernButton
+                                        Properties:
+                                          BasePaletteColor: =clrDanger
+                                          FontWeight: =FontWeight.Semibold
+                                          Width: =60
+                                          Text: ="Delete"
+                                          OnSelect: |-
+                                            =If(
+                                              Confirm("Delete task: " & ThisItem.TaskName & "?"),
+                                              Remove(colTasks, ThisItem);
+                                              Collect(colAuditLog, {
+                                                Id: GUID(),
+                                                TaskId: ThisItem.Id,
+                                                Action: "Task deleted",
+                                                ChangedBy: varCurrentUser,
+                                                ChangedAt: Now(),
+                                                OldValue: ThisItem.TaskName,
+                                                NewValue: ""
+                                              })
+                                            )
