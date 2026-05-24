@@ -9,9 +9,10 @@ Please update the Timesheet Logging feature in the React app:
    - Automatically assign the "cr5db_UserID" lookup field in the "Timesheet Log" record to the logged-in user's custom user record ID (currentUserRecord.cr5db_UserId). This should be populated in the background without letting the employee change it.
    - Restrict the task selection dropdown to tasks assigned to the user (cr5db_AssigneeID matches currentUserRecord.cr5db_UserId) or tasks under projects they are team members of.
 2. In the Timesheet List/History view:
-   - Filter the log records so standard employees can only view their own logged timesheets (where cr5db_UserID matches currentUserRecord.cr5db_UserId).
-3. Create a "Timesheet Approval" dashboard tab visible only to Project Managers, Department Heads, and HR:
-   - Show submitted timesheets for tasks under projects they manage.
-   - Allow them to Approve or Reject these timesheets (updating the status reason statuscode/statecode).
-   - Display summary stats (Total Hours Worked this week, Total Logged Hours by Employee).
+   - If the system role `currentUserRecord.cr5db_SystemRole` is "Employee", filter the log records so they can only view and edit their own logged timesheets (where cr5db_UserID matches currentUserRecord.cr5db_UserId).
+3. Create a "Timesheet Approval" dashboard tab:
+   - This tab must only be visible if `currentUserRecord.cr5db_SystemRole` is "ProjectManager", "HRManager", or "Admin".
+   - Project Managers should see timesheets submitted for tasks under their projects.
+   - Allow managers to mark these timesheets as Approved or Rejected (updating statuscode/statecode).
+   - Display summary metrics for managers (Total Hours Worked this week, list of employees who haven't logged hours).
 ```

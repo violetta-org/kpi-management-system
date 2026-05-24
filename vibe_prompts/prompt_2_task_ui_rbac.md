@@ -12,9 +12,10 @@ Please modify the Task Management screen in the React app:
    - When a task is saved, save the selected Project Phase ID to "cr5db_ProjectPhaseID".
    - Add an "Assignee" dropdown. Filter this dropdown to list users allocated to the selected project's team (query cr5db_ResourceAllocation where ProjectTeam.ProjectID matches the selected Project). Save the selection to "cr5db_AssigneeID".
 3. Implement RBAC Task Filtering on the dashboard:
-   - If the logged-in user is a standard Employee (not a Project Manager or Admin), filter the Task board/list to only show tasks where "cr5db_AssigneeID" matches their currentUserRecord.cr5db_UserId.
-   - If the logged-in user is a Project Manager (verify by checking if they are assigned as a manager role in cr5db_UserProjectRole for the active project), show all tasks belonging to projects they manage.
-   - Admins and HR Managers should see all tasks.
+   - Check the global `currentUserRecord.cr5db_SystemRole` value to determine their access privileges.
+   - If the system role is "Employee", filter the Task board/list to only show tasks where "cr5db_AssigneeID" matches their currentUserRecord.cr5db_UserId. They cannot edit other users' tasks.
+   - If the system role is "ProjectManager", show all tasks belonging to projects they manage (verify by checking if they are assigned as a manager role in cr5db_UserProjectRole for the active project). They can edit, assign, and delete tasks under their projects.
+   - If the system role is "HRManager" or "Admin", they can view and edit all tasks across all projects.
 4. UI Enhancements:
    - On the task board/list items, display the Assigned Employee's name and email clearly.
    - Show a warning banner if a task's Due Date is passed and its state is not Completed.

@@ -7,6 +7,8 @@ Good news! We have **already performed all the schema updates locally** in your 
    - `cr5db_TimesheetLog`: `cr5db_UserID` (User).
    - `cr5db_PerformanceAppraisal`: `cr5db_EmployeeID` (User), `cr5db_PeriodID` (Evaluation Period), and `cr5db_EvaluatorID` (User).
    - `cr5db_KPITarget`: `cr5db_EmployeeID` (User).
+3. Adding a new text field for global System RBAC:
+   - `cr5db_User`: `cr5db_SystemRole` (Text, Max Length 50). This field will hold security roles like `Employee`, `ProjectManager`, `HRManager`, or `Admin`.
 
 Now, you just need to pack the solution and deploy it to the cloud.
 
@@ -44,7 +46,7 @@ If you prefer not to use CLI import:
 *After the import is finished and published, copy and paste this prompt into the Vibe Coding portal to register these new columns and relationships within the React app coding environment:*
 
 ```text
-I have successfully packed and imported the updated solution schemas into our Dataverse environment. Please perform a sync and update our React data models to recognize these newly added lookup fields and relationship properties:
+I have successfully packed and imported the updated solution schemas into our Dataverse environment. Please perform a sync and update our React data models to recognize these newly added fields and relationship properties:
 
 1. Validate the parental cascade delete relationship between "Project" and "ProjectObjectiveAlignment".
 2. Sync the new lookup columns:
@@ -52,5 +54,7 @@ I have successfully packed and imported the updated solution schemas into our Da
    - "cr5db_TimesheetLog" now has "cr5db_UserID" (references cr5db_User).
    - "cr5db_PerformanceAppraisal" now has "cr5db_EmployeeID" (references cr5db_User), "cr5db_PeriodID" (references cr5db_EvaluationPeriod), and "cr5db_EvaluatorID" (references cr5db_User).
    - "cr5db_KPITarget" now has "cr5db_EmployeeID" (references cr5db_User).
-3. Ensure that these tables and their new columns are fully recognized and ready to be used in our React CRUD screens.
+3. Sync the new text column:
+   - "cr5db_User" now has "cr5db_SystemRole" (Text, Max Length 50).
+4. Ensure that these tables and their new columns are fully recognized and ready to be used in our React CRUD screens.
 ```

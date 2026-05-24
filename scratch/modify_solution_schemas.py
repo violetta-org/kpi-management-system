@@ -105,6 +105,66 @@ def add_lookup_attribute(entity_name, attribute_name, display_name, description=
     write_file(path, new_content)
     print(f"✅ Added lookup attribute '{attribute_name}' to '{entity_name}'.")
 
+def add_text_attribute(entity_name, attribute_name, display_name, max_length=100, description=""):
+    path = os.path.join(ENTITIES_DIR, entity_name, "Entity.xml")
+    if not os.path.exists(path):
+        print(f"❌ Entity file not found: {path}")
+        return
+    
+    content = read_file(path)
+    
+    # Check if attribute already exists
+    if f'PhysicalName="{attribute_name}"' in content:
+        print(f"ℹ️ Attribute {attribute_name} already exists in {entity_name}.")
+        return
+
+    # Attribute XML template for nvarchar
+    attribute_xml = f"""        <attribute PhysicalName="{attribute_name}">
+          <Type>nvarchar</Type>
+          <Name>{attribute_name.lower()}</Name>
+          <LogicalName>{attribute_name.lower()}</LogicalName>
+          <RequiredLevel>none</RequiredLevel>
+          <DisplayMask>ValidForForm|ValidForGrid</DisplayMask>
+          <ImeMode>auto</ImeMode>
+          <ValidForUpdateApi>1</ValidForUpdateApi>
+          <ValidForReadApi>1</ValidForReadApi>
+          <ValidForCreateApi>1</ValidForCreateApi>
+          <IsCustomField>1</IsCustomField>
+          <IsAuditEnabled>1</IsAuditEnabled>
+          <IsSecured>0</IsSecured>
+          <IntroducedVersion>1.0</IntroducedVersion>
+          <IsCustomizable>1</IsCustomizable>
+          <IsRenameable>1</IsRenameable>
+          <CanModifySearchSettings>1</CanModifySearchSettings>
+          <CanModifyRequirementLevelSettings>1</CanModifyRequirementLevelSettings>
+          <CanModifyAdditionalSettings>1</CanModifyAdditionalSettings>
+          <SourceType>0</SourceType>
+          <IsGlobalFilterEnabled>0</IsGlobalFilterEnabled>
+          <IsSortableEnabled>0</IsSortableEnabled>
+          <CanModifyGlobalFilterSettings>1</CanModifyGlobalFilterSettings>
+          <CanModifyIsSortableSettings>1</CanModifyIsSortableSettings>
+          <IsDataSourceSecret>0</IsDataSourceSecret>
+          <AutoNumberFormat></AutoNumberFormat>
+          <IsSearchable>1</IsSearchable>
+          <IsFilterable>1</IsFilterable>
+          <IsRetrievable>1</IsRetrievable>
+          <IsLocalizable>0</IsLocalizable>
+          <Format>text</Format>
+          <MaxLength>{max_length}</MaxLength>
+          <Length>{max_length * 2}</Length>
+          <displaynames>
+            <displayname description="{display_name}" languagecode="1033" />
+          </displaynames>
+          <Descriptions>
+            <Description description="{description}" languagecode="1033" />
+          </Descriptions>
+        </attribute>
+"""
+    # Insert before the closing </attributes> tag
+    new_content = content.replace("      </attributes>", attribute_xml + "      </attributes>")
+    write_file(path, new_content)
+    print(f"✅ Added text attribute '{attribute_name}' to '{entity_name}'.")
+
 def make_relationship_xml(name, child_entity, parent_entity, child_lookup, description=""):
     return f"""  <EntityRelationship Name="{name}">
     <EntityRelationshipType>OneToMany</EntityRelationshipType>
@@ -215,6 +275,9 @@ def main():
     
     # 5. Add columns to KPI Target
     add_lookup_attribute("cr5db_KPITarget", "cr5db_EmployeeID", "Employee Target Owner", "Employee target owner")
+    
+    # 5b. Add global system-wide security role to User table
+    add_text_attribute("cr5db_User", "cr5db_SystemRole", "System Role", max_length=50, description="System-wide security role for employee (e.g. Employee, ProjectManager, HRManager, Admin)")
     
     # 6. Prepare Relationships Lists
     user_relationships = [
