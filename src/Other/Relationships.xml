@@ -229,4 +229,11 @@
   <EntityRelationship Name="user_cr5db_timesheetlog" />
   <EntityRelationship Name="user_cr5db_user" />
   <EntityRelationship Name="user_cr5db_userprojectrole" />
+  <EntityRelationship Name="cr5db_Task_Assignee_cr5db_User" />
+  <EntityRelationship Name="cr5db_TimesheetLog_User_cr5db_User" />
+  <EntityRelationship Name="cr5db_PerformanceAppraisal_Employee_cr5db_User" />
+  <EntityRelationship Name="cr5db_PerformanceAppraisal_Evaluator_cr5db_User" />
+  <EntityRelationship Name="cr5db_KPITarget_Employee_cr5db_User" />
+  <EntityRelationship Name="cr5db_PerformanceAppraisal_Period_cr5db_EvaluationPeriod" />
+  <EntityRelationship Name="cr5db_Task_ProjectPhase_cr5db_ProjectPhase" />
 </EntityRelationships>

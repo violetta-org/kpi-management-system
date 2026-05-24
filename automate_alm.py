@@ -66,6 +66,41 @@ def unpack_solution(zip_path, src_folder):
     ]
     return run_command(cmd)
 
+def pack_solution(zip_path, src_folder):
+    """Pack the solution folder back into a solution zip using pac solution pack."""
+    if not check_command("pac"):
+        print("❌ Error: Power Platform CLI ('pac') is not installed or not in your PATH.")
+        return False
+
+    print(f"📦 Packing '{src_folder}' back into '{zip_path}'...")
+    cmd = [
+        "pac", "solution", "pack",
+        "--zipfile", zip_path,
+        "--folder", src_folder
+    ]
+    return run_command(cmd)
+
+def import_solution(env_url, zip_path):
+    """Import the solution zip using pac solution import."""
+    if not check_command("pac"):
+        print("❌ Error: Power Platform CLI ('pac') is not installed or not in your PATH.")
+        return False
+
+    if not os.path.exists(zip_path):
+        print(f"❌ Error: Solution zip file not found at '{zip_path}'. Pack first.")
+        return False
+
+    print(f"📥 Importing solution from '{zip_path}'...")
+    cmd = [
+        "pac", "solution", "import",
+        "--path", zip_path
+    ]
+    if env_url:
+        print(f"Target environment URL: {env_url}")
+        cmd.extend(["--environment", env_url])
+
+    return run_command(cmd)
+
 def git_commit_and_push(src_folder, commit_message, push):
     """Commit changes to Git and optionally push to GitHub."""
     if not check_command("git"):
@@ -114,6 +149,8 @@ def main():
     parser = argparse.ArgumentParser(description="Power Apps Vibe ALM Automation Script (Conda compatible)")
     parser.add_argument("--export", action="store_true", help="Export the solution from Power Platform")
     parser.add_argument("--unpack", action="store_true", help="Unpack the solution zip into source folder")
+    parser.add_argument("--pack", action="store_true", help="Pack the source folder into a solution zip")
+    parser.add_argument("--import-sol", action="store_true", help="Import the solution zip into Power Platform")
     parser.add_argument("--commit", action="store_true", help="Commit unpacked files to Git")
     parser.add_argument("--push", action="store_true", help="Push committed changes to GitHub remote")
     parser.add_argument("--solution-name", default=DEFAULT_SOLUTION, help=f"Name of the solution (default: {DEFAULT_SOLUTION})")
@@ -124,7 +161,7 @@ def main():
 
     args = parser.parse_args()
 
-    if not (args.export or args.unpack or args.commit or args.push):
+    if not (args.export or args.unpack or args.pack or args.import_sol or args.commit or args.push):
         parser.print_help()
         sys.exit(0)
 
@@ -137,6 +174,16 @@ def main():
 
     if args.unpack:
         success = unpack_solution(args.zip_path, args.src_folder)
+        if not success:
+            sys.exit(1)
+
+    if args.pack:
+        success = pack_solution(args.zip_path, args.src_folder)
+        if not success:
+            sys.exit(1)
+
+    if args.import_sol:
+        success = import_solution(args.env_url, args.zip_path)
         if not success:
             sys.exit(1)
 
