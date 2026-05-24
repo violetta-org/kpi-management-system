@@ -47,11 +47,13 @@
   <EntityRelationship Name="cr5db_KPITarget_cr5db_KPILibrary" />
   <EntityRelationship Name="cr5db_kpitarget_ParentObjective_cr5db_objective" />
   <EntityRelationship Name="cr5db_Objective_cr5db_EvaluationPeriod" />
+  <EntityRelationship Name="cr5db_Period_Appraisal" />
   <EntityRelationship Name="cr5db_ProjectIssue_cr5db_Task" />
   <EntityRelationship Name="cr5db_ProjectLabelAssignment_cr5db_SystemLabel" />
   <EntityRelationship Name="cr5db_projectobjectivealignment_Objective_cr5db_objective" />
   <EntityRelationship Name="cr5db_projectobjectivealignment_Project_cr5db_project" />
   <EntityRelationship Name="cr5db_ProjectPhase_cr5db_Project" />
+  <EntityRelationship Name="cr5db_ProjectPhase_Task" />
   <EntityRelationship Name="cr5db_ProjectTeam_cr5db_Project" />
   <EntityRelationship Name="cr5db_ResourceAllocation_cr5db_ProjectTeam" />
   <EntityRelationship Name="cr5db_ResourceAllocation_cr5db_User" />
@@ -62,7 +64,12 @@
   <EntityRelationship Name="cr5db_TaskDependency_cr5db_Task1" />
   <EntityRelationship Name="cr5db_TaskLabelAssignment_cr5db_SystemLabel" />
   <EntityRelationship Name="cr5db_TimesheetLog_cr5db_Task" />
+  <EntityRelationship Name="cr5db_User_Appraisal_Employee" />
+  <EntityRelationship Name="cr5db_User_Appraisal_Evaluator" />
   <EntityRelationship Name="cr5db_user_JobPosition_cr5db_jobposition" />
+  <EntityRelationship Name="cr5db_User_KPITarget" />
+  <EntityRelationship Name="cr5db_User_Task_Assignee" />
+  <EntityRelationship Name="cr5db_User_TimesheetLog" />
   <EntityRelationship Name="cr5db_UserProjectRole_cr5db_ResourceAllocation" />
   <EntityRelationship Name="lk_cr5db_appraisalkpidetail_createdby" />
   <EntityRelationship Name="lk_cr5db_appraisalkpidetail_modifiedby" />
@@ -229,11 +236,4 @@
   <EntityRelationship Name="user_cr5db_timesheetlog" />
   <EntityRelationship Name="user_cr5db_user" />
   <EntityRelationship Name="user_cr5db_userprojectrole" />
-  <EntityRelationship Name="cr5db_Task_Assignee_cr5db_User" />
-  <EntityRelationship Name="cr5db_TimesheetLog_User_cr5db_User" />
-  <EntityRelationship Name="cr5db_PerformanceAppraisal_Employee_cr5db_User" />
-  <EntityRelationship Name="cr5db_PerformanceAppraisal_Evaluator_cr5db_User" />
-  <EntityRelationship Name="cr5db_KPITarget_Employee_cr5db_User" />
-  <EntityRelationship Name="cr5db_PerformanceAppraisal_Period_cr5db_EvaluationPeriod" />
-  <EntityRelationship Name="cr5db_Task_ProjectPhase_cr5db_ProjectPhase" />
 </EntityRelationships>

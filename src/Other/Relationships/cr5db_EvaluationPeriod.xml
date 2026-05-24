@@ -35,10 +35,10 @@
       </EntityRelationshipRole>
     </EntityRelationshipRoles>
   </EntityRelationship>
-  <EntityRelationship Name="cr5db_PerformanceAppraisal_Period_cr5db_EvaluationPeriod">
+  <EntityRelationship Name="cr5db_Period_Appraisal">
     <EntityRelationshipType>OneToMany</EntityRelationshipType>
     <IsCustomizable>1</IsCustomizable>
-    <IntroducedVersion>1.0</IntroducedVersion>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
     <IsHierarchical>0</IsHierarchical>
     <ReferencingEntityName>cr5db_PerformanceAppraisal</ReferencingEntityName>
     <ReferencedEntityName>cr5db_EvaluationPeriod</ReferencedEntityName>
@@ -53,7 +53,7 @@
     <ReferencingAttributeName>cr5db_PeriodID</ReferencingAttributeName>
     <RelationshipDescription>
       <Descriptions>
-        <Description description="Appraisal period" languagecode="1033" />
+        <Description description="The evaluation period for this appraisal" languagecode="1033" />
       </Descriptions>
     </RelationshipDescription>
     <EntityRelationshipRoles>
@@ -65,7 +65,7 @@
         <RelationshipRoleType>1</RelationshipRoleType>
       </EntityRelationshipRole>
       <EntityRelationshipRole>
-        <NavigationPropertyName>cr5db_PerformanceAppraisal_Period_cr5db_EvaluationPeriod</NavigationPropertyName>
+        <NavigationPropertyName>cr5db_Period_Appraisal</NavigationPropertyName>
         <RelationshipRoleType>0</RelationshipRoleType>
       </EntityRelationshipRole>
     </EntityRelationshipRoles>
