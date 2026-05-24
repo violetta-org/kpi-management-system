@@ -1,0 +1,120 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ImportExportXml version="9.2.26051.148" SolutionPackageVersion="9.2" languagecode="1033" generatedBy="CrmLive" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" OrganizationVersion="9.2.26051.148" OrganizationSchemaType="Standard" CRMServerServiceabilityVersion="9.2.26051.00148">
+  <SolutionManifest>
+    <UniqueName>VibeApp</UniqueName>
+    <LocalizedNames>
+      <LocalizedName description="VibeApp" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions />
+    <Version>1.0.0.0</Version>
+    <Managed>0</Managed>
+    <Publisher>
+      <UniqueName>DefaultPublisherorgcaf78765</UniqueName>
+      <LocalizedNames>
+        <LocalizedName description="Default Publisher for orgcaf78765" languagecode="1033" />
+      </LocalizedNames>
+      <Descriptions>
+        <Description description="Default publisher for this organization" languagecode="1033" />
+      </Descriptions>
+      <EMailAddress xsi:nil="true"></EMailAddress>
+      <SupportingWebsiteUrl xsi:nil="true"></SupportingWebsiteUrl>
+      <CustomizationPrefix>new</CustomizationPrefix>
+      <CustomizationOptionValuePrefix>10000</CustomizationOptionValuePrefix>
+      <Addresses>
+        <Address>
+          <AddressNumber>1</AddressNumber>
+          <AddressTypeCode xsi:nil="true"></AddressTypeCode>
+          <City xsi:nil="true"></City>
+          <County xsi:nil="true"></County>
+          <Country xsi:nil="true"></Country>
+          <Fax xsi:nil="true"></Fax>
+          <FreightTermsCode xsi:nil="true"></FreightTermsCode>
+          <ImportSequenceNumber xsi:nil="true"></ImportSequenceNumber>
+          <Latitude xsi:nil="true"></Latitude>
+          <Line1 xsi:nil="true"></Line1>
+          <Line2 xsi:nil="true"></Line2>
+          <Line3 xsi:nil="true"></Line3>
+          <Longitude xsi:nil="true"></Longitude>
+          <Name xsi:nil="true"></Name>
+          <PostalCode xsi:nil="true"></PostalCode>
+          <PostOfficeBox xsi:nil="true"></PostOfficeBox>
+          <PrimaryContactName xsi:nil="true"></PrimaryContactName>
+          <ShippingMethodCode xsi:nil="true"></ShippingMethodCode>
+          <StateOrProvince xsi:nil="true"></StateOrProvince>
+          <Telephone1 xsi:nil="true"></Telephone1>
+          <Telephone2 xsi:nil="true"></Telephone2>
+          <Telephone3 xsi:nil="true"></Telephone3>
+          <TimeZoneRuleVersionNumber xsi:nil="true"></TimeZoneRuleVersionNumber>
+          <UPSZone xsi:nil="true"></UPSZone>
+          <UTCOffset xsi:nil="true"></UTCOffset>
+          <UTCConversionTimeZoneCode xsi:nil="true"></UTCConversionTimeZoneCode>
+        </Address>
+        <Address>
+          <AddressNumber>2</AddressNumber>
+          <AddressTypeCode xsi:nil="true"></AddressTypeCode>
+          <City xsi:nil="true"></City>
+          <County xsi:nil="true"></County>
+          <Country xsi:nil="true"></Country>
+          <Fax xsi:nil="true"></Fax>
+          <FreightTermsCode xsi:nil="true"></FreightTermsCode>
+          <ImportSequenceNumber xsi:nil="true"></ImportSequenceNumber>
+          <Latitude xsi:nil="true"></Latitude>
+          <Line1 xsi:nil="true"></Line1>
+          <Line2 xsi:nil="true"></Line2>
+          <Line3 xsi:nil="true"></Line3>
+          <Longitude xsi:nil="true"></Longitude>
+          <Name xsi:nil="true"></Name>
+          <PostalCode xsi:nil="true"></PostalCode>
+          <PostOfficeBox xsi:nil="true"></PostOfficeBox>
+          <PrimaryContactName xsi:nil="true"></PrimaryContactName>
+          <ShippingMethodCode xsi:nil="true"></ShippingMethodCode>
+          <StateOrProvince xsi:nil="true"></StateOrProvince>
+          <Telephone1 xsi:nil="true"></Telephone1>
+          <Telephone2 xsi:nil="true"></Telephone2>
+          <Telephone3 xsi:nil="true"></Telephone3>
+          <TimeZoneRuleVersionNumber xsi:nil="true"></TimeZoneRuleVersionNumber>
+          <UPSZone xsi:nil="true"></UPSZone>
+          <UTCOffset xsi:nil="true"></UTCOffset>
+          <UTCConversionTimeZoneCode xsi:nil="true"></UTCConversionTimeZoneCode>
+        </Address>
+      </Addresses>
+    </Publisher>
+    <RootComponents>
+      <RootComponent type="1" schemaName="cr5db_appraisalkpidetail" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_approvaldelegation" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_audittraillog" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_company" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_department" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_evaluationperiod" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_headcountrequest" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_jobposition" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_kpiactuallog" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_kpilibrary" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_kpitarget" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_objective" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_performanceappraisal" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_positioncatalog" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_project" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_projectissue" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_projectlabelassignment" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_projectobjectivealignment" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_projectphase" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_projectteam" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_projectrisk" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_resourceallocation" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_systemlabel" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_systemnotification" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_systemparameter" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_systempolicyrule" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_task" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_taskcomment" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_taskdependency" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_tasklabelassignment" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_timesheetlog" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_user" behavior="0" />
+      <RootComponent type="1" schemaName="cr5db_userprojectrole" behavior="0" />
+      <RootComponent type="300" schemaName="new_qunlnhbinnhns_a5b77" behavior="0" />
+    </RootComponents>
+    <MissingDependencies />
+  </SolutionManifest>
+</ImportExportXml>

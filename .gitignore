@@ -1,0 +1,6 @@
+*.zip
+*.log
+.bin/
+obj/
+bin/
+env/

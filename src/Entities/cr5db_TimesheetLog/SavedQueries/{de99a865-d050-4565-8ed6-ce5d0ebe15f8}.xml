@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{de99a865-d050-4565-8ed6-ce5d0ebe15f8}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr5db_timesheetlog1" select="1" icon="1" preview="1">
+        <row name="result" id="cr5db_timesheetlogid">
+          <cell name="cr5db_timesheetlog1" width="300" />
+          <cell name="cr5db_logdate" width="150" />
+          <cell name="cr5db_actualhoursworked" width="150" />
+          <cell name="cr5db_taskid" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr5db_timesheetlog">
+          <attribute name="cr5db_timesheetlogid" />
+          <attribute name="cr5db_timesheetlog1" />
+          <attribute name="createdon" />
+          <order attribute="cr5db_timesheetlog1" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr5db_logdate" />
+          <attribute name="cr5db_actualhoursworked" />
+          <attribute name="cr5db_taskid" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Timesheet Logs" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

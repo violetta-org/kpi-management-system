@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{e50f562e-4995-4226-beae-def12ce7e44c}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{69268bf0-375a-4eca-acf8-597a8aed9289}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{16869f3b-1485-4903-a952-13edeb6ae540}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{a6487b1c-0249-4a86-b86c-dab192cca963}">
+                        <labels>
+                          <label description="System Policy Rule" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_systempolicyrule1" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr5db_systempolicyrule1" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2190cca0-931f-4c58-a3fa-d1137da7c8d1}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8f884ade-1f49-47cd-a414-df2917808db0}">
+                        <labels>
+                          <label description="Target Entity" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_targetentity" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr5db_targetentity" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{13e151c1-23ea-47b6-8365-1255907dff6d}">
+                        <labels>
+                          <label description="Context Condition" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_contextcondition" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr5db_contextcondition" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{c92f89bc-6d63-4c08-b926-84293cf12d9b}">
+                        <labels>
+                          <label description="Operator" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_operator" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr5db_operator" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{37be573c-bc4c-4a43-a645-c61339e8b964}">
+                        <labels>
+                          <label description="Constraint Value" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_constraintvalue" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr5db_constraintvalue" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0ff90d44-1fdc-4641-b911-e7e051f9b767}">
+                        <labels>
+                          <label description="Effect" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_effect" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr5db_effect" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

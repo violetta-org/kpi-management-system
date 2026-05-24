@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{a8ffd146-d756-4e8d-9c53-3b7d485b22b5}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{390ebcd4-34a3-4f32-b873-860912646a52}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{02da2eb8-47a9-4326-8110-a95c7850c926}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{8d6bcb12-b9e7-4a45-b616-36b42e1a8053}">
+                        <labels>
+                          <label description="Timesheet Log" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_timesheetlog1" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr5db_timesheetlog1" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8d5ccedf-ea4e-4ace-8493-d1e27b8a053e}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{bbddeb37-14b9-42c2-97f6-08f5a8a13ecb}">
+                        <labels>
+                          <label description="Log Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_logdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr5db_logdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{a7600b88-2768-457d-8b29-d8c7c01b7173}">
+                        <labels>
+                          <label description="Actual Hours Worked" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_actualhoursworked" classid="{c3efe0c3-0ec6-42be-8349-cbd9079dfd8e}" datafieldname="cr5db_actualhoursworked" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0fffe3f5-a06e-40dd-a379-ce0cd8d236d7}">
+                        <labels>
+                          <label description="Task" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_taskid" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr5db_taskid" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>
