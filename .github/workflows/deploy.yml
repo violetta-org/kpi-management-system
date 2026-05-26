@@ -19,7 +19,18 @@ jobs:
     - name: Install Power Platform Tools
       uses: microsoft/powerplatform-actions/actions-install@v1
 
-    # 2. Pack the source files back into an unmanaged solution zip
+    # 2. Add Power Platform CLI to PATH
+    - name: Add Power Platform CLI to PATH
+      run: |
+        if [ -f "$POWERPLATFORMTOOLS_PACPATH" ]; then
+          echo "$(dirname "$POWERPLATFORMTOOLS_PACPATH")" >> $GITHUB_PATH
+        elif [ -d "$POWERPLATFORMTOOLS_PACPATH" ]; then
+          echo "$POWERPLATFORMTOOLS_PACPATH" >> $GITHUB_PATH
+          echo "$POWERPLATFORMTOOLS_PACPATH/pac/bin" >> $GITHUB_PATH
+          echo "$POWERPLATFORMTOOLS_PACPATH/bin" >> $GITHUB_PATH
+        fi
+
+    # 3. Pack the source files back into an unmanaged solution zip
     - name: Pack Solution (Unmanaged)
       uses: microsoft/powerplatform-actions/pack-solution@v1
       with:
@@ -27,18 +38,18 @@ jobs:
         solution-file: 'out/VibeApp.zip'
         solution-type: 'Unmanaged'
 
-    # 3. Authenticate and Import the unmanaged solution into the Build Environment using direct pac CLI (bypasses admin endpoints)
+    # 4. Authenticate and Import the unmanaged solution into the Build Environment using direct pac CLI (bypasses admin endpoints)
     - name: Import Solution to Build Env
       run: |
         pac auth create --name "BuildEnv" --applicationId "${{ secrets.CLIENT_ID }}" --clientSecret "${{ secrets.CLIENT_SECRET }}" --tenant "${{ secrets.TENANT_ID }}" --environment "${{ secrets.ENVIRONMENT_URL }}"
         pac solution import --path out/VibeApp.zip --activate-plugins --force-overwrite
 
-    # 4. Export the solution from the Build Environment as Managed using direct pac CLI
+    # 5. Export the solution from the Build Environment as Managed using direct pac CLI
     - name: Export Solution from Build Env (Managed)
       run: |
         pac solution export --name "VibeApp" --path "out/VibeApp_managed.zip" --managed --overwrite
 
-    # 5. Upload the Managed Solution zip as a build artifact
+    # 6. Upload the Managed Solution zip as a build artifact
     - name: Upload Solution Artifact
       uses: actions/upload-artifact@v4
       with:
@@ -54,14 +65,25 @@ jobs:
     - name: Install Power Platform Tools
       uses: microsoft/powerplatform-actions/actions-install@v1
 
-    # 2. Download the managed solution artifact from the build job
+    # 2. Add Power Platform CLI to PATH
+    - name: Add Power Platform CLI to PATH
+      run: |
+        if [ -f "$POWERPLATFORMTOOLS_PACPATH" ]; then
+          echo "$(dirname "$POWERPLATFORMTOOLS_PACPATH")" >> $GITHUB_PATH
+        elif [ -d "$POWERPLATFORMTOOLS_PACPATH" ]; then
+          echo "$POWERPLATFORMTOOLS_PACPATH" >> $GITHUB_PATH
+          echo "$POWERPLATFORMTOOLS_PACPATH/pac/bin" >> $GITHUB_PATH
+          echo "$POWERPLATFORMTOOLS_PACPATH/bin" >> $GITHUB_PATH
+        fi
+
+    # 3. Download the managed solution artifact from the build job
     - name: Download Solution Artifact
       uses: actions/download-artifact@v4
       with:
         name: managed-solution
         path: out
 
-    # 3. Authenticate and Import the managed solution into the Target Environment using direct pac CLI
+    # 4. Authenticate and Import the managed solution into the Target Environment using direct pac CLI
     - name: Import Solution to Target Environment
       run: |
         pac auth create --name "TargetEnv" --applicationId "${{ secrets.CLIENT_ID }}" --clientSecret "${{ secrets.CLIENT_SECRET }}" --tenant "${{ secrets.TENANT_ID }}" --environment "${{ secrets.ENVIRONMENT_URL }}"
