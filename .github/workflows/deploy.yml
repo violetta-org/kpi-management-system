@@ -19,13 +19,13 @@ jobs:
     - name: Install Power Platform Tools
       uses: microsoft/powerplatform-actions/actions-install@v1
 
-    # 2. Pack the source files back into a managed solution zip
+    # 2. Pack the source files back into an unmanaged solution zip
     - name: Pack Solution
       uses: microsoft/powerplatform-actions/pack-solution@v1
       with:
         solution-folder: 'src'
         solution-file: 'out/VibeApp.zip'
-        solution-type: 'Managed'
+        solution-type: 'Unmanaged'
 
     # 3. Import the managed solution into the target environment
     - name: Import Solution to Target Environment
