@@ -11,8 +11,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: Build  # Uses Build environment secrets (ENVIRONMENT_URL = QLDA-Build)
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     # 1. Install Power Platform CLI tooling
     - name: Install Power Platform Tools
@@ -30,7 +31,7 @@ jobs:
     - name: Import Solution to Build Env
       uses: microsoft/powerplatform-actions/import-solution@v1
       with:
-        environment-url: ${{ secrets.BUILD_ENVIRONMENT_URL }}
+        environment-url: ${{ secrets.ENVIRONMENT_URL }}
         app-id: ${{ secrets.CLIENT_ID }}
         client-secret: ${{ secrets.CLIENT_SECRET }}
         tenant-id: ${{ secrets.TENANT_ID }}
@@ -41,7 +42,7 @@ jobs:
     - name: Export Solution from Build Env (Managed)
       uses: microsoft/powerplatform-actions/export-solution@v1
       with:
-        environment-url: ${{ secrets.BUILD_ENVIRONMENT_URL }}
+        environment-url: ${{ secrets.ENVIRONMENT_URL }}
         app-id: ${{ secrets.CLIENT_ID }}
         client-secret: ${{ secrets.CLIENT_SECRET }}
         tenant-id: ${{ secrets.TENANT_ID }}
@@ -59,7 +60,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    environment: Production
+    environment: Production  # Uses Production environment secrets (ENVIRONMENT_URL = QLDA-Target)
     steps:
     # 1. Install Power Platform CLI tooling
     - name: Install Power Platform Tools
