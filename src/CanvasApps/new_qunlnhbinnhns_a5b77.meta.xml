@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <CanvasApp xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <Name>new_qunlnhbinnhns_a5b77</Name>
-  <AppVersion>2026-05-24T18:21:32Z</AppVersion>
+  <AppVersion>2026-05-24T21:50:53Z</AppVersion>
   <Status>Ready</Status>
   <CreatedByClientVersion>0.0.0.0</CreatedByClientVersion>
   <MinClientVersion>0.0.0.0</MinClientVersion>
@@ -28,8 +28,8 @@
   <IsCustomizable>1</IsCustomizable>
   <CodeAppPackageUris>
     <CodeAppPackageUri>/CanvasApps/new_qunlnhbinnhns_a5b77_CodeAppPackages/index.html_ContentType_text/html</CodeAppPackageUri>
-    <CodeAppPackageUri>/CanvasApps/new_qunlnhbinnhns_a5b77_CodeAppPackages/assets/index-BjdApq_l.css_ContentType_text/css</CodeAppPackageUri>
-    <CodeAppPackageUri>/CanvasApps/new_qunlnhbinnhns_a5b77_CodeAppPackages/assets/index-DuvAOkFp.js_ContentType_application/javascript</CodeAppPackageUri>
+    <CodeAppPackageUri>/CanvasApps/new_qunlnhbinnhns_a5b77_CodeAppPackages/assets/index-BSWRYp28.js_ContentType_application/javascript</CodeAppPackageUri>
+    <CodeAppPackageUri>/CanvasApps/new_qunlnhbinnhns_a5b77_CodeAppPackages/assets/index-C1g9wcyr.css_ContentType_text/css</CodeAppPackageUri>
     <CodeAppPackageUri>/CanvasApps/new_qunlnhbinnhns_a5b77_CodeAppPackages/favicon.ico_ContentType_image/x-icon</CodeAppPackageUri>
   </CodeAppPackageUris>
 </CanvasApp>
