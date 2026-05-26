@@ -27,7 +27,7 @@ jobs:
         solution-file: 'out/VibeApp.zip'
         solution-type: 'Unmanaged'
 
-    # 3. Import the managed solution into the target environment
+    # 3. Import the solution into the target environment, converting it to Managed
     - name: Import Solution to Target Environment
       uses: microsoft/powerplatform-actions/import-solution@v1
       with:
@@ -38,3 +38,4 @@ jobs:
         solution-file: 'out/VibeApp.zip'
         force-overwrite: true
         publish-changes: true
+        convert-to-managed: true
