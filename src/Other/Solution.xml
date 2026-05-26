@@ -6,7 +6,7 @@
       <LocalizedName description="VibeApp" languagecode="1033" />
     </LocalizedNames>
     <Descriptions />
-    <Version>1.0.0.0</Version>
+    <Version>1.0.0.1</Version>
     <Managed>0</Managed>
     <Publisher>
       <UniqueName>DefaultPublisherorgcaf78765</UniqueName>
@@ -113,6 +113,14 @@
       <RootComponent type="1" schemaName="cr5db_timesheetlog" behavior="0" />
       <RootComponent type="1" schemaName="cr5db_user" behavior="0" />
       <RootComponent type="1" schemaName="cr5db_userprojectrole" behavior="0" />
+      <RootComponent type="1" schemaName="new_roleassignment" behavior="0" />
+      <RootComponent type="1" schemaName="new_systemrole" behavior="0" />
+      <RootComponent type="1" schemaName="new_taskownership" behavior="0" />
+      <RootComponent type="1" schemaName="new_timesheetaudit" behavior="0" />
+      <RootComponent type="20" id="{0645c1fd-7558-f111-a825-000d3a80f12a}" behavior="0" />
+      <RootComponent type="20" id="{915930c4-7558-f111-a825-000d3a80f12a}" behavior="0" />
+      <RootComponent type="20" id="{b592c5fc-bf58-f111-a825-000d3a80f12a}" behavior="0" />
+      <RootComponent type="20" id="{d9da2de9-7558-f111-a825-000d3a80f12a}" behavior="0" />
       <RootComponent type="300" schemaName="new_qunlnhbinnhns_a5b77" behavior="0" />
     </RootComponents>
     <MissingDependencies />

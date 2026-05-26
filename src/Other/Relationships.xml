@@ -33,6 +33,10 @@
   <EntityRelationship Name="business_unit_cr5db_timesheetlog" />
   <EntityRelationship Name="business_unit_cr5db_user" />
   <EntityRelationship Name="business_unit_cr5db_userprojectrole" />
+  <EntityRelationship Name="business_unit_new_roleassignment" />
+  <EntityRelationship Name="business_unit_new_systemrole" />
+  <EntityRelationship Name="business_unit_new_taskownership" />
+  <EntityRelationship Name="business_unit_new_timesheetaudit" />
   <EntityRelationship Name="cr5db_AppraisalKPIDetail_cr5db_KPITarget" />
   <EntityRelationship Name="cr5db_AppraisalKPIDetail_cr5db_PerformanceAppraisal" />
   <EntityRelationship Name="cr5db_Department_cr5db_Company" />
@@ -137,6 +141,17 @@
   <EntityRelationship Name="lk_cr5db_user_modifiedby" />
   <EntityRelationship Name="lk_cr5db_userprojectrole_createdby" />
   <EntityRelationship Name="lk_cr5db_userprojectrole_modifiedby" />
+  <EntityRelationship Name="lk_new_roleassignment_createdby" />
+  <EntityRelationship Name="lk_new_roleassignment_modifiedby" />
+  <EntityRelationship Name="lk_new_systemrole_createdby" />
+  <EntityRelationship Name="lk_new_systemrole_modifiedby" />
+  <EntityRelationship Name="lk_new_taskownership_createdby" />
+  <EntityRelationship Name="lk_new_taskownership_modifiedby" />
+  <EntityRelationship Name="lk_new_timesheetaudit_createdby" />
+  <EntityRelationship Name="lk_new_timesheetaudit_modifiedby" />
+  <EntityRelationship Name="new_RoleAssignment_new_AssignedBy_cr5db_User" />
+  <EntityRelationship Name="new_RoleAssignment_new_SystemRole_new_SystemRole" />
+  <EntityRelationship Name="new_RoleAssignment_new_User_cr5db_User" />
   <EntityRelationship Name="owner_cr5db_appraisalkpidetail" />
   <EntityRelationship Name="owner_cr5db_approvaldelegation" />
   <EntityRelationship Name="owner_cr5db_audittraillog" />
@@ -170,6 +185,10 @@
   <EntityRelationship Name="owner_cr5db_timesheetlog" />
   <EntityRelationship Name="owner_cr5db_user" />
   <EntityRelationship Name="owner_cr5db_userprojectrole" />
+  <EntityRelationship Name="owner_new_roleassignment" />
+  <EntityRelationship Name="owner_new_systemrole" />
+  <EntityRelationship Name="owner_new_taskownership" />
+  <EntityRelationship Name="owner_new_timesheetaudit" />
   <EntityRelationship Name="team_cr5db_appraisalkpidetail" />
   <EntityRelationship Name="team_cr5db_approvaldelegation" />
   <EntityRelationship Name="team_cr5db_audittraillog" />
@@ -203,6 +222,10 @@
   <EntityRelationship Name="team_cr5db_timesheetlog" />
   <EntityRelationship Name="team_cr5db_user" />
   <EntityRelationship Name="team_cr5db_userprojectrole" />
+  <EntityRelationship Name="team_new_roleassignment" />
+  <EntityRelationship Name="team_new_systemrole" />
+  <EntityRelationship Name="team_new_taskownership" />
+  <EntityRelationship Name="team_new_timesheetaudit" />
   <EntityRelationship Name="user_cr5db_appraisalkpidetail" />
   <EntityRelationship Name="user_cr5db_approvaldelegation" />
   <EntityRelationship Name="user_cr5db_audittraillog" />
@@ -236,4 +259,8 @@
   <EntityRelationship Name="user_cr5db_timesheetlog" />
   <EntityRelationship Name="user_cr5db_user" />
   <EntityRelationship Name="user_cr5db_userprojectrole" />
+  <EntityRelationship Name="user_new_roleassignment" />
+  <EntityRelationship Name="user_new_systemrole" />
+  <EntityRelationship Name="user_new_taskownership" />
+  <EntityRelationship Name="user_new_timesheetaudit" />
 </EntityRelationships>
