@@ -19,15 +19,20 @@ jobs:
     - name: Install Power Platform Tools
       uses: microsoft/powerplatform-actions/actions-install@v1
 
-    # 2. Pack the source files back into an unmanaged solution zip
+    # 2. Convert metadata to Managed dynamically on the runner
+    - name: Convert Solution Metadata to Managed
+      run: |
+        sed -i 's/<Managed>0<\/Managed>/<Managed>1<\/Managed>/g' src/Other/Solution.xml
+
+    # 3. Pack the source files back into a managed solution zip
     - name: Pack Solution
       uses: microsoft/powerplatform-actions/pack-solution@v1
       with:
         solution-folder: 'src'
         solution-file: 'out/VibeApp.zip'
-        solution-type: 'Unmanaged'
+        solution-type: 'Managed'
 
-    # 3. Import the solution into the target environment, converting it to Managed
+    # 4. Import the managed solution into the target environment
     - name: Import Solution to Target Environment
       uses: microsoft/powerplatform-actions/import-solution@v1
       with:
@@ -38,4 +43,3 @@ jobs:
         solution-file: 'out/VibeApp.zip'
         force-overwrite: true
         publish-changes: true
-        convert-to-managed: true
