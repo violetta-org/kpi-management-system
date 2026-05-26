@@ -1,0 +1,36 @@
+name: Deploy Solution to Target
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: Production
+    steps:
+    - uses: actions/checkout@v3
+
+    # 1. Pack the source files back into a managed solution zip
+    - name: Pack Solution
+      uses: microsoft/powerplatform-actions/pack-solution@v0
+      with:
+        solution-folder: 'src'
+        solution-file: 'out/VibeApp.zip'
+        solution-type: 'Managed'
+
+    # 2. Import the managed solution into the target environment
+    - name: Import Solution to Target Environment
+      uses: microsoft/powerplatform-actions/import-solution@v0
+      with:
+        environment-url: ${{ secrets.ENVIRONMENT_URL }}
+        app-id: ${{ secrets.CLIENT_ID }}
+        client-secret: ${{ secrets.CLIENT_SECRET }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        solution-file: 'out/VibeApp.zip'
+        force-overwrite: true
+        publish-changes: true
