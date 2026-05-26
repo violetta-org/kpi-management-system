@@ -1,4 +1,4 @@
-name: Deploy Solution to Target
+name: Deploy Solution to Target (Standard ALM)
 
 on:
   push:
@@ -9,9 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment: Production
     steps:
     - uses: actions/checkout@v3
 
@@ -19,20 +18,61 @@ jobs:
     - name: Install Power Platform Tools
       uses: microsoft/powerplatform-actions/actions-install@v1
 
-    # 2. Convert metadata to Managed dynamically on the runner
-    - name: Convert Solution Metadata to Managed
-      run: |
-        sed -i 's/<Managed>0<\/Managed>/<Managed>1<\/Managed>/g' src/Other/Solution.xml
-
-    # 3. Pack the source files back into a managed solution zip
-    - name: Pack Solution
+    # 2. Pack the source files back into an unmanaged solution zip
+    - name: Pack Solution (Unmanaged)
       uses: microsoft/powerplatform-actions/pack-solution@v1
       with:
         solution-folder: 'src'
         solution-file: 'out/VibeApp.zip'
-        solution-type: 'Managed'
+        solution-type: 'Unmanaged'
 
-    # 4. Import the managed solution into the target environment
+    # 3. Import the unmanaged solution into the Build Environment
+    - name: Import Solution to Build Env
+      uses: microsoft/powerplatform-actions/import-solution@v1
+      with:
+        environment-url: ${{ secrets.BUILD_ENVIRONMENT_URL }}
+        app-id: ${{ secrets.CLIENT_ID }}
+        client-secret: ${{ secrets.CLIENT_SECRET }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        solution-file: 'out/VibeApp.zip'
+        force-overwrite: true
+
+    # 4. Export the solution from the Build Environment as Managed
+    - name: Export Solution from Build Env (Managed)
+      uses: microsoft/powerplatform-actions/export-solution@v1
+      with:
+        environment-url: ${{ secrets.BUILD_ENVIRONMENT_URL }}
+        app-id: ${{ secrets.CLIENT_ID }}
+        client-secret: ${{ secrets.CLIENT_SECRET }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        solution-name: 'VibeApp'
+        solution-output-file: 'out/VibeApp_managed.zip'
+        managed: true
+
+    # 5. Upload the Managed Solution zip as a build artifact
+    - name: Upload Solution Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: managed-solution
+        path: out/VibeApp_managed.zip
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: Production
+    steps:
+    # 1. Install Power Platform CLI tooling
+    - name: Install Power Platform Tools
+      uses: microsoft/powerplatform-actions/actions-install@v1
+
+    # 2. Download the managed solution artifact from the build job
+    - name: Download Solution Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: managed-solution
+        path: out
+
+    # 3. Import the managed solution into the Target Environment
     - name: Import Solution to Target Environment
       uses: microsoft/powerplatform-actions/import-solution@v1
       with:
@@ -40,6 +80,6 @@ jobs:
         app-id: ${{ secrets.CLIENT_ID }}
         client-secret: ${{ secrets.CLIENT_SECRET }}
         tenant-id: ${{ secrets.TENANT_ID }}
-        solution-file: 'out/VibeApp.zip'
+        solution-file: 'out/VibeApp_managed.zip'
         force-overwrite: true
         publish-changes: true
