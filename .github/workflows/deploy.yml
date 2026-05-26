@@ -38,16 +38,16 @@ jobs:
         solution-file: 'out/VibeApp.zip'
         solution-type: 'Unmanaged'
 
-    # 4. Authenticate and Import the unmanaged solution into the Build Environment using direct pac CLI (bypasses admin endpoints)
+    # 4. Authenticate and Import the unmanaged solution into the Build Env (using --log-to-console to prevent log buffering)
     - name: Import Solution to Build Env
       run: |
-        pac auth create --name "BuildEnv" --applicationId "${{ secrets.CLIENT_ID }}" --clientSecret "${{ secrets.CLIENT_SECRET }}" --tenant "${{ secrets.TENANT_ID }}" --environment "${{ secrets.ENVIRONMENT_URL }}"
-        pac solution import --path out/VibeApp.zip --activate-plugins --force-overwrite
+        pac --log-to-console auth create --name "BuildEnv" --applicationId "${{ secrets.CLIENT_ID }}" --clientSecret "${{ secrets.CLIENT_SECRET }}" --tenant "${{ secrets.TENANT_ID }}" --environment "${{ secrets.ENVIRONMENT_URL }}"
+        pac --log-to-console solution import --path out/VibeApp.zip --activate-plugins --force-overwrite
 
-    # 5. Export the solution from the Build Environment as Managed using direct pac CLI
+    # 5. Export the solution from the Build Env as Managed
     - name: Export Solution from Build Env (Managed)
       run: |
-        pac solution export --name "VibeApp" --path "out/VibeApp_managed.zip" --managed --overwrite
+        pac --log-to-console solution export --name "VibeApp" --path "out/VibeApp_managed.zip" --managed --overwrite
 
     # 6. Upload the Managed Solution zip as a build artifact
     - name: Upload Solution Artifact
@@ -83,8 +83,8 @@ jobs:
         name: managed-solution
         path: out
 
-    # 4. Authenticate and Import the managed solution into the Target Environment using direct pac CLI
+    # 4. Authenticate and Import the managed solution into the Target Env (using --log-to-console to prevent log buffering)
     - name: Import Solution to Target Environment
       run: |
-        pac auth create --name "TargetEnv" --applicationId "${{ secrets.CLIENT_ID }}" --clientSecret "${{ secrets.CLIENT_SECRET }}" --tenant "${{ secrets.TENANT_ID }}" --environment "${{ secrets.ENVIRONMENT_URL }}"
-        pac solution import --path out/VibeApp_managed.zip --activate-plugins --force-overwrite --publish-changes
+        pac --log-to-console auth create --name "TargetEnv" --applicationId "${{ secrets.CLIENT_ID }}" --clientSecret "${{ secrets.CLIENT_SECRET }}" --tenant "${{ secrets.TENANT_ID }}" --environment "${{ secrets.ENVIRONMENT_URL }}"
+        pac --log-to-console solution import --path out/VibeApp_managed.zip --activate-plugins --force-overwrite --publish-changes
