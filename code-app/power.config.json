@@ -1,0 +1,185 @@
+{
+  "version": "1.0",
+  "appId": null,
+  "appDisplayName": "KPI Management System",
+  "region": "prod",
+  "environmentId": "84534e74-80d5-e347-ade4-4236f035288a",
+  "description": " ",
+  "buildPath": "./dist",
+  "buildEntryPoint": "index.html",
+  "localAppUrl": "http://localhost:3000",
+  "logoPath": "Default",
+  "connectionReferences": {},
+  "databaseReferences": {
+    "default.cds": {
+      "dataSources": {
+        "users": {
+          "entitySetName": "cr5db_users",
+          "logicalName": "cr5db_user",
+          "isHidden": false
+        },
+        "appraisalkpidetails": {
+          "entitySetName": "cr5db_appraisalkpidetails",
+          "logicalName": "cr5db_appraisalkpidetail",
+          "isHidden": false
+        },
+        "approvaldelegations": {
+          "entitySetName": "cr5db_approvaldelegations",
+          "logicalName": "cr5db_approvaldelegation",
+          "isHidden": false
+        },
+        "audittraillogs": {
+          "entitySetName": "cr5db_audittraillogs",
+          "logicalName": "cr5db_audittraillog",
+          "isHidden": false
+        },
+        "companies": {
+          "entitySetName": "cr5db_companies",
+          "logicalName": "cr5db_company",
+          "isHidden": false
+        },
+        "departments": {
+          "entitySetName": "cr5db_departments",
+          "logicalName": "cr5db_department",
+          "isHidden": false
+        },
+        "evaluationperiods": {
+          "entitySetName": "cr5db_evaluationperiods",
+          "logicalName": "cr5db_evaluationperiod",
+          "isHidden": false
+        },
+        "headcountrequests": {
+          "entitySetName": "cr5db_headcountrequests",
+          "logicalName": "cr5db_headcountrequest",
+          "isHidden": false
+        },
+        "jobpositions": {
+          "entitySetName": "cr5db_jobpositions",
+          "logicalName": "cr5db_jobposition",
+          "isHidden": false
+        },
+        "kpiactuallogs": {
+          "entitySetName": "cr5db_kpiactuallogs",
+          "logicalName": "cr5db_kpiactuallog",
+          "isHidden": false
+        },
+        "kpilibraries": {
+          "entitySetName": "cr5db_kpilibraries",
+          "logicalName": "cr5db_kpilibrary",
+          "isHidden": false
+        },
+        "kpitargets": {
+          "entitySetName": "cr5db_kpitargets",
+          "logicalName": "cr5db_kpitarget",
+          "isHidden": false
+        },
+        "objectives": {
+          "entitySetName": "cr5db_objectives",
+          "logicalName": "cr5db_objective",
+          "isHidden": false
+        },
+        "performanceappraisals": {
+          "entitySetName": "cr5db_performanceappraisals",
+          "logicalName": "cr5db_performanceappraisal",
+          "isHidden": false
+        },
+        "positioncatalogs": {
+          "entitySetName": "cr5db_positioncatalogs",
+          "logicalName": "cr5db_positioncatalog",
+          "isHidden": false
+        },
+        "projects": {
+          "entitySetName": "cr5db_projects",
+          "logicalName": "cr5db_project",
+          "isHidden": false
+        },
+        "projectissues": {
+          "entitySetName": "cr5db_projectissues",
+          "logicalName": "cr5db_projectissue",
+          "isHidden": false
+        },
+        "projectlabelassignments": {
+          "entitySetName": "cr5db_projectlabelassignments",
+          "logicalName": "cr5db_projectlabelassignment",
+          "isHidden": false
+        },
+        "projectobjectivealignments": {
+          "entitySetName": "cr5db_projectobjectivealignments",
+          "logicalName": "cr5db_projectobjectivealignment",
+          "isHidden": false
+        },
+        "projectphases": {
+          "entitySetName": "cr5db_projectphases",
+          "logicalName": "cr5db_projectphase",
+          "isHidden": false
+        },
+        "projectrisks": {
+          "entitySetName": "cr5db_projectrisks",
+          "logicalName": "cr5db_projectrisk",
+          "isHidden": false
+        },
+        "projectteams": {
+          "entitySetName": "cr5db_projectteams",
+          "logicalName": "cr5db_projectteam",
+          "isHidden": false
+        },
+        "resourceallocations": {
+          "entitySetName": "cr5db_resourceallocations",
+          "logicalName": "cr5db_resourceallocation",
+          "isHidden": false
+        },
+        "systemlabels": {
+          "entitySetName": "cr5db_systemlabels",
+          "logicalName": "cr5db_systemlabel",
+          "isHidden": false
+        },
+        "systemnotifications": {
+          "entitySetName": "cr5db_systemnotifications",
+          "logicalName": "cr5db_systemnotification",
+          "isHidden": false
+        },
+        "systemparameters": {
+          "entitySetName": "cr5db_systemparameters",
+          "logicalName": "cr5db_systemparameter",
+          "isHidden": false
+        },
+        "systempolicyrules": {
+          "entitySetName": "cr5db_systempolicyrules",
+          "logicalName": "cr5db_systempolicyrule",
+          "isHidden": false
+        },
+        "tasks": {
+          "entitySetName": "cr5db_tasks",
+          "logicalName": "cr5db_task",
+          "isHidden": false
+        },
+        "taskcomments": {
+          "entitySetName": "cr5db_taskcomments",
+          "logicalName": "cr5db_taskcomment",
+          "isHidden": false
+        },
+        "taskdependencies": {
+          "entitySetName": "cr5db_taskdependencies",
+          "logicalName": "cr5db_taskdependency",
+          "isHidden": false
+        },
+        "tasklabelassignments": {
+          "entitySetName": "cr5db_tasklabelassignments",
+          "logicalName": "cr5db_tasklabelassignment",
+          "isHidden": false
+        },
+        "timesheetlogs": {
+          "entitySetName": "cr5db_timesheetlogs",
+          "logicalName": "cr5db_timesheetlog",
+          "isHidden": false
+        },
+        "userprojectroles": {
+          "entitySetName": "cr5db_userprojectroles",
+          "logicalName": "cr5db_userprojectrole",
+          "isHidden": false
+        }
+      },
+      "environmentVariableName": ""
+    }
+  }
+}
