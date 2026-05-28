@@ -4,6 +4,9 @@ This repository contains the **Code-First React + TypeScript Code App** (Task & 
 
 Initially built using Vibe Portal (`vibe.powerapps.com`), the project has been successfully migrated to a native **Code App** to allow full layout control, component-level flexibility, and robust local testing.
 
+> [!NOTE]
+> Detailed system architecture, prerequisites, and administration configuration are documented in [power_apps_code_apps_research.md](file:///c:/Users/violet/Documents/MQF/Study%20Materials/Sixth%20Semester/QLDA/vibepowerapps/power_apps_code_apps_research.md).
+
 ---
 
 ## 📂 Project Structure
@@ -24,13 +27,16 @@ Initially built using Vibe Portal (`vibe.powerapps.com`), the project has been s
 Ensure you have the following installed locally:
 - Node.js (v18+)
 - git
-- Power Platform CLI (`pac`) - [Installation Guide](https://learn.microsoft.com/power-platform/developer/cli/introduction)
+- Power Apps Client Library CLI (`@microsoft/power-apps`)
 
-### 2. Installation
-Navigate to the `code-app` directory and install the required dependencies:
+### 2. Initialization & Setup
+To initialize a new Code App environment metadata or login to Power Platform:
 ```bash
 cd code-app
 npm install
+
+# Initialize environment config (interactive or with env ID)
+npx power-apps init --display-name "KPI Management System" --environment-id 84534e74-80d5-e347-ade4-4236f035288a
 ```
 
 ### 3. Run Development Server
@@ -38,17 +44,28 @@ Start the local Vite development server:
 ```bash
 npm run dev
 ```
-By default, the server runs at [http://localhost:5173](http://localhost:5173).
+By default, the server runs at [http://localhost:3000](http://localhost:3000) (as configured in `power.config.json`).
+
+> [!WARNING]
+> **Local Network Access Restrictions (Chrome/Edge):**
+> Browsers restrict requests from public web origins to local endpoints (localhost). To debug:
+> - Use the same browser profile logged into the Power Platform Maker account.
+> - Ensure the host iframe contains the `allow="local-network-access"` attribute.
 
 ---
 
 ## 🔄 Syncing Dataverse Tables (Data Sources)
 
-All 33 Dataverse tables with the prefix `cr5db_` are synced locally. If you update the schema on Dataverse and need to regenerate the TypeScript services/models:
+All 33 Dataverse tables with the prefix `cr5db_` are declared in `power.config.json`. To sync table definitions and regenerate TypeScript services/models:
 
-Run the Power Apps CLI to add/sync data sources:
 ```bash
-node node_modules/@microsoft/power-apps-cli/dist/Bin.js add-data-source --org-url https://orgcaf78765.crm5.dynamics.com/
+# Sync data sources from Dataverse
+npx power-apps sync
+```
+
+Once synced, generated files will be written to `code-app/src/generated/`. You can import services directly in your React code:
+```typescript
+import { UsersService } from './generated/services/UsersService';
 ```
 
 ---
@@ -66,10 +83,13 @@ The application strictly implements the design tokens from `design-tokens-apps-p
 
 ---
 
-## 📦 Production Build
+## 📦 Production & Deployment
 
-To compile the application bundle for production:
+To build and deploy the application straight to the Power Platform cloud:
 ```bash
+# Compile code-app
 npm run build
+
+# Push application bundle to Power Apps Host
+npx power-apps push
 ```
-This builds and optimizes the codebase into `code-app/dist/` in just a few seconds.
