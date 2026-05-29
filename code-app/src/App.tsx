@@ -299,6 +299,8 @@ function App() {
   const [showDeptModal, setShowDeptModal] = useState(false);
   const [newDeptCode, setNewDeptCode] = useState('');
   const [newDeptName, setNewDeptName] = useState('');
+  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [editingDept, setEditingDept] = useState<any | null>(null);
 
   // Positions catalog modal
   const [showCatalogModal, setShowCatalogModal] = useState(false);
@@ -713,17 +715,38 @@ function App() {
     if (!newCompanyCode.trim() || !newCompanyName.trim()) return;
     try {
       setIsLoading(true);
-      await Cr5db_companiesService.create({
-        cr5db_companycode: newCompanyCode,
-        cr5db_companyname: newCompanyName
-      } as any);
+      if (editingCompany) {
+        await Cr5db_companiesService.update(editingCompany.cr5db_companyid, {
+          cr5db_companycode: newCompanyCode,
+          cr5db_companyname: newCompanyName
+        } as any);
+      } else {
+        await Cr5db_companiesService.create({
+          cr5db_companycode: newCompanyCode,
+          cr5db_companyname: newCompanyName
+        } as any);
+      }
       setShowCompanyModal(false);
+      setEditingCompany(null);
       setNewCompanyCode('');
       setNewCompanyName('');
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
-      alert("Lỗi khi thêm công ty.");
+      alert("Lỗi khi lưu thông tin công ty.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteCompany = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa công ty này không?")) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_companiesService.delete(id);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể xóa công ty.");
       setIsLoading(false);
     }
   };
@@ -733,18 +756,40 @@ function App() {
     if (!newDeptCode.trim() || !newDeptName.trim()) return;
     try {
       setIsLoading(true);
-      await Cr5db_departmentsService.create({
-        cr5db_departmentcode: newDeptCode,
-        cr5db_departmentname: newDeptName,
-        "cr5db_CompanyID@odata.bind": selectedDeptCompanyId ? `/cr5db_companies(${selectedDeptCompanyId})` : undefined
-      } as any);
+      if (editingDept) {
+        await Cr5db_departmentsService.update(editingDept.cr5db_departmentid, {
+          cr5db_departmentcode: newDeptCode,
+          cr5db_departmentname: newDeptName,
+          "cr5db_CompanyID@odata.bind": selectedDeptCompanyId ? `/cr5db_companies(${selectedDeptCompanyId})` : undefined
+        } as any);
+      } else {
+        await Cr5db_departmentsService.create({
+          cr5db_departmentcode: newDeptCode,
+          cr5db_departmentname: newDeptName,
+          "cr5db_CompanyID@odata.bind": selectedDeptCompanyId ? `/cr5db_companies(${selectedDeptCompanyId})` : undefined
+        } as any);
+      }
       setShowDeptModal(false);
+      setEditingDept(null);
       setNewDeptCode('');
       setNewDeptName('');
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
-      alert("Lỗi khi thêm phòng ban.");
+      alert("Lỗi khi lưu thông tin phòng ban.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteDepartment = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa phòng ban này không?")) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_departmentsService.delete(id);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể xóa phòng ban.");
       setIsLoading(false);
     }
   };
@@ -1932,6 +1977,7 @@ function App() {
                       <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
                         <th style={{ padding: '8px' }}>Mã</th>
                         <th style={{ padding: '8px' }}>Tên công ty</th>
+                        <th style={{ padding: '8px', textAlign: 'right' }}>Thao tác</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1939,6 +1985,29 @@ function App() {
                         <tr key={c.cr5db_companyid} onClick={() => setSelectedDeptCompanyId(c.cr5db_companyid)} style={{ borderBottom: '1px solid var(--color-border)', cursor: 'pointer', backgroundColor: selectedDeptCompanyId === c.cr5db_companyid ? '#FDF3F3' : 'transparent' }}>
                           <td style={{ padding: '8px', fontWeight: 700 }}>{c.cr5db_companycode}</td>
                           <td style={{ padding: '8px' }}>{c.cr5db_companyname}</td>
+                          <td style={{ padding: '8px', textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                            <div style={{ display: 'inline-flex', gap: '6px' }}>
+                              <button
+                                onClick={() => {
+                                  setEditingCompany(c);
+                                  setNewCompanyCode(c.cr5db_companycode);
+                                  setNewCompanyName(c.cr5db_companyname);
+                                  setShowCompanyModal(true);
+                                }}
+                                className="btn-filled-3"
+                                style={{ padding: '4px 8px', fontSize: '12px' }}
+                              >
+                                Sửa
+                              </button>
+                              <button
+                                onClick={() => handleDeleteCompany(c.cr5db_companyid)}
+                                className="btn-filled-3"
+                                style={{ padding: '4px 8px', fontSize: '12px', color: '#a80000', borderColor: '#a80000' }}
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1953,6 +2022,7 @@ function App() {
                       <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
                         <th style={{ padding: '8px' }}>Mã</th>
                         <th style={{ padding: '8px' }}>Tên phòng ban</th>
+                        <th style={{ padding: '8px', textAlign: 'right' }}>Thao tác</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1960,6 +2030,29 @@ function App() {
                         <tr key={d.cr5db_departmentid} style={{ borderBottom: '1px solid var(--color-border)' }}>
                           <td style={{ padding: '8px', fontWeight: 700 }}>{d.cr5db_departmentcode}</td>
                           <td style={{ padding: '8px' }}>{d.cr5db_departmentname}</td>
+                          <td style={{ padding: '8px', textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', gap: '6px' }}>
+                              <button
+                                onClick={() => {
+                                  setEditingDept(d);
+                                  setNewDeptCode(d.cr5db_departmentcode);
+                                  setNewDeptName(d.cr5db_departmentname);
+                                  setShowDeptModal(true);
+                                }}
+                                className="btn-filled-3"
+                                style={{ padding: '4px 8px', fontSize: '12px' }}
+                              >
+                                Sửa
+                              </button>
+                              <button
+                                onClick={() => handleDeleteDepartment(d.cr5db_departmentid)}
+                                className="btn-filled-3"
+                                style={{ padding: '4px 8px', fontSize: '12px', color: '#a80000', borderColor: '#a80000' }}
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -2706,7 +2799,9 @@ function App() {
       {showCompanyModal && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>Add Company</h3>
+            <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>
+              {editingCompany ? 'Edit Company' : 'Add Company'}
+            </h3>
             <form onSubmit={handleAddCompany} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Mã công ty</label>
@@ -2717,8 +2812,8 @@ function App() {
                 <input type="text" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="input-spec" required placeholder="Vietnam Express Corp" />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-                <button type="button" onClick={() => setShowCompanyModal(false)} className="btn-filled-3">Hủy</button>
-                <button type="submit" className="btn-primary">Add</button>
+                <button type="button" onClick={() => { setShowCompanyModal(false); setEditingCompany(null); setNewCompanyCode(''); setNewCompanyName(''); }} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary">{editingCompany ? 'Update' : 'Add'}</button>
               </div>
             </form>
           </div>
@@ -2729,7 +2824,9 @@ function App() {
       {showDeptModal && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>Add Department</h3>
+            <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>
+              {editingDept ? 'Edit Department' : 'Add Department'}
+            </h3>
             <form onSubmit={handleAddDepartment} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Mã phòng ban</label>
@@ -2748,8 +2845,8 @@ function App() {
                 </select>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-                <button type="button" onClick={() => setShowDeptModal(false)} className="btn-filled-3">Hủy</button>
-                <button type="submit" className="btn-primary">Add</button>
+                <button type="button" onClick={() => { setShowDeptModal(false); setEditingDept(null); setNewDeptCode(''); setNewDeptName(''); }} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary">{editingDept ? 'Update' : 'Add'}</button>
               </div>
             </form>
           </div>
