@@ -210,8 +210,11 @@ function getDerivedRole(positionTitle: string | undefined): 'Employee' | 'Projec
 function App() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'tasks' | 'timesheets' | 'kpi' | 'performance' | 'companies' | 'positions' | 'headcount' | 'requests' | 'directory' | 'roles' | 'resources'
+    'dashboard' | 'tasks' | 'timesheets' | 'kpi' | 'performance' | 'companies' | 'positions' | 'headcount' | 'requests' | 'directory' | 'roles' | 'resources' | 'routes'
   >('dashboard');
+
+  const [requestsSubTab, setRequestsSubTab] = useState<'change' | 'headcount'>('change');
+  const [expandedRequests, setExpandedRequests] = useState<Record<string, boolean>>({});
 
   // Authenticated Role states
   const [activeRole, setActiveRole] = useState<'Employee' | 'ProjectManager' | 'HRManager' | 'Admin'>(() => {
@@ -407,12 +410,12 @@ function App() {
   // Redirect role gates
   useEffect(() => {
     if (activeRole === 'Employee') {
-      const allowed = ['dashboard', 'tasks', 'timesheets', 'kpi', 'performance'];
+      const allowed = ['dashboard', 'tasks', 'timesheets', 'kpi', 'performance', 'requests'];
       if (!allowed.includes(activeTab)) {
         setActiveTab('dashboard');
       }
     } else if (activeRole === 'ProjectManager') {
-      const allowed = ['dashboard', 'tasks', 'timesheets', 'kpi', 'performance', 'resources', 'directory'];
+      const allowed = ['dashboard', 'tasks', 'timesheets', 'kpi', 'performance', 'resources', 'directory', 'requests'];
       if (!allowed.includes(activeTab)) {
         setActiveTab('dashboard');
       }
@@ -450,6 +453,95 @@ function App() {
     'ProjectManager': 2,
     'HRManager': 3,
     'Admin': 4
+  };
+
+  const renderDiffContainer = (req: any) => {
+    try {
+      const isCreate = req.cr5db_operationtype === 1;
+      const isUpdate = req.cr5db_operationtype === 2;
+      const isDelete = req.cr5db_operationtype === 3;
+
+      const oldVal = req.cr5db_oldvaluejson ? JSON.parse(req.cr5db_oldvaluejson) : null;
+      const newVal = req.cr5db_payloadjson ? JSON.parse(req.cr5db_payloadjson) : null;
+
+      const formatVal = (v: any) => {
+        if (v === null || v === undefined) return <em style={{ color: 'var(--color-text-secondary)' }}>null</em>;
+        if (typeof v === 'object') return JSON.stringify(v);
+        return String(v);
+      };
+
+      if (isCreate && newVal) {
+        return (
+          <div style={{ backgroundColor: '#f4fbf7', border: '1px solid #d1eedc', borderRadius: '4px', padding: '12px', marginTop: '10px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: '#1b5e20', marginBottom: '6px' }}>Dữ liệu tạo mới:</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <tbody>
+                {Object.keys(newVal).map(key => (
+                  <tr key={key} style={{ borderBottom: '1px solid #e8f5e9' }}>
+                    <td style={{ padding: '4px 8px', fontWeight: 600, color: 'var(--color-text-secondary)', width: '35%' }}>{key}</td>
+                    <td style={{ padding: '4px 8px', color: '#1b5e20', backgroundColor: '#e8f5e9' }}>{formatVal(newVal[key])}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+
+      if (isDelete && oldVal) {
+        return (
+          <div style={{ backgroundColor: '#fff8f8', border: '1px solid #ffd1d1', borderRadius: '4px', padding: '12px', marginTop: '10px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: '#c62828', marginBottom: '6px' }}>Dữ liệu xóa:</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <tbody>
+                {Object.keys(oldVal).map(key => (
+                  <tr key={key} style={{ borderBottom: '1px solid #ffebee' }}>
+                    <td style={{ padding: '4px 8px', fontWeight: 600, color: 'var(--color-text-secondary)', width: '35%' }}>{key}</td>
+                    <td style={{ padding: '4px 8px', color: '#c62828', backgroundColor: '#ffebee', textDecoration: 'line-through' }}>{formatVal(oldVal[key])}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+
+      if (isUpdate && newVal && oldVal) {
+        const keys = Object.keys(newVal);
+        return (
+          <div style={{ backgroundColor: '#fcfcfc', border: '1px solid var(--color-border-light)', borderRadius: '4px', padding: '12px', marginTop: '10px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text)', marginBottom: '6px' }}>So sánh thay đổi (Trước vs. Sau):</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
+                  <th style={{ padding: '4px 8px', color: 'var(--color-text-secondary)' }}>Trường dữ liệu</th>
+                  <th style={{ padding: '4px 8px', color: 'var(--color-text-secondary)' }}>Giá trị cũ (Trước)</th>
+                  <th style={{ padding: '4px 8px', color: 'var(--color-text-secondary)' }}>Giá trị mới (Sau)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {keys.map(key => {
+                  const oVal = oldVal[key];
+                  const nVal = newVal[key];
+                  const hasChanged = JSON.stringify(oVal) !== JSON.stringify(nVal);
+                  return (
+                    <tr key={key} style={{ borderBottom: '1px solid var(--color-border-light)', backgroundColor: hasChanged ? '#fffde7' : 'transparent' }}>
+                      <td style={{ padding: '6px 8px', fontWeight: 600, color: 'var(--color-text-secondary)', width: '30%' }}>{key}</td>
+                      <td style={{ padding: '6px 8px', color: '#a80000', textDecoration: hasChanged ? 'line-through' : 'none' }}>{formatVal(oVal)}</td>
+                      <td style={{ padding: '6px 8px', color: hasChanged ? '#1b5e20' : 'var(--color-text)', fontWeight: hasChanged ? 600 : 400 }}>{formatVal(nVal)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+    } catch (e) {
+      console.error(e);
+      return <div style={{ fontSize: '11px', color: '#a80000' }}>Không thể hiển thị so sánh dữ liệu (JSON không hợp lệ).</div>;
+    }
+    return null;
   };
 
   const executeDirectCrud = async (
@@ -3663,79 +3755,225 @@ function App() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Headcount Requests</h2>
-                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Submit and approve headcount additions</p>
+                  <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Yêu cầu & Phê duyệt</h2>
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Quản lý các đề xuất thay đổi và định biên nhân sự</p>
                 </div>
-                <button onClick={() => setShowHeadcountRequestModal(true)} className="btn-primary">+ New Request</button>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {headcountRequests.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px', border: '1px dashed var(--color-border)', borderRadius: '8px', color: 'var(--color-text-secondary)' }}>
-                    Chưa có đề xuất nào được tạo.
-                  </div>
-                ) : (
-                  headcountRequests.map(r => (
-                    <div key={r.cr5db_headcountrequestid} className="card-spec" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px 24px', gap: '12px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 700, fontSize: '15px' }}>{r.cr5db_requestname}</span>
-                          <span style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid var(--color-border)', borderRadius: '2px' }}>{r.cr5db_departmentname}</span>
-                          <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#FAF9F9', border: '1px solid var(--color-border)', borderRadius: '2px' }}>{r.cr5db_requesttype}</span>
-                        </div>
-                        <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>Vị trí: {r.cr5db_positiontitle} | Số lượng: {r.cr5db_requestedquantity}</p>
-                        <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>Lý do: {r.cr5db_reason}</p>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <span className={
-                          r.cr5db_approvalstatus === 'Approved' ? 'status-approved' :
-                          r.cr5db_approvalstatus === 'Rejected' ? 'status-rejected' :
-                          'status-pending'
-                        }>
-                          {r.cr5db_approvalstatus}
-                        </span>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          {r.cr5db_approvalstatus === 'Pending' && (activeRole === 'Admin' || activeRole === 'HRManager') && (
-                            <>
-                              <button onClick={() => handleApproveHeadcountRequest(r.cr5db_headcountrequestid, 'Approved')} className="btn-filled-2" style={{ padding: '6px 12px', fontSize: '12px' }}>Duyệt</button>
-                              <button onClick={() => handleApproveHeadcountRequest(r.cr5db_headcountrequestid, 'Rejected')} className="btn-filled-3" style={{ padding: '6px 12px', fontSize: '12px' }}>Từ chối</button>
-                            </>
-                          )}
-                          
-                          {activeRole === 'Admin' && (
-                            <>
-                              <button
-                                onClick={() => {
-                                  setEditingHeadcountRequest(r);
-                                  setNewRequestName(r.cr5db_requestname);
-                                  setNewRequestType(r.cr5db_requesttype);
-                                  setNewReqDeptId(r._cr5db_department_value || '');
-                                  setNewReqCatalogId(r._cr5db_positioncatalog_value || '');
-                                  setNewReqQty(r.cr5db_requestedquantity);
-                                  setNewReqReason(r.cr5db_reason);
-                                  setNewReqStatus(r.cr5db_approvalstatus);
-                                  setShowHeadcountRequestModal(true);
-                                }}
-                                className="btn-filled-3"
-                                style={{ padding: '6px 12px', fontSize: '12px', color: '#742774', borderColor: '#742774' }}
-                              >
-                                Sửa
-                              </button>
-                              <button
-                                onClick={() => handleDeleteHeadcountRequest(r.cr5db_headcountrequestid)}
-                                className="btn-filled-3"
-                                style={{ padding: '6px 12px', fontSize: '12px', color: '#a80000', borderColor: '#a80000' }}
-                              >
-                                Xóa
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
+              {/* Inner Tab Control */}
+              <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--color-border-light)', paddingBottom: '12px', marginBottom: '10px' }}>
+                <button
+                  onClick={() => setRequestsSubTab('change')}
+                  style={{
+                    padding: '8px 16px', borderRadius: '4px', border: 'none', fontSize: '14px', fontWeight: 600,
+                    cursor: 'pointer',
+                    backgroundColor: requestsSubTab === 'change' ? 'var(--color-primary)' : '#FAF9F9',
+                    color: requestsSubTab === 'change' ? '#ffffff' : 'var(--color-text-secondary)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Yêu cầu thay đổi cấu hình (Universal CR)
+                </button>
+                <button
+                  onClick={() => setRequestsSubTab('headcount')}
+                  style={{
+                    padding: '8px 16px', borderRadius: '4px', border: 'none', fontSize: '14px', fontWeight: 600,
+                    cursor: 'pointer',
+                    backgroundColor: requestsSubTab === 'headcount' ? 'var(--color-primary)' : '#FAF9F9',
+                    color: requestsSubTab === 'headcount' ? '#ffffff' : 'var(--color-text-secondary)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Đề xuất định biên (Headcount Requests)
+                </button>
               </div>
+
+              {requestsSubTab === 'change' ? (
+                // --- Universal Change Requests Sub-tab ---
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {(() => {
+                    const activeUser = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+                    const filteredChangeRequests = changeRequestsList.filter((cr: any) => {
+                      if (activeRole === 'Admin') return true;
+                      if (!activeUser) return false;
+                      return cr._cr5db_requester_value === activeUser.cr5db_userid || cr._cr5db_approver_value === activeUser.cr5db_userid;
+                    });
+
+                    if (filteredChangeRequests.length === 0) {
+                      return (
+                        <div style={{ textAlign: 'center', padding: '40px', border: '1px dashed var(--color-border)', borderRadius: '8px', color: 'var(--color-text-secondary)' }}>
+                          Chưa có yêu cầu thay đổi nào liên quan đến bạn.
+                        </div>
+                      );
+                    }
+
+                    return filteredChangeRequests.map((cr: any) => {
+                      const reqUser = usersList.find(u => u.cr5db_userid === cr._cr5db_requester_value);
+                      const appUser = usersList.find(u => u.cr5db_userid === cr._cr5db_approver_value);
+                      const isExpanded = !!expandedRequests[cr.cr5db_changerequestsid];
+
+                      const entityLabel = {
+                        1: "Công việc (Tasks)",
+                        2: "Chỉ tiêu KPI (KPITargets)",
+                        3: "Vị trí công việc (JobPositions)",
+                        4: "Định biên (HeadcountRequests)",
+                        5: "Dự án (Projects)",
+                        6: "Người dùng (Users)"
+                      }[cr.cr5db_targetentity as number] || "Khác";
+
+                      const opLabel = {
+                        1: "Tạo mới",
+                        2: "Cập nhật",
+                        3: "Xóa"
+                      }[cr.cr5db_operationtype as number] || "Thao tác";
+
+                      return (
+                        <div key={cr.cr5db_changerequestsid} className="card-spec" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <span style={{ fontWeight: 700, fontSize: '16px', color: 'var(--color-text)' }}>{cr.cr5db_requesttitle}</span>
+                                <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#e8f5e9', color: '#1b5e20', border: '1px solid #d1eedc', borderRadius: '4px', fontWeight: 600 }}>{entityLabel}</span>
+                                <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#e3f2fd', color: '#0d47a1', border: '1px solid #bbdefb', borderRadius: '4px', fontWeight: 600 }}>{opLabel}</span>
+                              </div>
+                              <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', display: 'flex', gap: '16px', marginTop: '2px' }}>
+                                <span><strong>Người đề xuất:</strong> {reqUser?.cr5db_fullname || "Không rõ"}</span>
+                                <span><strong>Người duyệt:</strong> {appUser?.cr5db_fullname || "Không rõ"}</span>
+                              </div>
+                              <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                                <strong>Lý do đề xuất:</strong> <span style={{ fontStyle: 'italic' }}>"{cr.cr5db_reason || 'Không có lý do'}"</span>
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <span className={
+                                cr.cr5db_status === 2 ? 'status-approved' :
+                                cr.cr5db_status === 3 ? 'status-rejected' :
+                                cr.cr5db_status === 4 ? 'status-cancelled' :
+                                'status-pending'
+                              }>
+                                {{ 1: "Chờ duyệt", 2: "Đã duyệt", 3: "Từ chối", 4: "Đã hủy" }[cr.cr5db_status as number] || "Chờ duyệt"}
+                              </span>
+
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                {cr.cr5db_status === 1 && activeUser && cr._cr5db_approver_value === activeUser.cr5db_userid && (
+                                  <>
+                                    <button
+                                      onClick={() => handleApproveChangeRequest(cr)}
+                                      className="btn-filled-2"
+                                      style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '4px' }}
+                                    >
+                                      Duyệt
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        const comment = prompt("Nhập lý do từ chối:") || "Yêu cầu bị từ chối.";
+                                        handleRejectChangeRequest(cr, comment);
+                                      }}
+                                      className="btn-filled-3"
+                                      style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '4px', color: '#c62828', borderColor: '#ffc1c1' }}
+                                    >
+                                      Từ chối
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ borderTop: '1px dashed var(--color-border-light)', paddingTop: '10px', marginTop: '4px' }}>
+                            <button
+                              onClick={() => setExpandedRequests(prev => ({ ...prev, [cr.cr5db_changerequestsid]: !prev[cr.cr5db_changerequestsid] }))}
+                              style={{
+                                background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer',
+                                fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', padding: 0
+                              }}
+                            >
+                              {isExpanded ? "Thu gọn so sánh ▴" : "Xem so sánh dữ liệu chi tiết ▾"}
+                            </button>
+                            {isExpanded && renderDiffContainer(cr)}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              ) : (
+                // --- Legacy Headcount Requests Sub-tab ---
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-10px' }}>
+                    <button onClick={() => setShowHeadcountRequestModal(true)} className="btn-primary">+ Tạo đề xuất mới</button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {headcountRequests.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '40px', border: '1px dashed var(--color-border)', borderRadius: '8px', color: 'var(--color-text-secondary)' }}>
+                        Chưa có đề xuất định biên nào được tạo.
+                      </div>
+                    ) : (
+                      headcountRequests.map(r => (
+                        <div key={r.cr5db_headcountrequestid} className="card-spec" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px 24px', gap: '12px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontWeight: 700, fontSize: '15px' }}>{r.cr5db_requestname}</span>
+                              <span style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid var(--color-border)', borderRadius: '2px' }}>{r.cr5db_departmentname}</span>
+                              <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#FAF9F9', border: '1px solid var(--color-border)', borderRadius: '2px' }}>{r.cr5db_requesttype}</span>
+                            </div>
+                            <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>Vị trí: {r.cr5db_positiontitle} | Số lượng: {r.cr5db_requestedquantity}</p>
+                            <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>Lý do: {r.cr5db_reason}</p>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <span className={
+                              r.cr5db_approvalstatus === 'Approved' ? 'status-approved' :
+                              r.cr5db_approvalstatus === 'Rejected' ? 'status-rejected' :
+                              'status-pending'
+                            }>
+                              {r.cr5db_approvalstatus}
+                            </span>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              {r.cr5db_approvalstatus === 'Pending' && (activeRole === 'Admin' || activeRole === 'HRManager') && (
+                                <>
+                                  <button onClick={() => handleApproveHeadcountRequest(r.cr5db_headcountrequestid, 'Approved')} className="btn-filled-2" style={{ padding: '6px 12px', fontSize: '12px' }}>Duyệt</button>
+                                  <button onClick={() => handleApproveHeadcountRequest(r.cr5db_headcountrequestid, 'Rejected')} className="btn-filled-3" style={{ padding: '6px 12px', fontSize: '12px' }}>Từ chối</button>
+                                </>
+                              )}
+                              
+                              {activeRole === 'Admin' && (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setEditingHeadcountRequest(r);
+                                      setNewRequestName(r.cr5db_requestname);
+                                      setNewRequestType(r.cr5db_requesttype);
+                                      setNewReqDeptId(r._cr5db_department_value || '');
+                                      setNewReqCatalogId(r._cr5db_positioncatalog_value || '');
+                                      setNewReqQty(r.cr5db_requestedquantity);
+                                      setNewReqReason(r.cr5db_reason);
+                                      setNewReqStatus(r.cr5db_approvalstatus);
+                                      setShowHeadcountRequestModal(true);
+                                    }}
+                                    className="btn-filled-3"
+                                    style={{ padding: '6px 12px', fontSize: '12px', color: '#742774', borderColor: '#742774' }}
+                                  >
+                                    Sửa
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteHeadcountRequest(r.cr5db_headcountrequestid)}
+                                    className="btn-filled-3"
+                                    style={{ padding: '6px 12px', fontSize: '12px', color: '#a80000', borderColor: '#a80000' }}
+                                  >
+                                    Xóa
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -5557,6 +5795,87 @@ function App() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
               <button onClick={() => setShowNotificationsModal(false)} className="btn-filled-3">Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 8. Universal Change Request Reason & Approver Selection Modal */}
+      {showApprovalModal && approvalModalData && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--color-primary)' }}>
+                <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+                <path d="M12 6v6l4 2" />
+              </svg>
+              Yêu cầu phê duyệt thay đổi
+            </h3>
+
+            <div style={{ padding: '12px', backgroundColor: '#FAF9F9', border: '1px solid var(--color-border-light)', borderRadius: '6px', marginBottom: '16px', fontSize: '13px' }}>
+              <div style={{ marginBottom: '6px' }}><strong>Thao tác:</strong> {approvalModalData.operation} ({ENTITY_MAPPINGS[approvalModalData.entityName]?.label || approvalModalData.entityName})</div>
+              <div style={{ overflowWrap: 'anywhere' }}><strong>Mô tả:</strong> {approvalModalData.description}</div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '6px' }}>Lý do đề xuất <span style={{ color: '#a80000' }}>*</span></label>
+                <textarea
+                  value={requestReason}
+                  onChange={(e) => setRequestReason(e.target.value)}
+                  placeholder="Nhập lý do chi tiết cho đề xuất thay đổi này..."
+                  style={{
+                    width: '100%', minHeight: '80px', padding: '8px 12px', borderRadius: '4px',
+                    border: '1px solid var(--color-border)', outline: 'none', fontSize: '13px',
+                    fontFamily: 'inherit', resize: 'vertical'
+                  }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '6px' }}>Chọn người phê duyệt <span style={{ color: '#a80000' }}>*</span></label>
+                <select
+                  value={selectedApproverId}
+                  onChange={(e) => setSelectedApproverId(e.target.value)}
+                  style={{
+                    width: '100%', padding: '8px 12px', borderRadius: '4px',
+                    border: '1px solid var(--color-border)', outline: 'none', fontSize: '13px',
+                    backgroundColor: '#ffffff'
+                  }}
+                  required
+                >
+                  <option value="">-- Chọn người phê duyệt --</option>
+                  {approvalModalData.validApprovers.map((user: User) => (
+                    <option key={user.cr5db_userid} value={user.cr5db_userid}>
+                      {user.cr5db_fullname} ({user.cr5db_email}) - {user.cr5db_systemrole}
+                    </option>
+                  ))}
+                </select>
+                <p style={{ margin: '6px 0 0 0', fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                  Danh sách hiển thị tối ưu dựa trên quy tắc định tuyến của hệ thống.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  onClick={() => {
+                    setShowApprovalModal(false);
+                    setIsLoading(false);
+                  }}
+                  className="btn-filled-3"
+                  style={{ padding: '8px 16px' }}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  onClick={handleSubmittingApprovalRequest}
+                  className="btn-primary"
+                  style={{ padding: '8px 16px', borderRadius: '4px' }}
+                >
+                  Gửi yêu cầu
+                </button>
+              </div>
             </div>
           </div>
         </div>
