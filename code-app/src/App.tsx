@@ -404,6 +404,18 @@ function App() {
   const [requestReason, setRequestReason] = useState('');
   const [selectedApproverId, setSelectedApproverId] = useState('');
 
+  // Approval routes management states
+  const [showRouteModal, setShowRouteModal] = useState(false);
+  const [editingRoute, setEditingRoute] = useState<any | null>(null);
+  const [routeName, setRouteName] = useState('');
+  const [routeTargetEntity, setRouteTargetEntity] = useState<number>(1);
+  const [routeOperation, setRouteOperation] = useState<number>(4); // Default All
+  const [routeRequesterRole, setRouteRequesterRole] = useState<number>(1); // Default Employee
+  const [routeRoutingType, setRouteRoutingType] = useState<number>(1); // Default POSITION_HIERARCHY
+  const [routeApproverRole, setRouteApproverRole] = useState('');
+  const [routeApproverUserId, setRouteApproverUserId] = useState('');
+  const [routePriority, setRoutePriority] = useState<number>(10);
+
   // Employee details dialog
   const [selectedDirectoryUser, setSelectedDirectoryUser] = useState<User | null>(null);
 
@@ -1521,6 +1533,65 @@ function App() {
     }
   };
 
+  // Approval Routes CRUD Handlers
+  const handleSaveRoute = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!routeName.trim()) {
+      alert("Tên quy tắc không được để trống.");
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const payload: any = {
+        cr5db_routename: routeName,
+        cr5db_targetentity: Number(routeTargetEntity),
+        cr5db_operationtype: Number(routeOperation),
+        cr5db_requesterrole: Number(routeRequesterRole),
+        cr5db_routingtype: Number(routeRoutingType),
+        cr5db_approverrole: routeApproverRole || '',
+        cr5db_priority: Number(routePriority),
+        cr5db_isactive: true,
+      };
+
+      if (routeApproverUserId) {
+        payload["cr5db_ApproverUser@odata.bind"] = `/cr5db_users(${routeApproverUserId})`;
+      } else if (editingRoute) {
+        payload.cr5db_ApproverUser = null;
+      }
+
+      if (editingRoute) {
+        await Cr5db_approvalroutesesService.update(editingRoute.cr5db_approvalroutesid, payload);
+      } else {
+        await Cr5db_approvalroutesesService.create(payload);
+      }
+
+      setShowRouteModal(false);
+      setEditingRoute(null);
+      setRouteName('');
+      setRouteApproverRole('');
+      setRouteApproverUserId('');
+      setRoutePriority(10);
+      await fetchLiveValues();
+    } catch (err: any) {
+      console.error(err);
+      alert(`Lỗi khi lưu quy tắc duyệt: ${err.message || err}`);
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteRoute = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa quy tắc phê duyệt này?")) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_approvalroutesesService.delete(id);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể xóa quy tắc phê duyệt.");
+      setIsLoading(false);
+    }
+  };
+
   // Job Positions (Headcount)
   const handleAddJobPosition = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2521,6 +2592,17 @@ function App() {
               <button onClick={() => setActiveTab('headcount')} className={`nav-item ${activeTab === 'headcount' ? 'active' : ''}`}>
                 <span className="nav-icon"><ShieldIcon /></span>Headcount
               </button>
+              {activeRole === 'Admin' && (
+                <button onClick={() => setActiveTab('routes')} className={`nav-item ${activeTab === 'routes' ? 'active' : ''}`}>
+                  <span className="nav-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                      <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                  </span>
+                  Approval Routes
+                </button>
+              )}
             </>
           )}
         </nav>
@@ -4710,6 +4792,136 @@ function App() {
             </div>
           )}
 
+          {/* SCREEN 12: APPROVAL ROUTES CONFIG (ADMIN ONLY) */}
+          {activeTab === 'routes' && activeRole === 'Admin' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Quy tắc phê duyệt (Approval Routes)</h2>
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Cấu hình điều kiện và tuyến phê duyệt động cho các thao tác dữ liệu</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingRoute(null);
+                    setRouteName('');
+                    setRouteTargetEntity(1);
+                    setRouteOperation(4);
+                    setRouteRequesterRole(1);
+                    setRouteRoutingType(1);
+                    setRouteApproverRole('');
+                    setRouteApproverUserId('');
+                    setRoutePriority(10);
+                    setShowRouteModal(true);
+                  }}
+                  className="btn-primary"
+                >
+                  + Thêm quy tắc
+                </button>
+              </div>
+
+              <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                      <th style={{ padding: '14px 20px' }}>Tên quy tắc</th>
+                      <th style={{ padding: '14px 20px' }}>Thực thể áp dụng</th>
+                      <th style={{ padding: '14px 20px' }}>Thao tác</th>
+                      <th style={{ padding: '14px 20px' }}>Vai trò yêu cầu</th>
+                      <th style={{ padding: '14px 20px' }}>Loại định tuyến</th>
+                      <th style={{ padding: '14px 20px' }}>Người duyệt chỉ định / Vai trò</th>
+                      <th style={{ padding: '14px 20px' }}>Độ ưu tiên</th>
+                      <th style={{ padding: '14px 20px', textAlign: 'right' }}>Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {approvalRoutesList.map((route: any) => {
+                      const matchedUser = usersList.find(u => u.cr5db_userid === route._cr5db_approveruser_value);
+                      
+                      const entityLabel = {
+                        1: "Công việc (Tasks)",
+                        2: "KPI (KPITargets)",
+                        3: "Vị trí (JobPositions)",
+                        4: "Định biên (HeadcountRequests)",
+                        5: "Dự án (Projects)",
+                        6: "Người dùng (Users)"
+                      }[route.cr5db_targetentity as number] || route.cr5db_targetentity;
+
+                      const opLabel = {
+                        1: "Tạo mới (Create)",
+                        2: "Cập nhật (Update)",
+                        3: "Xóa (Delete)",
+                        4: "Tất cả (All)"
+                      }[route.cr5db_operationtype as number] || route.cr5db_operationtype;
+
+                      const requesterRoleLabel = {
+                        1: "Nhân viên (Employee)",
+                        2: "Trưởng dự án (ProjectManager)",
+                        3: "Quản lý nhân sự (HRManager)",
+                        4: "Quản trị viên (Admin)"
+                      }[route.cr5db_requesterrole as number] || route.cr5db_requesterrole;
+
+                      const routingTypeLabel = {
+                        1: "Cấp trên quản lý (POSITION_HIERARCHY)",
+                        2: "Theo vai trò (SPECIFIC_ROLE)",
+                        3: "Trưởng phòng ban (DEPARTMENT_HEAD)",
+                        4: "Chỉ định tài khoản (SPECIFIC_USER)"
+                      }[route.cr5db_routingtype as number] || route.cr5db_routingtype;
+
+                      return (
+                        <tr key={route.cr5db_approvalroutesid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <td style={{ padding: '14px 20px', fontWeight: 600 }}>{route.cr5db_routename}</td>
+                          <td style={{ padding: '14px 20px' }}>{entityLabel}</td>
+                          <td style={{ padding: '14px 20px' }}>{opLabel}</td>
+                          <td style={{ padding: '14px 20px' }}>{requesterRoleLabel}</td>
+                          <td style={{ padding: '14px 20px' }}>{routingTypeLabel}</td>
+                          <td style={{ padding: '14px 20px' }}>
+                            {route.cr5db_routingtype === 4 && matchedUser ? (
+                              <span>👤 {matchedUser.cr5db_fullname}</span>
+                            ) : route.cr5db_routingtype === 2 ? (
+                              <span>💼 Vai trò: {route.cr5db_approverrole}</span>
+                            ) : (
+                              <span style={{ color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>Tự động phân giải</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '14px 20px', fontWeight: 600 }}>{route.cr5db_priority}</td>
+                          <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                              <button
+                                onClick={() => {
+                                  setEditingRoute(route);
+                                  setRouteName(route.cr5db_routename);
+                                  setRouteTargetEntity(route.cr5db_targetentity);
+                                  setRouteOperation(route.cr5db_operationtype);
+                                  setRouteRequesterRole(route.cr5db_requesterrole);
+                                  setRouteRoutingType(route.cr5db_routingtype);
+                                  setRouteApproverRole(route.cr5db_approverrole || '');
+                                  setRouteApproverUserId(route._cr5db_approveruser_value || '');
+                                  setRoutePriority(route.cr5db_priority);
+                                  setShowRouteModal(true);
+                                }}
+                                className="btn-filled-3"
+                                style={{ padding: '4px 8px' }}
+                              >
+                                Sửa
+                              </button>
+                              <button
+                                onClick={() => handleDeleteRoute(route.cr5db_approvalroutesid)}
+                                className="btn-filled-3"
+                                style={{ padding: '4px 8px', color: '#a80000', borderColor: '#a80000' }}
+                              >
+                                Xóa
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
 
         </div>
       </main>
@@ -4984,6 +5196,162 @@ function App() {
                   setNewReqReason('');
                 }} className="btn-filled-3">Hủy</button>
                 <button type="submit" className="btn-primary">{editingHeadcountRequest ? 'Lưu thay đổi' : 'Gửi đề xuất'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Approval Route Modal */}
+      {showRouteModal && activeRole === 'Admin' && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '16px', fontWeight: 700 }}>
+              {editingRoute ? 'Cập nhật quy tắc phê duyệt' : 'Thêm mới quy tắc phê duyệt'}
+            </h3>
+            <form onSubmit={handleSaveRoute} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Tên quy tắc</label>
+                <input
+                  type="text"
+                  value={routeName}
+                  onChange={(e) => setRouteName(e.target.value)}
+                  className="input-spec"
+                  required
+                  placeholder="Ví dụ: Duyệt KPI nhân viên..."
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Thực thể áp dụng</label>
+                  <select
+                    value={routeTargetEntity}
+                    onChange={(e) => setRouteTargetEntity(Number(e.target.value))}
+                    className="input-spec"
+                    style={{ padding: '6px 12px', height: '38px' }}
+                  >
+                    <option value={1}>Công việc (Tasks)</option>
+                    <option value={2}>Chỉ tiêu KPI (KPITargets)</option>
+                    <option value={3}>Vị trí công việc (JobPositions)</option>
+                    <option value={4}>Yêu cầu định biên (HeadcountRequests)</option>
+                    <option value={5}>Dự án (Projects)</option>
+                    <option value={6}>Người dùng (Users)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Thao tác dữ liệu</label>
+                  <select
+                    value={routeOperation}
+                    onChange={(e) => setRouteOperation(Number(e.target.value))}
+                    className="input-spec"
+                    style={{ padding: '6px 12px', height: '38px' }}
+                  >
+                    <option value={1}>Tạo mới (Create)</option>
+                    <option value={2}>Cập nhật (Update)</option>
+                    <option value={3}>Xóa (Delete)</option>
+                    <option value={4}>Tất cả (All)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Vai trò yêu cầu</label>
+                  <select
+                    value={routeRequesterRole}
+                    onChange={(e) => setRouteRequesterRole(Number(e.target.value))}
+                    className="input-spec"
+                    style={{ padding: '6px 12px', height: '38px' }}
+                  >
+                    <option value={1}>Nhân viên (Employee)</option>
+                    <option value={2}>Trưởng dự án (ProjectManager)</option>
+                    <option value={3}>Quản lý nhân sự (HRManager)</option>
+                    <option value={4}>Quản trị viên (Admin)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Độ ưu tiên</label>
+                  <input
+                    type="number"
+                    value={routePriority}
+                    onChange={(e) => setRoutePriority(Number(e.target.value))}
+                    className="input-spec"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Loại định tuyến phê duyệt</label>
+                <select
+                  value={routeRoutingType}
+                  onChange={(e) => setRouteRoutingType(Number(e.target.value))}
+                  className="input-spec"
+                  style={{ padding: '6px 12px', height: '38px' }}
+                >
+                  <option value={1}>Quản lý trực tiếp (POSITION_HIERARCHY)</option>
+                  <option value={2}>Chức danh/Vai trò duyệt (SPECIFIC_ROLE)</option>
+                  <option value={3}>Trưởng bộ phận (DEPARTMENT_HEAD)</option>
+                  <option value={4}>Người duyệt chỉ định (SPECIFIC_USER)</option>
+                </select>
+              </div>
+
+              {routeRoutingType === 2 && (
+                <div>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Vai trò duyệt chỉ định</label>
+                  <select
+                    value={routeApproverRole}
+                    onChange={(e) => setRouteApproverRole(e.target.value)}
+                    className="input-spec"
+                    style={{ padding: '6px 12px', height: '38px' }}
+                    required
+                  >
+                    <option value="">-- Chọn vai trò duyệt --</option>
+                    <option value="Admin">Admin (Quản trị viên)</option>
+                    <option value="HRManager">HR Manager (HR)</option>
+                    <option value="ProjectManager">Project Manager (PM)</option>
+                  </select>
+                </div>
+              )}
+
+              {routeRoutingType === 4 && (
+                <div>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Người duyệt chỉ định</label>
+                  <select
+                    value={routeApproverUserId}
+                    onChange={(e) => setRouteApproverUserId(e.target.value)}
+                    className="input-spec"
+                    style={{ padding: '6px 12px', height: '38px' }}
+                    required
+                  >
+                    <option value="">-- Chọn tài khoản duyệt --</option>
+                    {usersList.map((user: User) => (
+                      <option key={user.cr5db_userid} value={user.cr5db_userid}>
+                        {user.cr5db_fullname} ({user.cr5db_email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRouteModal(false);
+                    setEditingRoute(null);
+                    setRouteName('');
+                    setRouteApproverRole('');
+                    setRouteApproverUserId('');
+                  }}
+                  className="btn-filled-3"
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="btn-primary">
+                  {editingRoute ? 'Lưu thay đổi' : 'Thêm mới'}
+                </button>
               </div>
             </form>
           </div>
