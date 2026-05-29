@@ -1390,8 +1390,10 @@ function App() {
     if (!activeProjectDetails || !newPhaseName.trim()) return;
     try {
       setIsLoading(true);
+      const statusVal = newPhaseStatus === 'Completed' ? 122650002 : newPhaseStatus === 'In Progress' ? 122650001 : 122650000;
       await Cr5db_projectphasesService.create({
         cr5db_phasename: newPhaseName,
+        new_status: statusVal as any,
         "cr5db_ProjectID@odata.bind": `/cr5db_projects(${activeProjectDetails.cr5db_projectid})`
       } as any);
 
@@ -3526,7 +3528,7 @@ function App() {
                               
                               // Count phases
                               const phasesForProj = projectPhases.filter(ph => ph._cr5db_projectid_value === p.cr5db_projectid);
-                              const completedPhases = phasesForProj.filter(ph => ph.cr5db_status === 122650002 || ph.statecode === 1).length;
+                              const completedPhases = phasesForProj.filter(ph => ph.new_status === 122650002 || ph.statecode === 1).length;
                               const progressPct = phasesForProj.length > 0 ? Math.round((completedPhases / phasesForProj.length) * 100) : 0;
 
                               return (
@@ -3685,7 +3687,7 @@ function App() {
                                 return (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                     {phases.map(ph => {
-                                      const phStatus = ph.cr5db_status === 122650002 ? 'Completed' : ph.cr5db_status === 122650001 ? 'In Progress' : 'Not Started';
+                                      const phStatus = ph.new_status === 122650002 ? 'Completed' : ph.new_status === 122650001 ? 'In Progress' : 'Not Started';
                                       const phStyle = getProjectStatusStyle(phStatus);
                                       return (
                                         <div key={ph.cr5db_projectphaseid} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', border: '1px solid var(--color-border-light)', borderRadius: '6px', backgroundColor: '#ffffff' }}>
