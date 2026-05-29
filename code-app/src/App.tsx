@@ -1459,10 +1459,14 @@ function App() {
           payload.cr5db_ReportsToPositionID = null;
         }
 
-        const res = await Cr5db_jobpositionsService.update(editingJobPosition.cr5db_jobpositionid, payload);
-        if (res.error) {
-          throw new Error(res.error.message || "Lỗi cập nhật từ Dataverse.");
-        }
+        await executeCrudWithApproval(
+          "JobPositions",
+          "Update",
+          payload,
+          editingJobPosition.cr5db_jobpositionid,
+          `Cập nhật vị trí công việc: ${newJobPosName}`,
+          editingJobPosition
+        );
       } else {
         // For creation, only include lookup fields if they are selected (avoid null properties)
         if (newJobPosDeptId) {
@@ -1475,10 +1479,13 @@ function App() {
           payload["cr5db_ReportsToPositionID@odata.bind"] = `/cr5db_jobpositions(${selectedReportsToPositionId})`;
         }
 
-        const res = await Cr5db_jobpositionsService.create(payload);
-        if (res.error) {
-          throw new Error(res.error.message || "Lỗi tạo mới từ Dataverse.");
-        }
+        await executeCrudWithApproval(
+          "JobPositions",
+          "Create",
+          payload,
+          undefined,
+          `Tạo vị trí công việc mới: ${newJobPosName}`
+        );
       }
       setShowJobPositionModal(false);
       setEditingJobPosition(null);
@@ -1486,7 +1493,6 @@ function App() {
       setNewJobPosQuota(1);
       setNewJobPosDeptId('');
       setNewJobPosCatalogId('');
-      await fetchLiveValues();
     } catch (err: any) {
       console.error(err);
       alert(`Lỗi khi lưu job position: ${err.message || err}`);
@@ -1498,8 +1504,15 @@ function App() {
     if (!window.confirm("Bạn có chắc chắn muốn xóa job position này không?")) return;
     try {
       setIsLoading(true);
-      await Cr5db_jobpositionsService.delete(id);
-      await fetchLiveValues();
+      const targetPos = jobPositionsList.find(pos => pos.cr5db_jobpositionid === id);
+      await executeCrudWithApproval(
+        "JobPositions",
+        "Delete",
+        null,
+        id,
+        `Xóa vị trí công việc: ${targetPos?.cr5db_positionname || id}`,
+        targetPos
+      );
     } catch (err) {
       console.error(err);
       alert("Không thể xóa job position.");
