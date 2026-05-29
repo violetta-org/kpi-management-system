@@ -461,6 +461,16 @@ function App() {
         safeGet(Cr5db_kpilibrariesService.getAll)
       ]);
 
+      // Map job position names to user records dynamically
+      allUsers.forEach((u: any) => {
+        if (u._cr5db_jobposition_value) {
+          const matchedPos = allJobPositions.find((p: any) => p.cr5db_jobpositionid === u._cr5db_jobposition_value);
+          if (matchedPos) {
+            u.cr5db_jobpositionname = matchedPos.cr5db_positionname;
+          }
+        }
+      });
+
       // Wrap into response-shaped objects where downstream code needs them
       const tasksResponse = { data: rawTasks };
       const headcountResponse = { data: rawHeadcount };
@@ -1145,6 +1155,20 @@ function App() {
       };
 
       if (employeeJobPositionId) {
+        const pos = jobPositionsList.find(p => p.cr5db_jobpositionid === employeeJobPositionId);
+        if (pos && pos.cr5db_headcountquota) {
+          const assignedCount = usersList.filter(
+            u => u._cr5db_jobposition_value === employeeJobPositionId && 
+            u.cr5db_userid !== editingEmployee?.cr5db_userid &&
+            u.cr5db_isactive !== false
+          ).length;
+          
+          if (assignedCount >= pos.cr5db_headcountquota) {
+            alert(`Không thể lưu: Vị trí '${pos.cr5db_positionname}' đã đạt giới hạn định biên tối đa là ${pos.cr5db_headcountquota} người.`);
+            setIsLoading(false);
+            return;
+          }
+        }
         payload["cr5db_JobPosition@odata.bind"] = `/cr5db_jobpositions(${employeeJobPositionId})`;
       } else if (editingEmployee) {
         payload.cr5db_jobposition = null;
@@ -1559,7 +1583,8 @@ function App() {
             data[name] = { quota: 0, actual: 0 };
           }
           data[name].quota += pos.cr5db_headcountquota || 0;
-          data[name].actual += pos.cr5db_currentheadcount || 0;
+          const actualCount = usersList.filter(u => u._cr5db_jobposition_value === pos.cr5db_jobpositionid && u.cr5db_isactive !== false).length;
+          data[name].actual += actualCount;
         }
       }
     });
@@ -1572,9 +1597,14 @@ function App() {
 
   const companyHeadcounts = getCompanyHeadcounts();
   const totalQuotaCount = jobPositionsList.reduce((acc, curr) => acc + (curr.cr5db_headcountquota || 0), 0);
-  const totalActualCount = jobPositionsList.reduce((acc, curr) => acc + (curr.cr5db_currentheadcount || 0), 0);
-  const overQuotaCount = jobPositionsList.filter(p => (p.cr5db_currentheadcount || 0) > (p.cr5db_headcountquota || 0)).length;
-  const underQuotaCount = jobPositionsList.filter(p => (p.cr5db_currentheadcount || 0) < (p.cr5db_headcountquota || 0)).length;
+  
+  const getJobPositionActualCount = (posId: string) => {
+    return usersList.filter(u => u._cr5db_jobposition_value === posId && u.cr5db_isactive !== false).length;
+  };
+  
+  const totalActualCount = jobPositionsList.reduce((acc, curr) => acc + getJobPositionActualCount(curr.cr5db_jobpositionid), 0);
+  const overQuotaCount = jobPositionsList.filter(p => getJobPositionActualCount(p.cr5db_jobpositionid) > (p.cr5db_headcountquota || 0)).length;
+  const underQuotaCount = jobPositionsList.filter(p => getJobPositionActualCount(p.cr5db_jobpositionid) < (p.cr5db_headcountquota || 0)).length;
   const pendingRequestCount = headcountRequests.filter(r => r.cr5db_approvalstatus === 'Pending').length;
 
   if (isLoading) {
@@ -2851,7 +2881,7 @@ function App() {
                     ) : jobPositionsList.map(pos => {
                       const dept = departmentsList.find(d => d.cr5db_departmentid === pos._cr5db_department_value);
                       const quota = pos.cr5db_headcountquota || 0;
-                      const actual = pos.cr5db_currentheadcount || 0;
+                      const actual = usersList.filter(u => u._cr5db_jobposition_value === pos.cr5db_jobpositionid && u.cr5db_isactive !== false).length;
                       let statusText = 'At Quota';
                       let statusColor = '#107C41';
                       if (actual > quota) { statusText = 'Over Quota'; statusColor = '#a80000'; }
