@@ -245,6 +245,8 @@ function App() {
   const [activeResourcesSubTab, setActiveResourcesSubTab] = useState<'allocations' | 'projects'>('allocations');
   const [activeRoleSubTab, setActiveRoleSubTab] = useState<'assignments' | 'history'>('assignments');
   const [collapsedProjects, setCollapsedProjects] = useState<{ [key: string]: boolean }>({});
+  const [activeKpiSubTab, setActiveKpiSubTab] = useState<'overview' | 'charts'>('overview');
+  const [kpiTimeRange, setKpiTimeRange] = useState<'week' | 'month' | 'quarter' | 'custom'>('quarter');
 
   // Filter selections
   // const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
@@ -1598,134 +1600,220 @@ function App() {
 
           {/* SCREEN 4: MY KPIs */}
           {activeTab === 'kpi' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              {/* Header section matching Image 4 */}
+            <div className="space-y-6 p-6" style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '24px', fontFamily: 'ui-sans-serif, system-ui, sans-serif', color: '#000000', backgroundColor: '#ffffff' }}>
+              {/* Header section */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ color: 'var(--color-text)', display: 'flex', alignItems: 'center' }}><TargetIcon /></span>
+                <span style={{ color: '#000000', display: 'flex', alignItems: 'center' }}><TargetIcon /></span>
                 <div>
-                  <h2 style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1.2 }}>My KPIs</h2>
-                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '2px' }}>View your assigned KPIs and track progress</p>
+                  <h1 style={{ fontSize: '24px', fontWeight: 700, margin: 0, color: '#000000', lineHeight: 1.2 }}>My KPIs</h1>
+                  <p style={{ fontSize: '16px', color: '#000000', margin: '2px 0 0 0', fontWeight: 400 }}>View your assigned KPIs and track progress</p>
                 </div>
               </div>
 
-              {/* Sub navigation button tabs matching Image 4 */}
+              {/* Sub navigation button tabs */}
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
+                  onClick={() => setActiveKpiSubTab('overview')}
                   style={{
                     border: 'none',
                     borderRadius: '8px',
                     padding: '8px 16px',
-                    fontSize: '13px',
-                    fontWeight: 600,
+                    fontSize: '14px',
+                    fontWeight: 500,
                     cursor: 'pointer',
-                    backgroundColor: '#FAF9F9',
-                    color: 'var(--color-text)'
+                    backgroundColor: activeKpiSubTab === 'overview' ? '#FAF9F9' : 'transparent',
+                    color: activeKpiSubTab === 'overview' ? '#000000' : 'rgba(0, 0, 0, 0.7)'
                   }}
                 >
                   Overview
                 </button>
                 <button
+                  onClick={() => setActiveKpiSubTab('charts')}
                   style={{
                     border: 'none',
                     borderRadius: '8px',
                     padding: '8px 16px',
-                    fontSize: '13px',
-                    fontWeight: 600,
+                    fontSize: '14px',
+                    fontWeight: 500,
                     cursor: 'pointer',
-                    backgroundColor: 'transparent',
-                    color: 'var(--color-text-secondary)'
+                    backgroundColor: activeKpiSubTab === 'charts' ? '#FAF9F9' : 'transparent',
+                    color: activeKpiSubTab === 'charts' ? '#000000' : 'rgba(0, 0, 0, 0.7)'
                   }}
                 >
                   Progress Charts
                 </button>
               </div>
 
-              {/* Metrics grid matching Image 4 */}
-              <div className="metrics-grid">
-                <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: 'var(--color-text)', display: 'flex', alignItems: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M18 20V10M12 20V4M6 20v-6" /></svg>
-                    </span>
-                    <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700 }}>{kpiTargets.length}</span>
-                  </div>
-                  <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>KPI Targets</span>
-                </div>
-                <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#107C41', display: 'flex', alignItems: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                    </span>
-                    <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: '#107C41' }}>
-                      {kpiTargets.filter(k => k.cr5db_actualvalue >= k.cr5db_targetvalue).length}
-                    </span>
-                  </div>
-                  <span className="metric-label" style={{ fontSize: '12px', color: '#107C41', fontWeight: 500 }}>On Track</span>
-                </div>
-                <div className="metric-card" style={{ gap: '16px', padding: '20px', borderColor: kpiTargets.filter(k => k.cr5db_actualvalue < k.cr5db_targetvalue && k.cr5db_actualvalue > 0).length > 0 ? '#E29E2E' : 'var(--color-border)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#E29E2E', display: 'flex', alignItems: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
-                    </span>
-                    <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: '#E29E2E' }}>
-                      {kpiTargets.filter(k => k.cr5db_actualvalue < k.cr5db_targetvalue && k.cr5db_actualvalue > 0).length}
-                    </span>
-                  </div>
-                  <span className="metric-label" style={{ fontSize: '12px', color: '#E29E2E', fontWeight: 500 }}>At Risk</span>
-                </div>
-                <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6" /><polyline points="17 18 23 18 23 12" /></svg>
-                    </span>
-                    <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-text-secondary)' }}>
-                      {kpiTargets.filter(k => k.cr5db_actualvalue === 0).length}
-                    </span>
-                  </div>
-                  <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Behind</span>
-                </div>
-              </div>
-
-              {/* Main content table card matching Image 4 */}
-              <div className="card-spec" style={{ padding: '32px' }}>
-                {kpiTargets.length === 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', textAlign: 'center', gap: '12px' }}>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--color-text-secondary)' }}><path d="M18 20V10M12 20V4M6 20v-6" /></svg>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text)' }}>No KPI targets found</h4>
-                      <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>Create your first KPI target to start tracking performance</p>
+              {activeKpiSubTab === 'overview' ? (
+                <>
+                  {/* Metrics grid */}
+                  <div className="metrics-grid">
+                    <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: 'var(--color-text)', display: 'flex', alignItems: 'center' }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M18 20V10M12 20V4M6 20v-6" /></svg>
+                        </span>
+                        <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700 }}>{kpiTargets.length}</span>
+                      </div>
+                      <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>KPI Targets</span>
+                    </div>
+                    <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: '#107C41', display: 'flex', alignItems: 'center' }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                        </span>
+                        <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: '#107C41' }}>
+                          {kpiTargets.filter(k => k.cr5db_actualvalue >= k.cr5db_targetvalue).length}
+                        </span>
+                      </div>
+                      <span className="metric-label" style={{ fontSize: '12px', color: '#107C41', fontWeight: 500 }}>On Track</span>
+                    </div>
+                    <div className="metric-card" style={{ gap: '16px', padding: '20px', borderColor: kpiTargets.filter(k => k.cr5db_actualvalue < k.cr5db_targetvalue && k.cr5db_actualvalue > 0).length > 0 ? '#E29E2E' : 'var(--color-border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: '#E29E2E', display: 'flex', alignItems: 'center' }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                        </span>
+                        <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: '#E29E2E' }}>
+                          {kpiTargets.filter(k => k.cr5db_actualvalue < k.cr5db_targetvalue && k.cr5db_actualvalue > 0).length}
+                        </span>
+                      </div>
+                      <span className="metric-label" style={{ fontSize: '12px', color: '#E29E2E', fontWeight: 500 }}>At Risk</span>
+                    </div>
+                    <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center' }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6" /><polyline points="17 18 23 18 23 12" /></svg>
+                        </span>
+                        <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-text-secondary)' }}>
+                          {kpiTargets.filter(k => k.cr5db_actualvalue === 0).length}
+                        </span>
+                      </div>
+                      <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Behind</span>
                     </div>
                   </div>
-                ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-                    <thead>
-                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
-                        <th style={{ padding: '14px 20px' }}>Mục tiêu KPI</th>
-                        <th style={{ padding: '14px 20px' }}>Tỷ trọng</th>
-                        <th style={{ padding: '14px 20px' }}>Mục tiêu</th>
-                        <th style={{ padding: '14px 20px' }}>Thực tế</th>
-                        <th style={{ padding: '14px 20px' }}>Đánh giá</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {kpiTargets.map(k => {
-                        const rate = k.cr5db_targetvalue > 0 ? Math.min(100, Math.round((k.cr5db_actualvalue / k.cr5db_targetvalue) * 100)) : 0;
-                        return (
-                          <tr key={k.cr5db_kpitargetid} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                            <td style={{ padding: '14px 20px', fontWeight: 600 }}>{k.cr5db_kpiname}</td>
-                            <td style={{ padding: '14px 20px' }}>{k.cr5db_weightpercentage}%</td>
-                            <td style={{ padding: '14px 20px' }}>{k.cr5db_targetvalue} {k.cr5db_unit}</td>
-                            <td style={{ padding: '14px 20px' }}>{k.cr5db_actualvalue} {k.cr5db_unit}</td>
-                            <td style={{ padding: '14px 20px' }}>
-                              <span style={{ fontWeight: 700, color: rate >= 80 ? '#107C41' : 'var(--color-primary)' }}>{rate}%</span>
-                            </td>
+
+                  {/* Main content table card */}
+                  <div className="card-spec" style={{ padding: '32px' }}>
+                    {kpiTargets.length === 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', textAlign: 'center', gap: '12px' }}>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--color-text-secondary)' }}><path d="M18 20V10M12 20V4M6 20v-6" /></svg>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text)' }}>No KPI targets found</h4>
+                          <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>Create your first KPI target to start tracking performance</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                            <th style={{ padding: '14px 20px' }}>Mục tiêu KPI</th>
+                            <th style={{ padding: '14px 20px' }}>Tỷ trọng</th>
+                            <th style={{ padding: '14px 20px' }}>Mục tiêu</th>
+                            <th style={{ padding: '14px 20px' }}>Thực tế</th>
+                            <th style={{ padding: '14px 20px' }}>Đánh giá</th>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+                        </thead>
+                        <tbody>
+                          {kpiTargets.map(k => {
+                            const rate = k.cr5db_targetvalue > 0 ? Math.min(100, Math.round((k.cr5db_actualvalue / k.cr5db_targetvalue) * 100)) : 0;
+                            return (
+                              <tr key={k.cr5db_kpitargetid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                <td style={{ padding: '14px 20px', fontWeight: 600 }}>{k.cr5db_kpiname}</td>
+                                <td style={{ padding: '14px 20px' }}>{k.cr5db_weightpercentage}%</td>
+                                <td style={{ padding: '14px 20px' }}>{k.cr5db_targetvalue} {k.cr5db_unit}</td>
+                                <td style={{ padding: '14px 20px' }}>{k.cr5db_actualvalue} {k.cr5db_unit}</td>
+                                <td style={{ padding: '14px 20px' }}>
+                                  <span style={{ fontWeight: 700, color: rate >= 80 ? '#107C41' : 'var(--color-primary)' }}>{rate}%</span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Time Range Selection */}
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    {['week', 'month', 'quarter'].map((preset) => (
+                      <button
+                        key={preset}
+                        onClick={() => setKpiTimeRange(preset as any)}
+                        style={{
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '6px 12px',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          backgroundColor: kpiTimeRange === preset ? '#000000' : 'transparent',
+                          color: kpiTimeRange === preset ? '#ffffff' : '#000000',
+                          textTransform: 'capitalize'
+                        }}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                    
+                    {/* Custom Button */}
+                    <button
+                      onClick={() => setKpiTimeRange('custom')}
+                      style={{
+                        border: '1px solid #000000',
+                        borderRadius: '6px',
+                        padding: '6px 12px',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        backgroundColor: kpiTimeRange === 'custom' ? '#000000' : '#ffffff',
+                        color: kpiTimeRange === 'custom' ? '#ffffff' : '#000000',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                      Custom
+                    </button>
+                  </div>
+
+                  {/* Date Range Indicator */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#000000', fontWeight: 500 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    <span>Showing progress from May 1, 2026 to May 29, 2026</span>
+                  </div>
+
+                  {/* Chart Placeholder Card */}
+                  <div className="card-spec" style={{ border: '1.11px solid #000000', borderRadius: '12px', padding: '24px', boxSizing: 'border-box', boxShadow: '0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1)', backgroundColor: '#ffffff', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {/* Empty State (No Data) */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center', gap: '16px' }}>
+                      <div style={{ color: 'rgba(0, 0, 0, 0.4)', display: 'flex', alignItems: 'center' }}>
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                          <polyline points="17 6 23 6 23 12" />
+                        </svg>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <h4 style={{ fontSize: '18px', fontWeight: 500, color: '#000000', margin: 0 }}>No KPI progress data</h4>
+                        <p style={{ fontSize: '14px', color: 'rgba(0, 0, 0, 0.7)', margin: 0 }}>Progress charts will appear here once KPIs are assigned to you</p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
