@@ -1549,7 +1549,14 @@ function App() {
           payload.cr5db_approvalstatus = statusVal;
         }
 
-        await Cr5db_headcountrequestsService.update(editingHeadcountRequest.cr5db_headcountrequestid, payload);
+        await executeCrudWithApproval(
+          "HeadcountRequests",
+          "Update",
+          payload,
+          editingHeadcountRequest.cr5db_headcountrequestid,
+          `Cập nhật đề xuất headcount: ${newRequestName}`,
+          editingHeadcountRequest
+        );
 
         if (isTransitioningToApproved) {
           const tempReq = {
@@ -1564,23 +1571,29 @@ function App() {
 
         const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
         await Cr5db_audittraillogsService.create({
-          cr5db_logname: "Headcount Request Update",
-          cr5db_actionexecuted: `Updated headcount request ${newRequestName}`,
+          cr5db_logname: "Headcount Request Update Request",
+          cr5db_actionexecuted: `Requested/Executed headcount request update: ${newRequestName}`,
           cr5db_changedfromvalue: editingHeadcountRequest.cr5db_approvalstatus,
-          cr5db_changedtovalue: `Updated By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+          cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
         } as any);
       } else {
         payload.cr5db_approvalstatus = 122650000;
         payload.cr5db_createddate = new Date().toISOString().split('T')[0];
 
-        await Cr5db_headcountrequestsService.create(payload);
+        await executeCrudWithApproval(
+          "HeadcountRequests",
+          "Create",
+          payload,
+          undefined,
+          `Đề xuất định biên mới: ${newRequestName}`
+        );
 
         const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
         await Cr5db_audittraillogsService.create({
-          cr5db_logname: "Headcount Request Creation",
-          cr5db_actionexecuted: `Created headcount request ${newRequestName}`,
+          cr5db_logname: "Headcount Request Creation Request",
+          cr5db_actionexecuted: `Requested/Executed headcount request creation: ${newRequestName}`,
           cr5db_changedfromvalue: "None",
-          cr5db_changedtovalue: `Created By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+          cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
         } as any);
       }
 
@@ -1588,7 +1601,6 @@ function App() {
       setEditingHeadcountRequest(null);
       setNewRequestName('');
       setNewReqReason('');
-      await fetchLiveValues();
     } catch (err) {
       console.error(err);
       alert("Lỗi khi lưu đề xuất headcount.");
@@ -1601,17 +1613,23 @@ function App() {
     if (!confirmDelete) return;
     try {
       setIsLoading(true);
-      await Cr5db_headcountrequestsService.delete(id);
+      const targetRequest = headcountRequests.find(r => r.cr5db_headcountrequestid === id);
+      await executeCrudWithApproval(
+        "HeadcountRequests",
+        "Delete",
+        null,
+        id,
+        `Xóa đề xuất headcount: ${targetRequest?.cr5db_requestname || id}`,
+        targetRequest
+      );
       
       const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       await Cr5db_audittraillogsService.create({
-        cr5db_logname: "Headcount Request Deletion",
-        cr5db_actionexecuted: `Deleted headcount request ID ${id}`,
+        cr5db_logname: "Headcount Request Deletion Request",
+        cr5db_actionexecuted: `Requested/Executed headcount request deletion: ${targetRequest?.cr5db_requestname || id}`,
         cr5db_changedfromvalue: "Active",
-        cr5db_changedtovalue: `Deleted By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+        cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
       } as any);
-
-      await fetchLiveValues();
     } catch (err) {
       console.error(err);
       alert("Xóa đề xuất headcount thất bại.");
