@@ -4130,24 +4130,25 @@ function App() {
                             <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Ten KPI <span style={{ color: '#dc2626' }}>*</span></label>
                             <input value={kpiLibName} onChange={e => setKpiLibName(e.target.value)} required placeholder="Vi du: Doanh so thang, Ty le diem danh..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                            <div>
-                              <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Don vi do luong</label>
-                              <select value={kpiLibUnit} onChange={e => setKpiLibUnit(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px' }}>
-                                <option value="%">% (Phan tram)</option>
-                                <option value="VND">VND (Dong)</option>
-                                <option value="USD">USD (Do la)</option>
-                                <option value="Days">Days (Ngay)</option>
-                                <option value="Units">Units (Don vi)</option>
-                                <option value="Score">Score (Diem)</option>
-                                <option value="Tasks">Tasks (Nhiem vu)</option>
-                                <option value="Hours">Hours (Gio)</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Don vi (tuy chinh)</label>
-                              <input value={kpiLibUnit} onChange={e => setKpiLibUnit(e.target.value)} placeholder="Vi du: km, items..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-                            </div>
+                          <div>
+                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Don vi do luong</label>
+                            <input 
+                              value={kpiLibUnit} 
+                              onChange={e => setKpiLibUnit(e.target.value)} 
+                              list="kpi-unit-options"
+                              placeholder="Chon hoac nhap don vi (vd: %, VND, km...)" 
+                              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} 
+                            />
+                            <datalist id="kpi-unit-options">
+                              <option value="%">% (Phan tram)</option>
+                              <option value="VND">VND (Dong)</option>
+                              <option value="USD">USD (Do la)</option>
+                              <option value="Days">Days (Ngay)</option>
+                              <option value="Units">Units (Don vi)</option>
+                              <option value="Score">Score (Diem)</option>
+                              <option value="Tasks">Tasks (Nhiem vu)</option>
+                              <option value="Hours">Hours (Gio)</option>
+                            </datalist>
                           </div>
                           <div>
                             <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Cong thuc tinh (tuy chon)</label>
