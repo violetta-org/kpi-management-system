@@ -15,7 +15,7 @@
   --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   
   /* Radii - matching screenshot */
-  --radius-card: 50px; /* 50px+ rounded corners for card spec */
+  --radius-card: 12px; /* 12px rounded corners for card spec as in Image 1 */
   --radius-pill: 50px; /* Badge/Pill rounding */
   --radius-button: 4px;
 }
@@ -140,11 +140,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .nav-item:hover {
-  background-color: #f5f5f5;
+  background-color: transparent;
+  opacity: 0.8;
 }
 
 .nav-item.active {
-  background-color: #f5f5f5; /* Simple, non-colored background selection as in screenshot */
+  background-color: transparent;
   font-weight: 700;
 }
 
@@ -261,6 +262,10 @@ h1, h2, h3, h4, h5, h6 {
   text-decoration: none;
   cursor: pointer;
   margin-top: auto;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: inherit;
 }
 
 .feature-link:hover {
@@ -414,3 +419,46 @@ h1, h2, h3, h4, h5, h6 {
     padding: 20px;
   }
 }
+
+/* Task Dashboard Responsive Classes */
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.task-filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+}
+
+.task-filter-select-wrapper {
+  position: relative;
+  width: 200px;
+}
+
+@media (max-width: 640px) {
+  .task-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .task-header .new-task-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .task-filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .task-filter-select-wrapper {
+    width: 100%;
+  }
+}
+

@@ -6,6 +6,7 @@ Initially built using Vibe Portal (`vibe.powerapps.com`), the project has been s
 
 > [!NOTE]
 > Detailed system architecture, prerequisites, and administration configuration are documented in [power_apps_code_apps_research.md](file:///c:/Users/violet/Documents/MQF/Study%20Materials/Sixth%20Semester/QLDA/vibepowerapps/power_apps_code_apps_research.md).
+> For integrating and calling Power Automate Cloud Flows, see the [Power Automate Flows Integration Guide](file:///c:/Users/violet/Documents/MQF/Study%20Materials/Sixth%20Semester/QLDA/vibepowerapps/docs/power_apps_add_flows_guide.md).
 
 ---
 
