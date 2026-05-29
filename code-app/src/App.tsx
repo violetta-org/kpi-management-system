@@ -1152,14 +1152,31 @@ function App() {
       }
 
       if (editingHeadcountRequest) {
+        let isTransitioningToApproved = false;
         if (activeRole === 'Admin' || activeRole === 'HRManager') {
           let statusVal = 122650000;
-          if (newReqStatus === 'Approved') statusVal = 122650001;
+          if (newReqStatus === 'Approved') {
+            statusVal = 122650001;
+            if (editingHeadcountRequest.cr5db_approvalstatus !== 'Approved') {
+              isTransitioningToApproved = true;
+            }
+          }
           else if (newReqStatus === 'Rejected') statusVal = 122650002;
           payload.cr5db_approvalstatus = statusVal;
         }
 
         await Cr5db_headcountrequestsService.update(editingHeadcountRequest.cr5db_headcountrequestid, payload);
+
+        if (isTransitioningToApproved) {
+          const tempReq = {
+            ...editingHeadcountRequest,
+            cr5db_requestedquantity: Number(newReqQty),
+            cr5db_requesttype: newRequestType,
+            _cr5db_department_value: newReqDeptId || undefined,
+            _cr5db_positioncatalog_value: newReqCatalogId || undefined
+          };
+          await updateJobPositionQuotaForRequest(tempReq);
+        }
 
         const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
         await Cr5db_audittraillogsService.create({
@@ -1218,13 +1235,64 @@ function App() {
     }
   };
 
+  const updateJobPositionQuotaForRequest = async (r: any) => {
+    const matchingPos = jobPositionsList.find(pos => {
+      const posDept = pos._cr5db_department_value || '';
+      const reqDept = r._cr5db_department_value || '';
+      const posCatalog = pos._cr5db_positioncatalogtitle_value || '';
+      const reqCatalog = r._cr5db_positioncatalog_value || '';
+      return posDept === reqDept && posCatalog === reqCatalog;
+    });
+
+    const qty = Number(r.cr5db_requestedquantity) || 1;
+    const isDecrease = r.cr5db_requesttype === 'Decrease Headcount' || r.raw_requesttype === 122650001;
+
+    if (matchingPos) {
+      const currentQuota = Number(matchingPos.cr5db_headcountquota) || 0;
+      const newQuota = isDecrease ? Math.max(0, currentQuota - qty) : currentQuota + qty;
+
+      await Cr5db_jobpositionsService.update(matchingPos.cr5db_jobpositionid, {
+        cr5db_headcountquota: newQuota
+      });
+      console.log(`Updated job position ${matchingPos.cr5db_positionname} quota to ${newQuota}`);
+    } else {
+      if (!isDecrease) {
+        const catalog = positionCatalogList.find(c => c.cr5db_positioncatalogid === r._cr5db_positioncatalog_value);
+        const name = catalog?.cr5db_positioncatalog1 || r.cr5db_positiontitle || 'Vị trí mới';
+        
+        const payload: any = {
+          cr5db_positionname: name,
+          cr5db_headcountquota: qty
+        };
+
+        if (r._cr5db_department_value) {
+          payload["cr5db_Department@odata.bind"] = `/cr5db_departments(${r._cr5db_department_value})`;
+        }
+        if (r._cr5db_positioncatalog_value) {
+          payload["cr5db_PositionCatalogTitle@odata.bind"] = `/cr5db_positioncatalogs(${r._cr5db_positioncatalog_value})`;
+        }
+
+        await Cr5db_jobpositionsService.create(payload);
+        console.log(`Created new job position ${name} with quota ${qty}`);
+      }
+    }
+  };
+
   const handleApproveHeadcountRequest = async (id: string, status: 'Approved' | 'Rejected') => {
     try {
       setIsLoading(true);
       const statusVal = status === 'Approved' ? 122650001 : 122650002;
+      
+      const reqObj = headcountRequests.find(r => r.cr5db_headcountrequestid === id);
+
       await Cr5db_headcountrequestsService.update(id, {
         cr5db_approvalstatus: statusVal as any
       });
+
+      if (status === 'Approved' && reqObj && reqObj.cr5db_approvalstatus !== 'Approved') {
+        await updateJobPositionQuotaForRequest(reqObj);
+      }
+
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
