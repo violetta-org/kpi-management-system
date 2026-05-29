@@ -306,6 +306,7 @@ function App() {
   const [showCatalogModal, setShowCatalogModal] = useState(false);
   const [newCatalogCode, setNewCatalogCode] = useState('');
   const [newCatalogName, setNewCatalogName] = useState('');
+  const [editingCatalog, setEditingCatalog] = useState<any | null>(null);
 
   // Headcount Quota Job Position modal
   const [showJobPositionModal, setShowJobPositionModal] = useState(false);
@@ -313,6 +314,7 @@ function App() {
   const [newJobPosDeptId, setNewJobPosDeptId] = useState('');
   const [newJobPosCatalogId, setNewJobPosCatalogId] = useState('');
   const [newJobPosQuota, setNewJobPosQuota] = useState(1);
+  const [editingJobPosition, setEditingJobPosition] = useState<any | null>(null);
 
   // Role assignment modal
   const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
@@ -800,17 +802,38 @@ function App() {
     if (!newCatalogCode.trim() || !newCatalogName.trim()) return;
     try {
       setIsLoading(true);
-      await Cr5db_positioncatalogsService.create({
-        cr5db_code: newCatalogCode,
-        cr5db_positioncatalog1: newCatalogName
-      } as any);
+      if (editingCatalog) {
+        await Cr5db_positioncatalogsService.update(editingCatalog.cr5db_positioncatalogid, {
+          cr5db_code: newCatalogCode,
+          cr5db_positioncatalog1: newCatalogName
+        } as any);
+      } else {
+        await Cr5db_positioncatalogsService.create({
+          cr5db_code: newCatalogCode,
+          cr5db_positioncatalog1: newCatalogName
+        } as any);
+      }
       setShowCatalogModal(false);
+      setEditingCatalog(null);
       setNewCatalogCode('');
       setNewCatalogName('');
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
-      alert("Lỗi khi thêm danh mục chức danh.");
+      alert("Lỗi khi lưu danh mục chức danh.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteCatalog = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa chức danh này không?")) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_positioncatalogsService.delete(id);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể xóa chức danh.");
       setIsLoading(false);
     }
   };
@@ -821,20 +844,46 @@ function App() {
     if (!newJobPosName.trim()) return;
     try {
       setIsLoading(true);
-      await Cr5db_jobpositionsService.create({
-        cr5db_positionname: newJobPosName,
-        cr5db_headcountquota: Number(newJobPosQuota),
-        "cr5db_Department@odata.bind": newJobPosDeptId ? `/cr5db_departments(${newJobPosDeptId})` : undefined,
-        "cr5db_PositionCatalogTitle@odata.bind": newJobPosCatalogId ? `/cr5db_position_catalogs(${newJobPosCatalogId})` : undefined,
-        "cr5db_ReportsToPositionID@odata.bind": selectedReportsToPositionId ? `/cr5db_job_positions(${selectedReportsToPositionId})` : undefined
-      } as any);
+      if (editingJobPosition) {
+        await Cr5db_jobpositionsService.update(editingJobPosition.cr5db_jobpositionid, {
+          cr5db_positionname: newJobPosName,
+          cr5db_headcountquota: Number(newJobPosQuota),
+          "cr5db_Department@odata.bind": newJobPosDeptId ? `/cr5db_departments(${newJobPosDeptId})` : undefined,
+          "cr5db_PositionCatalogTitle@odata.bind": newJobPosCatalogId ? `/cr5db_position_catalogs(${newJobPosCatalogId})` : undefined,
+          "cr5db_ReportsToPositionID@odata.bind": selectedReportsToPositionId ? `/cr5db_job_positions(${selectedReportsToPositionId})` : undefined
+        } as any);
+      } else {
+        await Cr5db_jobpositionsService.create({
+          cr5db_positionname: newJobPosName,
+          cr5db_headcountquota: Number(newJobPosQuota),
+          "cr5db_Department@odata.bind": newJobPosDeptId ? `/cr5db_departments(${newJobPosDeptId})` : undefined,
+          "cr5db_PositionCatalogTitle@odata.bind": newJobPosCatalogId ? `/cr5db_position_catalogs(${newJobPosCatalogId})` : undefined,
+          "cr5db_ReportsToPositionID@odata.bind": selectedReportsToPositionId ? `/cr5db_job_positions(${selectedReportsToPositionId})` : undefined
+        } as any);
+      }
       setShowJobPositionModal(false);
+      setEditingJobPosition(null);
       setNewJobPosName('');
       setNewJobPosQuota(1);
+      setNewJobPosDeptId('');
+      setNewJobPosCatalogId('');
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
-      alert("Lỗi khi tạo định biên job position.");
+      alert("Lỗi khi lưu job position.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteJobPosition = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa job position này không?")) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_jobpositionsService.delete(id);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể xóa job position.");
       setIsLoading(false);
     }
   };
@@ -2079,6 +2128,7 @@ function App() {
                     <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
                       <th style={{ padding: '14px 20px' }}>Mã chức danh</th>
                       <th style={{ padding: '14px 20px' }}>Tên chức danh</th>
+                      <th style={{ padding: '14px 20px', textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2086,6 +2136,25 @@ function App() {
                       <tr key={pc.cr5db_positioncatalogid} style={{ borderBottom: '1px solid var(--color-border)' }}>
                         <td style={{ padding: '14px 20px', fontWeight: 700 }}>{pc.cr5db_code || pc.cr5db_positioncatalogid.substring(0, 5).toUpperCase()}</td>
                         <td style={{ padding: '14px 20px' }}>{pc.cr5db_positioncatalog1}</td>
+                        <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                          <div style={{ display: 'inline-flex', gap: '8px' }}>
+                            <button
+                              className="btn-filled-3"
+                              style={{ padding: '4px 12px', fontSize: '12px' }}
+                              onClick={() => {
+                                setEditingCatalog(pc);
+                                setNewCatalogCode(pc.cr5db_code || '');
+                                setNewCatalogName(pc.cr5db_positioncatalog1 || '');
+                                setShowCatalogModal(true);
+                              }}
+                            >Edit</button>
+                            <button
+                              className="btn-filled-3"
+                              style={{ padding: '4px 12px', fontSize: '12px', color: '#a80000', borderColor: '#a80000' }}
+                              onClick={() => handleDeleteCatalog(pc.cr5db_positioncatalogid)}
+                            >Delete</button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -2114,6 +2183,7 @@ function App() {
                       <th style={{ padding: '14px 20px' }}>Quota</th>
                       <th style={{ padding: '14px 20px' }}>Actual</th>
                       <th style={{ padding: '14px 20px' }}>Trạng thái</th>
+                      <th style={{ padding: '14px 20px', textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2132,6 +2202,28 @@ function App() {
                           <td style={{ padding: '14px 20px' }}>{quota}</td>
                           <td style={{ padding: '14px 20px' }}>{actual}</td>
                           <td style={{ padding: '14px 20px', fontWeight: 700, color: statusColor }}>{statusText}</td>
+                          <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', gap: '8px' }}>
+                              <button
+                                className="btn-filled-3"
+                                style={{ padding: '4px 12px', fontSize: '12px' }}
+                                onClick={() => {
+                                  setEditingJobPosition(pos);
+                                  setNewJobPosName(pos.cr5db_positionname || '');
+                                  setNewJobPosQuota(pos.cr5db_headcountquota || 1);
+                                  setNewJobPosDeptId(pos._cr5db_department_value || '');
+                                  setNewJobPosCatalogId(pos._cr5db_positioncatalogtitle_value || '');
+                                  setSelectedReportsToPositionId(pos._cr5db_reportstopositionid_value || '');
+                                  setShowJobPositionModal(true);
+                                }}
+                              >Edit</button>
+                              <button
+                                className="btn-filled-3"
+                                style={{ padding: '4px 12px', fontSize: '12px', color: '#a80000', borderColor: '#a80000' }}
+                                onClick={() => handleDeleteJobPosition(pos.cr5db_jobpositionid)}
+                              >Delete</button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -2857,7 +2949,7 @@ function App() {
       {showCatalogModal && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>Add Standard Title</h3>
+            <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>{editingCatalog ? 'Edit Standard Title' : 'Add Standard Title'}</h3>
             <form onSubmit={handleAddCatalog} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Mã</label>
@@ -2868,8 +2960,8 @@ function App() {
                 <input type="text" value={newCatalogName} onChange={(e) => setNewCatalogName(e.target.value)} className="input-spec" required placeholder="Developer" />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-                <button type="button" onClick={() => setShowCatalogModal(false)} className="btn-filled-3">Hủy</button>
-                <button type="submit" className="btn-primary">Add</button>
+                <button type="button" onClick={() => { setShowCatalogModal(false); setEditingCatalog(null); setNewCatalogCode(''); setNewCatalogName(''); }} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary">{editingCatalog ? 'Update' : 'Add'}</button>
               </div>
             </form>
           </div>
@@ -2880,7 +2972,7 @@ function App() {
       {showJobPositionModal && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>Create Job Position</h3>
+            <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>{editingJobPosition ? 'Edit Job Position' : 'Create Job Position'}</h3>
             <form onSubmit={handleAddJobPosition} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Tên vị trí</label>
@@ -2913,15 +3005,17 @@ function App() {
                   <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Quản lý trực tiếp (Reports To)</label>
                   <select value={selectedReportsToPositionId} onChange={(e) => setSelectedReportsToPositionId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
                     <option value="">Không có</option>
-                    {jobPositionsList.map(pos => (
-                      <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>{pos.cr5db_positionname}</option>
-                    ))}
+                    {jobPositionsList
+                      .filter(pos => !editingJobPosition || pos.cr5db_jobpositionid !== editingJobPosition.cr5db_jobpositionid)
+                      .map(pos => (
+                        <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>{pos.cr5db_positionname}</option>
+                      ))}
                   </select>
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-                <button type="button" onClick={() => setShowJobPositionModal(false)} className="btn-filled-3">Hủy</button>
-                <button type="submit" className="btn-primary">Tạo mới</button>
+                <button type="button" onClick={() => { setShowJobPositionModal(false); setEditingJobPosition(null); setNewJobPosName(''); setNewJobPosQuota(1); setNewJobPosDeptId(''); setNewJobPosCatalogId(''); }} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary">{editingJobPosition ? 'Update' : 'Tạo mới'}</button>
               </div>
             </form>
           </div>
