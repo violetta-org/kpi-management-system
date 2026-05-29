@@ -1100,14 +1100,14 @@ function App() {
         payload.statecode = newTaskStatus === 'Completed' ? 1 : 0;
         payload.statuscode = newTaskStatus === 'Completed' ? 2 : 1;
 
-        await Cr5db_tasksService.update(editingTask.cr5db_taskid, payload);
+        await executeCrudWithApproval("Tasks", "Update", payload, editingTask.cr5db_taskid, `Cập nhật công việc: ${newTaskName}`, editingTask);
 
         const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
         await Cr5db_audittraillogsService.create({
-          cr5db_logname: "Task Update",
-          cr5db_actionexecuted: `Updated task ${newTaskName}`,
+          cr5db_logname: "Task Update Request",
+          cr5db_actionexecuted: `Requested/Executed task update: ${newTaskName}`,
           cr5db_changedfromvalue: editingTask.cr5db_status,
-          cr5db_changedtovalue: `Updated By: ${activeUserObj?.cr5db_fullname || currentUserEmail} | Status: ${newTaskStatus}`
+          cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
         } as any);
       } else {
         const currentUserRecord = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
@@ -1126,14 +1126,14 @@ function App() {
           payload["cr5db_ProjectPhaseID@odata.bind"] = `/cr5db_projectphases(${newTaskPhaseId})`;
         }
 
-        await Cr5db_tasksService.create(payload);
+        await executeCrudWithApproval("Tasks", "Create", payload, undefined, `Tạo công việc mới: ${newTaskName}`);
 
         const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
         await Cr5db_audittraillogsService.create({
-          cr5db_logname: "Task Creation",
-          cr5db_actionexecuted: `Created task ${newTaskName}`,
+          cr5db_logname: "Task Creation Request",
+          cr5db_actionexecuted: `Requested/Executed task creation: ${newTaskName}`,
           cr5db_changedfromvalue: "None",
-          cr5db_changedtovalue: `Created By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+          cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
         } as any);
       }
 
@@ -1146,7 +1146,7 @@ function App() {
       setNewTaskObjectiveId('');
       setNewTaskParentId('');
       setNewTaskAssigneeId('');
-      await fetchLiveValues();
+      // Note: fetchLiveValues is called inside executeCrudWithApproval or inside modal submit
     } catch (err) {
       console.error(err);
       alert("Không thể lưu công việc.");
@@ -1159,14 +1159,15 @@ function App() {
     if (!confirmDelete) return;
     try {
       setIsLoading(true);
-      await Cr5db_tasksService.delete(taskId);
+      const targetTask = tasks.find(t => t.cr5db_taskid === taskId);
+      await executeCrudWithApproval("Tasks", "Delete", null, taskId, `Xóa công việc: ${targetTask?.cr5db_taskname || taskId}`, targetTask);
       
       const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       await Cr5db_audittraillogsService.create({
-        cr5db_logname: "Task Deletion",
-        cr5db_actionexecuted: `Deleted task ID ${taskId}`,
+        cr5db_logname: "Task Deletion Request",
+        cr5db_actionexecuted: `Requested/Executed task deletion for ID ${taskId}`,
         cr5db_changedfromvalue: "Active/Completed",
-        cr5db_changedtovalue: `Deleted By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+        cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
       } as any);
 
       await fetchLiveValues();
