@@ -1081,7 +1081,10 @@ function App() {
           payload.cr5db_reportstopositionid = null;
         }
 
-        await Cr5db_jobpositionsService.update(editingJobPosition.cr5db_jobpositionid, payload);
+        const res = await Cr5db_jobpositionsService.update(editingJobPosition.cr5db_jobpositionid, payload);
+        if (res.error) {
+          throw new Error(res.error.message || "Lỗi cập nhật từ Dataverse.");
+        }
       } else {
         // For creation, only include lookup fields if they are selected (avoid null properties)
         if (newJobPosDeptId) {
@@ -1094,7 +1097,10 @@ function App() {
           payload["cr5db_ReportsToPositionID@odata.bind"] = `/cr5db_jobpositions(${selectedReportsToPositionId})`;
         }
 
-        await Cr5db_jobpositionsService.create(payload);
+        const res = await Cr5db_jobpositionsService.create(payload);
+        if (res.error) {
+          throw new Error(res.error.message || "Lỗi tạo mới từ Dataverse.");
+        }
       }
       setShowJobPositionModal(false);
       setEditingJobPosition(null);
@@ -1103,9 +1109,9 @@ function App() {
       setNewJobPosDeptId('');
       setNewJobPosCatalogId('');
       await fetchLiveValues();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Lỗi khi lưu job position.");
+      alert(`Lỗi khi lưu job position: ${err.message || err}`);
       setIsLoading(false);
     }
   };
@@ -1251,9 +1257,12 @@ function App() {
       const currentQuota = Number(matchingPos.cr5db_headcountquota) || 0;
       const newQuota = isDecrease ? Math.max(0, currentQuota - qty) : currentQuota + qty;
 
-      await Cr5db_jobpositionsService.update(matchingPos.cr5db_jobpositionid, {
+      const res = await Cr5db_jobpositionsService.update(matchingPos.cr5db_jobpositionid, {
         cr5db_headcountquota: newQuota
       });
+      if (res.error) {
+        throw new Error(res.error.message || "Lỗi đồng bộ định biên vị trí.");
+      }
       console.log(`Updated job position ${matchingPos.cr5db_positionname} quota to ${newQuota}`);
     } else {
       if (!isDecrease) {
@@ -1272,7 +1281,10 @@ function App() {
           payload["cr5db_PositionCatalogTitle@odata.bind"] = `/cr5db_positioncatalogs(${r._cr5db_positioncatalog_value})`;
         }
 
-        await Cr5db_jobpositionsService.create(payload);
+        const res = await Cr5db_jobpositionsService.create(payload);
+        if (res.error) {
+          throw new Error(res.error.message || "Lỗi tạo tự động vị trí định biên mới.");
+        }
         console.log(`Created new job position ${name} with quota ${qty}`);
       }
     }
@@ -1285,18 +1297,21 @@ function App() {
       
       const reqObj = headcountRequests.find(r => r.cr5db_headcountrequestid === id);
 
-      await Cr5db_headcountrequestsService.update(id, {
+      const updateRes = await Cr5db_headcountrequestsService.update(id, {
         cr5db_approvalstatus: statusVal as any
       });
+      if (updateRes.error) {
+        throw new Error(updateRes.error.message || "Lỗi cập nhật trạng thái phê duyệt từ Dataverse.");
+      }
 
       if (status === 'Approved' && reqObj && reqObj.cr5db_approvalstatus !== 'Approved') {
         await updateJobPositionQuotaForRequest(reqObj);
       }
 
       await fetchLiveValues();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Thao tác duyệt headcount thất bại.");
+      alert(`Thao tác duyệt headcount thất bại: ${err.message || err}`);
       setIsLoading(false);
     }
   };
