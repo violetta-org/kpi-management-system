@@ -191,6 +191,41 @@
           "required": true,
           "maxLength": 100
         },
+        "new_status": {
+          "type": "string",
+          "title": "Status",
+          "x-ms-dataverse-attribute": "new_status",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "new_Status",
+          "required": true,
+          "enum": [
+            "Not Started",
+            "In Progress",
+            "Completed"
+          ],
+          "x-ms-enum-values": [
+            122650000,
+            122650001,
+            122650002
+          ],
+          "Color": [
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "f62bb36e-9a5b-f111-a826-000d3a80f12a",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Status",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "new_statusname": {
+          "type": "string",
+          "title": "new_statusname",
+          "x-ms-dataverse-attribute": "new_statusname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "new_statusName",
+          "x-ms-read-only": true
+        },
         "overriddencreatedon": {
           "type": "string",
           "title": "Record Created On",
@@ -361,6 +396,7 @@
         "createdonbehalfbyyominame",
         "modifiedbyyominame",
         "modifiedonbehalfbyyominame",
+        "new_status",
         "ownerid",
         "owneridname",
         "owneridtype",

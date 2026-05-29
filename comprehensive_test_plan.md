@@ -13,10 +13,11 @@ sequenceDiagram
     actor Admin as Admin/HR Manager
     actor PM as Project Manager
     actor Emp as Employee
+    participant Dataverse
     
-    Note over Admin, Emp: GIAI ĐOẠN 1: KHỞI TẠO DỮ LIỆU NỀN
-    Admin->>Dataverse: Khởi tạo Danh mục KPI, Phòng ban & chức danh
-    Admin->>Dataverse: Thiết lập/Cập nhật Vai trò người dùng (Role)
+    Note over Admin, Dataverse: GIAI ĐOẠN 1: KHỞI TẠO DỮ LIỆU NỀN
+    Admin->>Dataverse: Khởi tạo Danh mục KPI,<br/>Phòng ban & chức danh
+    Admin->>Dataverse: Thiết lập/Cập nhật Vai trò (Role)
     
     Note over PM, Dataverse: GIAI ĐOẠN 2: LẬP KẾ HOẠCH DỰ ÁN & KPI
     PM->>Dataverse: Tạo Dự án mới & các Giai đoạn (Phases)
