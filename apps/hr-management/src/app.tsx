@@ -676,7 +676,7 @@ function App() {
         cr5db_kpiname: kpiLibName,
         cr5db_unit: kpiLibUnit,
         cr5db_formula: kpiLibFormula,
-        ownerid: '', owneridtype: 'systemusers', statecode: 0,
+        statecode: 0,
       };
       if (editingKpiLibrary) {
         await Cr5db_kpilibrariesService.update(editingKpiLibrary.cr5db_kpilibraryid, payload);
@@ -708,7 +708,7 @@ function App() {
       const payload: any = {
         cr5db_objective1: objectiveName,
         cr5db_targetvalue: objectiveTarget,
-        ownerid: '', owneridtype: 'systemusers', statecode: 0,
+        statecode: 0,
       };
       if (editingObjective) {
         await Cr5db_objectivesService.update(editingObjective.cr5db_objectiveid, payload);
