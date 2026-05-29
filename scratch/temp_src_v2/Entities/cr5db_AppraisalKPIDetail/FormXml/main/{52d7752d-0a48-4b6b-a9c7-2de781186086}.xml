@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{52d7752d-0a48-4b6b-a9c7-2de781186086}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{7dbc69a8-935e-4692-bcde-d7bb0b9b8e3c}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{d05198f4-2a0f-4d6c-b2ca-166d69e7fc5b}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{b4383d5e-5f32-4cd1-833b-cbf8b2861e59}">
+                        <labels>
+                          <label description="Appraisal KPI Detail" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_appraisalkpidetail1" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr5db_appraisalkpidetail1" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{56b434d3-68de-4215-bfa0-f7ee8f3a4b9c}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9bd191b0-9fd5-4b6a-9230-88db09e35def}">
+                        <labels>
+                          <label description="Score Achieved" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_scoreachieved" classid="{c3efe0c3-0ec6-42be-8349-cbd9079dfd8e}" datafieldname="cr5db_scoreachieved" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{28b21abf-16b4-4717-94d8-df4a9066d9e9}">
+                        <labels>
+                          <label description="Comment" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_comment" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr5db_comment" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{03708621-7d70-4b7a-9a6d-ce46dd018fd7}">
+                        <labels>
+                          <label description="Performance Appraisal" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_appraisalname" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr5db_appraisalname" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{75e185fd-baaa-4436-ba0a-37503c18e606}">
+                        <labels>
+                          <label description="KPI Target" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_targetid" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr5db_targetid" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

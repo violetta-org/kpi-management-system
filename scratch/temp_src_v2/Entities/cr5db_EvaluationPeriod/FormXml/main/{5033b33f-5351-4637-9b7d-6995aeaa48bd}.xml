@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{5033b33f-5351-4637-9b7d-6995aeaa48bd}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{d0836ff0-cfaf-4f76-973c-eee00ec87cc2}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{f9e957a8-53f0-49e1-be0e-f936cf648f27}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{149232cd-e012-40e5-9a81-c5bdb3adb8ec}">
+                        <labels>
+                          <label description="Evaluation Period" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_evaluationperiod1" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr5db_evaluationperiod1" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ae182038-564a-46d3-b535-9f1e935141ff}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ed72a578-bf18-49fc-b648-664200a129f5}">
+                        <labels>
+                          <label description="Start Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_startdate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr5db_startdate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{ec205917-e83c-45d6-8011-3c9765f8dd22}">
+                        <labels>
+                          <label description="End Date" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_enddate" classid="{5b773807-9fb2-42db-97c3-7a91eff8adff}" datafieldname="cr5db_enddate" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e1361862-8c26-4680-be0b-0af511375a4d}">
+                        <labels>
+                          <label description="Is Locked" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_islocked" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr5db_islocked" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

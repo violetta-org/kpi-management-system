@@ -22,6 +22,8 @@ import { Cr5db_projectrisksService } from './generated/services/Cr5db_projectris
 import { Cr5db_kpilibrariesService } from './generated/services/Cr5db_kpilibrariesService';
 import { Cr5db_objectivesService } from './generated/services/Cr5db_objectivesService';
 import { Cr5db_resourceallocationsService } from './generated/services/Cr5db_resourceallocationsService';
+import { Cr5db_projectteamsService } from './generated/services/Cr5db_projectteamsService';
+import { Cr5db_projectobjectivealignmentsService } from './generated/services/Cr5db_projectobjectivealignmentsService';
 
 // SVG Icons
 const DashboardIcon = () => (
@@ -116,6 +118,7 @@ interface Task {
   cr5db_due_date: string;
   _cr5db_parenttask_value?: string;
   _cr5db_objectivename_value?: string;
+  _cr5db_projectphaseid_value?: string;
   createdbyname?: string;
   _createdby_value?: string;
 }
@@ -208,7 +211,10 @@ function App() {
   >('dashboard');
 
   // Authenticated Role states
-  const [activeRole, setActiveRole] = useState<'Employee' | 'ProjectManager' | 'HRManager' | 'Admin'>('Employee');
+  const [activeRole, setActiveRole] = useState<'Employee' | 'ProjectManager' | 'HRManager' | 'Admin'>(() => {
+    const saved = sessionStorage.getItem('devRoleOverride');
+    return (saved as any) || 'Employee';
+  });
   const [currentUserEmail, setCurrentUserEmail] = useState('');
   const [currentUserName, setCurrentUserName] = useState('');
 
@@ -537,7 +543,13 @@ function App() {
       const derived = getDerivedRole(positionTitle);
       const manual = systemRole ? normalizeRole(systemRole) : null;
       const effectiveRole = manual || derived || 'Employee';
-      setActiveRole(effectiveRole);
+      
+      const devOverride = sessionStorage.getItem('devRoleOverride');
+      if (devOverride) {
+        setActiveRole(devOverride as any);
+      } else {
+        setActiveRole(effectiveRole);
+      }
 
       // Map Tasks
       const mappedTasks: Task[] = (tasksResponse.data || []).map(t => {
@@ -553,6 +565,7 @@ function App() {
           cr5db_due_date: t.cr5db_duedate || '',
           _cr5db_parenttask_value: t._cr5db_parenttask_value || undefined,
           _cr5db_objectivename_value: t._cr5db_objectivename_value || undefined,
+          _cr5db_projectphaseid_value: t._cr5db_projectphaseid_value || undefined,
           createdbyname: t.createdbyname || '',
           _createdby_value: t._createdby_value || ''
         };
@@ -938,22 +951,33 @@ function App() {
     if (!newJobPosName.trim()) return;
     try {
       setIsLoading(true);
-      if (editingJobPosition) {
-        await Cr5db_jobpositionsService.update(editingJobPosition.cr5db_jobpositionid, {
-          cr5db_positionname: newJobPosName,
-          cr5db_headcountquota: Number(newJobPosQuota),
-          "cr5db_Department@odata.bind": newJobPosDeptId ? `/cr5db_departments(${newJobPosDeptId})` : undefined,
-          "cr5db_PositionCatalogTitle@odata.bind": newJobPosCatalogId ? `/cr5db_positioncatalogs(${newJobPosCatalogId})` : undefined,
-          "cr5db_ReportsToPositionID@odata.bind": selectedReportsToPositionId ? `/cr5db_jobpositions(${selectedReportsToPositionId})` : undefined
-        } as any);
+      const payload: any = {
+        cr5db_positionname: newJobPosName,
+        cr5db_headcountquota: Number(newJobPosQuota)
+      };
+
+      if (newJobPosDeptId) {
+        payload["cr5db_Department@odata.bind"] = `/cr5db_departments(${newJobPosDeptId})`;
       } else {
-        await Cr5db_jobpositionsService.create({
-          cr5db_positionname: newJobPosName,
-          cr5db_headcountquota: Number(newJobPosQuota),
-          "cr5db_Department@odata.bind": newJobPosDeptId ? `/cr5db_departments(${newJobPosDeptId})` : undefined,
-          "cr5db_PositionCatalogTitle@odata.bind": newJobPosCatalogId ? `/cr5db_positioncatalogs(${newJobPosCatalogId})` : undefined,
-          "cr5db_ReportsToPositionID@odata.bind": selectedReportsToPositionId ? `/cr5db_jobpositions(${selectedReportsToPositionId})` : undefined
-        } as any);
+        payload.cr5db_department = null;
+      }
+
+      if (newJobPosCatalogId) {
+        payload["cr5db_PositionCatalogTitle@odata.bind"] = `/cr5db_positioncatalogs(${newJobPosCatalogId})`;
+      } else {
+        payload.cr5db_positioncatalogtitle = null;
+      }
+
+      if (selectedReportsToPositionId) {
+        payload["cr5db_ReportsToPositionID@odata.bind"] = `/cr5db_jobpositions(${selectedReportsToPositionId})`;
+      } else {
+        payload.cr5db_reportstopositionid = null;
+      }
+
+      if (editingJobPosition) {
+        await Cr5db_jobpositionsService.update(editingJobPosition.cr5db_jobpositionid, payload);
+      } else {
+        await Cr5db_jobpositionsService.create(payload);
       }
       setShowJobPositionModal(false);
       setEditingJobPosition(null);
@@ -1112,7 +1136,7 @@ function App() {
       if (employeeJobPositionId) {
         payload["cr5db_JobPosition@odata.bind"] = `/cr5db_jobpositions(${employeeJobPositionId})`;
       } else {
-        payload["cr5db_JobPosition@odata.bind"] = null;
+        payload.cr5db_jobposition = null;
       }
 
       if (editingEmployee) {
@@ -1263,17 +1287,58 @@ function App() {
   };
 
   const handleDeleteProject = async (id: string) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa vĩnh viễn dự án này khỏi hệ thống?")) return;
+    if (!window.confirm("Bạn có chắc chắn muốn xóa vĩnh viễn dự án này và toàn bộ dữ liệu liên quan (giai đoạn, rủi ro, phân bổ nguồn lực, mục tiêu)?")) return;
     try {
       setIsLoading(true);
       const targetProj = projects.find(p => p.cr5db_projectid === id);
+
+      // 1. Delete Project Objective Alignments
+      const alignmentsResponse = await Cr5db_projectobjectivealignmentsService.getAll();
+      const allAlignments = alignmentsResponse.data || [];
+      const alignmentsToDelete = allAlignments.filter((a: any) => a._cr5db_project_value === id || a._cr5db_projectid_value === id);
+      for (const align of alignmentsToDelete) {
+        await Cr5db_projectobjectivealignmentsService.delete(align.cr5db_projectobjectivealignmentid);
+      }
+
+      // 2. Clear project phase references on tasks & delete Project Phases
+      const phasesToDelete = projectPhases.filter(ph => ph._cr5db_projectid_value === id);
+      for (const ph of phasesToDelete) {
+        const linkedTasks = tasks.filter(t => t._cr5db_projectphaseid_value === ph.cr5db_projectphaseid);
+        for (const t of linkedTasks) {
+          // Clear association
+          await Cr5db_tasksService.update(t.cr5db_taskid, {
+            "cr5db_ProjectPhaseID@odata.bind": null
+          } as any);
+        }
+        await Cr5db_projectphasesService.delete(ph.cr5db_projectphaseid);
+      }
+
+      // 3. Delete Project Risks
+      const risksToDelete = projectRisks.filter(risk => risk._cr5db_projectid_value === id || risk._cr5db_project_value === id);
+      for (const r of risksToDelete) {
+        await Cr5db_projectrisksService.delete(r.cr5db_projectriskid);
+      }
+
+      // 4. Delete Resource Allocations & Project Teams
+      const teamsResponse = await Cr5db_projectteamsService.getAll();
+      const allTeams = teamsResponse.data || [];
+      const teamsToDelete = allTeams.filter((t: any) => t._cr5db_projectid_value === id);
+      for (const team of teamsToDelete) {
+        const allocsToDelete = resourceAllocationsList.filter(alloc => alloc._cr5db_projectteamid_value === team.cr5db_projectteamid);
+        for (const alloc of allocsToDelete) {
+          await Cr5db_resourceallocationsService.delete(alloc.cr5db_resourceallocationid);
+        }
+        await Cr5db_projectteamsService.delete(team.cr5db_projectteamid);
+      }
+
+      // 5. Delete the Project itself
       await Cr5db_projectsService.delete(id);
 
       // Audit Log
       const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       await Cr5db_audittraillogsService.create({
         cr5db_logname: "Project Deletion",
-        cr5db_actionexecuted: `Deleted project ${targetProj?.cr5db_projectname || id}`,
+        cr5db_actionexecuted: `Deleted project ${targetProj?.cr5db_projectname || id} along with linked records`,
         cr5db_changedfromvalue: targetProj?.cr5db_projectname || "None",
         cr5db_changedtovalue: `Deleted By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
       } as any);
@@ -1281,7 +1346,7 @@ function App() {
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
-      alert("Không thể xóa dự án.");
+      alert("Không thể xóa dự án. Vui lòng kiểm tra lại quyền hạn hoặc thử lại.");
       setIsLoading(false);
     }
   };
@@ -4680,6 +4745,7 @@ function App() {
                   key={r.role}
                   onClick={() => {
                     setActiveRole(r.role as any);
+                    sessionStorage.setItem('devRoleOverride', r.role);
                     setShowRoleSwitcher(false);
                   }}
                   style={{
@@ -4693,6 +4759,23 @@ function App() {
                   <span style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>{r.desc}</span>
                 </button>
               ))}
+
+              {sessionStorage.getItem('devRoleOverride') && (
+                <button
+                  onClick={() => {
+                    sessionStorage.removeItem('devRoleOverride');
+                    setShowRoleSwitcher(false);
+                    fetchLiveValues();
+                  }}
+                  style={{
+                    padding: '6px', borderRadius: '4px', textAlign: 'center',
+                    border: '1px dashed var(--color-border)', backgroundColor: '#fcfcfc',
+                    cursor: 'pointer', fontSize: '11px', color: '#a80000', fontWeight: 600
+                  }}
+                >
+                  Xóa đè (Dùng vai trò DB)
+                </button>
+              )}
             </div>
           </div>
         )}

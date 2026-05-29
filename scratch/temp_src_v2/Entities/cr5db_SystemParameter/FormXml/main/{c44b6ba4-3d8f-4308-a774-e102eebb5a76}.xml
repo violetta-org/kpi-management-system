@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{c44b6ba4-3d8f-4308-a774-e102eebb5a76}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{e751941b-99f1-4595-a37d-2c2a27089614}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{c9599600-ca8c-4c2b-94cd-e629189219fc}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{440d7c6b-d48d-4a29-b464-da970e2ea8a8}">
+                        <labels>
+                          <label description="System Parameter" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_systemparameter1" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr5db_systemparameter1" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{cfd65251-5805-436f-8589-4e47bb78cc95}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{264b88f4-76af-452d-bb6a-14b0a0f95f73}">
+                        <labels>
+                          <label description="Param Value" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_paramvalue" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr5db_paramvalue" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6438e2b2-2f84-421a-b216-023fcf61e944}">
+                        <labels>
+                          <label description="Value Type" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_valuetype" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr5db_valuetype" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>
