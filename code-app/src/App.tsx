@@ -79,12 +79,7 @@ const ShieldCheckIcon = () => (
     <polyline points="9 11 11 13 15 9" />
   </svg>
 );
-const ShieldAlertIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    <line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-  </svg>
-);
+
 const BellIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -244,13 +239,13 @@ function App() {
   const [activeTimesheetSubTab, setActiveTimesheetSubTab] = useState<'my' | 'approvals'>('my');
   const [activePerformanceSubTab, setActivePerformanceSubTab] = useState<'my' | 'team' | 'admin'>('my');
   const [activeResourcesSubTab, setActiveResourcesSubTab] = useState<'allocations' | 'projects'>('allocations');
-  const [activeRoleSubTab, setActiveRoleSubTab] = useState<'assignments' | 'history'>('assignments');
+
   const [collapsedProjects, setCollapsedProjects] = useState<{ [key: string]: boolean }>({});
   const [activeKpiSubTab, setActiveKpiSubTab] = useState<'overview' | 'charts'>('overview');
   const [kpiTimeRange, setKpiTimeRange] = useState<'week' | 'month' | 'quarter' | 'custom'>('quarter');
 
   // Employee sub-tab & CRUD state
-  const [activeDirectorySubTab, setActiveDirectorySubTab] = useState<'view' | 'manage'>('view');
+  const [activeDirectorySubTab, setActiveDirectorySubTab] = useState<'view' | 'manage' | 'history'>('view');
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<User | null>(null);
   const [employeeFullName, setEmployeeFullName] = useState('');
@@ -1318,9 +1313,6 @@ function App() {
               </button>
               <button onClick={() => setActiveTab('requests')} className={`nav-item ${activeTab === 'requests' ? 'active' : ''}`}>
                 <span className="nav-icon"><BellIcon /></span>Requests
-              </button>
-              <button onClick={() => setActiveTab('roles')} className={`nav-item ${activeTab === 'roles' ? 'active' : ''}`}>
-                <span className="nav-icon"><ShieldAlertIcon /></span>Roles
               </button>
             </>
           )}
@@ -2713,6 +2705,20 @@ function App() {
                   >
                     Quản lý nhân viên
                   </button>
+                  <button 
+                    onClick={() => setActiveDirectorySubTab('history')} 
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      color: activeDirectorySubTab === 'history' ? 'var(--color-text)' : 'var(--color-text-secondary)', 
+                      fontWeight: activeDirectorySubTab === 'history' ? 700 : 500, 
+                      cursor: 'pointer', 
+                      borderBottom: activeDirectorySubTab === 'history' ? '2px solid var(--color-text)' : 'none', 
+                      padding: '4px 8px' 
+                    }}
+                  >
+                    Lịch sử phân quyền
+                  </button>
                 </div>
               )}
 
@@ -2736,7 +2742,7 @@ function App() {
                     </div>
                   ))}
                 </div>
-              ) : (
+              ) : activeDirectorySubTab === 'manage' ? (
                 <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                     <thead>
@@ -2783,6 +2789,16 @@ function App() {
                               >
                                 Edit
                               </button>
+                              {u.cr5db_systemrole && (u.cr5db_systemrole !== 'Admin' || activeRole === 'Admin') && (
+                                <button 
+                                  onClick={() => handleRevokeRole(u.cr5db_userid)} 
+                                  className="btn-filled-3" 
+                                  style={{ padding: '4px 8px', color: '#742774', borderColor: '#742774' }}
+                                  title="Thu hồi vai trò hệ thống gán tay"
+                                >
+                                  Revoke
+                                </button>
+                              )}
                               <button 
                                 onClick={() => handleToggleEmployeeStatus(u)} 
                                 className="btn-filled-3" 
@@ -2806,72 +2822,19 @@ function App() {
                     </tbody>
                   </table>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* SCREEN 12: ROLES */}
-          {activeTab === 'roles' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Roles Management</h2>
-                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Assign security rules and override active roles</p>
-                </div>
-                <button onClick={() => setShowAssignRoleModal(true)} className="btn-primary">+ Assign Role</button>
-              </div>
-
-              <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', gap: '16px', paddingBottom: '8px' }}>
-                <button onClick={() => setActiveRoleSubTab('assignments')} style={{ background: 'none', border: 'none', color: activeRoleSubTab === 'assignments' ? 'var(--color-text)' : 'var(--color-text-secondary)', fontWeight: activeRoleSubTab === 'assignments' ? 700 : 500, cursor: 'pointer', borderBottom: activeRoleSubTab === 'assignments' ? '2px solid var(--color-text)' : 'none', padding: '4px 8px' }}>
-                  Users Assignments
-                </button>
-                <button onClick={() => setActiveRoleSubTab('history')} style={{ background: 'none', border: 'none', color: activeRoleSubTab === 'history' ? 'var(--color-text)' : 'var(--color-text-secondary)', fontWeight: activeRoleSubTab === 'history' ? 700 : 500, cursor: 'pointer', borderBottom: activeRoleSubTab === 'history' ? '2px solid var(--color-text)' : 'none', padding: '4px 8px' }}>
-                  Assignment History
-                </button>
-              </div>
-
-              {activeRoleSubTab === 'assignments' ? (
-                <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-                    <thead>
-                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
-                        <th style={{ padding: '14px 20px' }}>User</th>
-                        <th style={{ padding: '14px 20px' }}>Job Position</th>
-                        <th style={{ padding: '14px 20px' }}>Manual Role</th>
-                        <th style={{ padding: '14px 20px' }}>Derived Role</th>
-                        <th style={{ padding: '14px 20px' }}>Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {usersList.map(u => (
-                        <tr key={u.cr5db_userid} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                          <td style={{ padding: '14px 20px', fontWeight: 600 }}>{u.cr5db_fullname}</td>
-                          <td style={{ padding: '14px 20px' }}>{u.cr5db_jobpositionname || 'Chưa thiết lập'}</td>
-                          <td style={{ padding: '14px 20px' }}>{u.cr5db_systemrole || 'None'}</td>
-                          <td style={{ padding: '14px 20px' }}>{getDerivedRole(u.cr5db_jobpositionname)}</td>
-                          <td style={{ padding: '14px 20px' }}>
-                            {u.cr5db_systemrole && (u.cr5db_systemrole !== 'Admin' || activeRole === 'Admin') && (
-                              <button onClick={() => handleRevokeRole(u.cr5db_userid)} className="btn-filled-3" style={{ padding: '4px 8px', color: '#a80000' }}>Revoke</button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
               ) : (
                 <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
-                        <th style={{ padding: '14px 20px' }}>Event Log</th>
-                        <th style={{ padding: '14px 20px' }}>Action</th>
-                        <th style={{ padding: '14px 20px' }}>Old Role</th>
-                        <th style={{ padding: '14px 20px' }}>Details / Assigned By</th>
+                        <th style={{ padding: '14px 20px' }}>Nhật ký thay đổi</th>
+                        <th style={{ padding: '14px 20px' }}>Hành động</th>
+                        <th style={{ padding: '14px 20px' }}>Vai trò cũ</th>
+                        <th style={{ padding: '14px 20px' }}>Chi tiết / Người thực hiện</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {auditLogsList.filter(l => l.cr5db_logname?.includes("Role")).map(l => (
+                      {auditLogsList.filter(l => l.cr5db_logname?.includes("Role") || l.cr5db_logname?.includes("Employee") || l.cr5db_logname?.includes("User")).map(l => (
                         <tr key={l.cr5db_audittraillogid} style={{ borderBottom: '1px solid var(--color-border)' }}>
                           <td style={{ padding: '14px 20px', fontWeight: 600 }}>{l.cr5db_logname}</td>
                           <td style={{ padding: '14px 20px' }}>{l.cr5db_actionexecuted}</td>
@@ -2885,6 +2848,8 @@ function App() {
               )}
             </div>
           )}
+
+
         </div>
       </main>
 
