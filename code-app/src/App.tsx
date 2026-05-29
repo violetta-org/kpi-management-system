@@ -119,6 +119,8 @@ interface Task {
   cr5db_due_date: string;
   _cr5db_parenttask_value?: string;
   _cr5db_objectivename_value?: string;
+  createdbyname?: string;
+  _createdby_value?: string;
 }
 
 interface HeadcountRequest {
@@ -464,7 +466,9 @@ function App() {
           cr5db_project_name: t.cr5db_projectphaseidname || 'Dự án chung',
           cr5db_due_date: t.cr5db_duedate || '',
           _cr5db_parenttask_value: t._cr5db_parenttask_value || undefined,
-          _cr5db_objectivename_value: t._cr5db_objectivename_value || undefined
+          _cr5db_objectivename_value: t._cr5db_objectivename_value || undefined,
+          createdbyname: t.createdbyname || '',
+          _createdby_value: t._createdby_value || ''
         };
       });
       setTasks(mappedTasks);
@@ -1307,15 +1311,13 @@ function App() {
                     </div>
                   </div>
                 </div>
-                {activeRole !== 'Employee' && (
-                  <button 
-                    onClick={() => setShowTaskModal(true)} 
-                    className="new-task-btn"
-                    style={{ height: '36px', borderRadius: '6px', border: 'none', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: '#000000', color: '#ffffff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxSizing: 'border-box' }}
-                  >
-                    <span>+</span> New Task
-                  </button>
-                )}
+                <button 
+                  onClick={() => setShowTaskModal(true)} 
+                  className="new-task-btn"
+                  style={{ height: '36px', borderRadius: '6px', border: 'none', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: '#000000', color: '#ffffff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxSizing: 'border-box' }}
+                >
+                  <span>+</span> New Task
+                </button>
               </div>
 
               {/* Info Banner (Alert) */}
@@ -2565,9 +2567,23 @@ function App() {
               <div>
                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Liên kết nhiệm vụ (Task)</label>
                 <select value={newTimesheetTaskId} onChange={(e) => setNewTimesheetTaskId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
-                  {tasks.map(t => (
-                    <option key={t.cr5db_taskid} value={t.cr5db_taskid}>{t.cr5db_taskname}</option>
-                  ))}
+                  {tasks
+                    .filter(t => {
+                      if (activeRole === 'Employee') {
+                        const isAssigned = t.cr5db_assignee_email.toLowerCase() === currentUserEmail.toLowerCase();
+                        const isCreatedByMe = t.createdbyname && (
+                          t.createdbyname.toLowerCase() === currentUserName.toLowerCase() ||
+                          (usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase())?.cr5db_fullname?.toLowerCase() === t.createdbyname.toLowerCase())
+                        );
+                        const isSubtask = !!t._cr5db_parenttask_value;
+                        return isAssigned && !isCreatedByMe && !isSubtask;
+                      }
+                      return true;
+                    })
+                    .map(t => (
+                      <option key={t.cr5db_taskid} value={t.cr5db_taskid}>{t.cr5db_taskname}</option>
+                    ))
+                  }
                 </select>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
