@@ -111,7 +111,6 @@ function App() {
     activeRole, setActiveRole,
     currentUserEmail, setCurrentUserEmail,
     currentUserName, setCurrentUserName,
-    showRoleSwitcher, setShowRoleSwitcher,
     usersList, setUsersList,
     departmentsList, setDepartmentsList,
     tasks, setTasks,
@@ -1303,7 +1302,7 @@ function App() {
         cr5db_description: projectDesc,
         cr5db_startdate: projectStartDate ? new Date(projectStartDate).toISOString() : undefined,
         cr5db_enddate: projectEndDate ? new Date(projectEndDate).toISOString() : undefined,
-        cr5db_status: projectStatus === 'Completed' ? 122650002 : projectStatus === 'In Progress' ? 122650001 : 122650000,
+        // cr5db_status: projectStatus === 'Completed' ? 122650002 : projectStatus === 'In Progress' ? 122650001 : 122650000,
       };
 
       if (editingProject) {
@@ -1391,10 +1390,8 @@ function App() {
     if (!activeProjectDetails || !newPhaseName.trim()) return;
     try {
       setIsLoading(true);
-      const statusVal = newPhaseStatus === 'Completed' ? 122650002 : newPhaseStatus === 'In Progress' ? 122650001 : 122650000;
       await Cr5db_projectphasesService.create({
         cr5db_phasename: newPhaseName,
-        cr5db_status: statusVal as any,
         "cr5db_ProjectID@odata.bind": `/cr5db_projects(${activeProjectDetails.cr5db_projectid})`
       } as any);
 
@@ -5708,79 +5705,6 @@ function App() {
         </div>
       )}
 
-      {/* Floating Gear / Dev Role Switcher */}
-      <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 1000 }}>
-        {!showRoleSwitcher ? (
-          <button 
-            onClick={() => setShowRoleSwitcher(true)}
-            style={{
-              width: '48px', height: '48px', borderRadius: '50%',
-              backgroundColor: '#E29E2E', color: '#ffffff', border: 'none',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </button>
-        ) : (
-          <div style={{
-            width: '280px', backgroundColor: '#ffffff', border: '1px solid var(--color-border)',
-            borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.1)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text)' }}>Dev Mode Role Switcher</span>
-              <button onClick={() => setShowRoleSwitcher(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--color-text-secondary)' }}>✕</button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {[
-                { role: 'Admin', label: 'Super Admin', desc: 'Full system access, role management' },
-                { role: 'HRManager', label: 'HR Manager', desc: 'HR data, headcount, role management' },
-                { role: 'ProjectManager', label: 'Project Manager', desc: 'Projects, team tasks, resources' },
-                { role: 'Employee', label: 'Employee', desc: 'Own tasks, timesheets, KPIs' }
-              ].map(r => (
-                <button
-                  key={r.role}
-                  onClick={() => {
-                    setActiveRole(r.role as any);
-                    sessionStorage.setItem('devRoleOverride', r.role);
-                    setShowRoleSwitcher(false);
-                  }}
-                  style={{
-                    padding: '8px 12px', borderRadius: '4px', textAlign: 'left',
-                    border: activeRole === r.role ? '2px solid var(--color-primary)' : '1px solid var(--color-border-light)',
-                    backgroundColor: activeRole === r.role ? '#FAF9F9' : '#ffffff',
-                    cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '2px'
-                  }}
-                >
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text)' }}>{r.label}</span>
-                  <span style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>{r.desc}</span>
-                </button>
-              ))}
-
-              {sessionStorage.getItem('devRoleOverride') && (
-                <button
-                  onClick={() => {
-                    sessionStorage.removeItem('devRoleOverride');
-                    setShowRoleSwitcher(false);
-                    fetchLiveValues();
-                  }}
-                  style={{
-                    padding: '6px', borderRadius: '4px', textAlign: 'center',
-                    border: '1px dashed var(--color-border)', backgroundColor: '#fcfcfc',
-                    cursor: 'pointer', fontSize: '11px', color: '#a80000', fontWeight: 600
-                  }}
-                >
-                  Xóa đè (Dùng vai trò DB)
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
 
     </div>
   );

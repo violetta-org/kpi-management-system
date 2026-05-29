@@ -21,7 +21,6 @@ export function useAppState() {
   });
   const [currentUserEmail, setCurrentUserEmail] = useState('');
   const [currentUserName, setCurrentUserName] = useState('');
-  const [showRoleSwitcher, setShowRoleSwitcher] = useState(false);
 
   // ── Live Data ────────────────────────────────────────────────────────────
   const [usersList, setUsersList] = useState<User[]>([]);
@@ -248,7 +247,6 @@ export function useAppState() {
     activeRole, setActiveRole,
     currentUserEmail, setCurrentUserEmail,
     currentUserName, setCurrentUserName,
-    showRoleSwitcher, setShowRoleSwitcher,
 
     // Live Data
     usersList, setUsersList,
