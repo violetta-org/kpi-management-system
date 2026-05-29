@@ -1,0 +1,354 @@
+import { useEffect } from 'react';
+import { getContext } from '@microsoft/power-apps/app';
+import { Cr5db_usersService } from '../generated/services/Cr5db_usersService';
+import { Cr5db_tasksService } from '../generated/services/Cr5db_tasksService';
+import { Cr5db_headcountrequestsService } from '../generated/services/Cr5db_headcountrequestsService';
+import { Cr5db_kpitargetsService } from '../generated/services/Cr5db_kpitargetsService';
+import { Cr5db_departmentsService } from '../generated/services/Cr5db_departmentsService';
+import { Cr5db_timesheetlogsService } from '../generated/services/Cr5db_timesheetlogsService';
+import { Cr5db_projectsService } from '../generated/services/Cr5db_projectsService';
+import { Cr5db_performanceappraisalsService } from '../generated/services/Cr5db_performanceappraisalsService';
+import { Cr5db_companiesService } from '../generated/services/Cr5db_companiesService';
+import { Cr5db_positioncatalogsService } from '../generated/services/Cr5db_positioncatalogsService';
+import { Cr5db_jobpositionsService } from '../generated/services/Cr5db_jobpositionsService';
+import { Cr5db_audittraillogsService } from '../generated/services/Cr5db_audittraillogsService';
+import { Cr5db_projectphasesService } from '../generated/services/Cr5db_projectphasesService';
+import { Cr5db_projectrisksService } from '../generated/services/Cr5db_projectrisksService';
+import { Cr5db_kpilibrariesService } from '../generated/services/Cr5db_kpilibrariesService';
+import { Cr5db_objectivesService } from '../generated/services/Cr5db_objectivesService';
+import { Cr5db_resourceallocationsService } from '../generated/services/Cr5db_resourceallocationsService';
+import { Cr5db_systemnotificationsService } from '../generated/services/Cr5db_systemnotificationsService';
+import { Cr5db_approvalroutesesService } from '../generated/services/Cr5db_approvalroutesesService';
+import { Cr5db_changerequestsesService } from '../generated/services/Cr5db_changerequestsesService';
+import { normalizeRole, getDerivedRole } from '../lib/types';
+import type { User, Task, HeadcountRequest, KPITarget } from '../lib/types';
+
+/** All setters useLiveData needs to push fetched data into shared state */
+export interface LiveDataSetters {
+  setIsLoading: (v: boolean) => void;
+  setErrorMsg: (v: string | null) => void;
+  setCurrentUserEmail: (v: string) => void;
+  setCurrentUserName: (v: string) => void;
+  setActiveRole: (v: any) => void;
+  setUsersList: (v: User[]) => void;
+  setDepartmentsList: (v: any[]) => void;
+  setCompaniesList: (v: any[]) => void;
+  setPositionCatalogList: (v: any[]) => void;
+  setJobPositionsList: (v: any[]) => void;
+  setAuditLogsList: (v: any[]) => void;
+  setResourceAllocationsList: (v: any[]) => void;
+  setObjectivesList: (v: any[]) => void;
+  setProjects: (v: any[]) => void;
+  setProjectPhases: (v: any[]) => void;
+  setProjectRisks: (v: any[]) => void;
+  setSystemNotifications: (v: any[]) => void;
+  setKpiLibrariesList: (v: any[]) => void;
+  setApprovalRoutesList: (v: any[]) => void;
+  setChangeRequestsList: (v: any[]) => void;
+  setTasks: (v: Task[]) => void;
+  setHeadcountRequests: (v: HeadcountRequest[]) => void;
+  setKpiTargets: (v: KPITarget[]) => void;
+  setTimesheets: (v: any[]) => void;
+  setAppraisals: (v: any[]) => void;
+  // Default select setters populated on first load
+  setNewReqDeptId: (v: string) => void;
+  setNewJobPosDeptId: (v: string) => void;
+  setNewTaskAssigneeId: (v: string) => void;
+  setAssignRoleUserId: (v: string) => void;
+  setNewReqCatalogId: (v: string) => void;
+  setNewJobPosCatalogId: (v: string) => void;
+  setSelectedDeptCompanyId: (v: string) => void;
+  setNewTimesheetTaskId: (v: string) => void;
+}
+
+/**
+ * Fetches all Dataverse tables in parallel, maps raw records to typed
+ * domain objects, and pushes them into the shared App state.
+ * Returns a `fetchLiveValues` function you can call to refresh.
+ */
+export function useLiveData(setters: LiveDataSetters) {
+  const fetchLiveValues = async () => {
+    try {
+      setters.setIsLoading(true);
+      setters.setErrorMsg(null);
+
+      // 1. Fetch current user context
+      let authenticatedEmail = '';
+      let authenticatedName = '';
+      try {
+        const context = await getContext();
+        authenticatedEmail = context.user.userPrincipalName || '';
+        authenticatedName = context.user.fullName || '';
+      } catch (err) {
+        console.error('SDK getContext failed: ', err);
+        throw new Error('Ứng dụng chỉ hoạt động trong Power Apps Host. Vui lòng mở từ Power Apps Portal hoặc link Local Play.');
+      }
+
+      if (!authenticatedEmail) {
+        throw new Error('Không xác thực được danh tính người dùng (thiếu email trong context).');
+      }
+
+      setters.setCurrentUserEmail(authenticatedEmail);
+      setters.setCurrentUserName(authenticatedName || authenticatedEmail.split('@')[0]);
+
+      // 2. Fetch all tables in parallel (isolated — one failure won't block others)
+      const safeGet = async <T,>(fn: () => Promise<{ data?: T[] }>): Promise<T[]> => {
+        try { return (await fn()).data || []; }
+        catch (e) { console.warn('Dataverse fetch failed:', e); return []; }
+      };
+
+      const [
+        allUsers,
+        allDepts,
+        rawTasks,
+        rawHeadcount,
+        rawKpi,
+        rawTimesheets,
+        rawProjects,
+        rawAppraisals,
+        allCompanies,
+        allCatalogs,
+        allJobPositions,
+        allAuditLogs,
+        rawAllocations,
+        rawObjectives,
+        rawNotifications,
+        rawProjectPhases,
+        rawProjectRisks,
+        rawKpiLibraries,
+        rawRoutes,
+        rawRequests
+      ] = await Promise.all([
+        safeGet<User>(Cr5db_usersService.getAll),
+        safeGet(Cr5db_departmentsService.getAll),
+        safeGet(Cr5db_tasksService.getAll),
+        safeGet(Cr5db_headcountrequestsService.getAll),
+        safeGet(Cr5db_kpitargetsService.getAll),
+        safeGet(Cr5db_timesheetlogsService.getAll),
+        safeGet(Cr5db_projectsService.getAll),
+        safeGet(Cr5db_performanceappraisalsService.getAll),
+        safeGet(Cr5db_companiesService.getAll),
+        safeGet(Cr5db_positioncatalogsService.getAll),
+        safeGet(Cr5db_jobpositionsService.getAll),
+        safeGet(Cr5db_audittraillogsService.getAll),
+        safeGet(Cr5db_resourceallocationsService.getAll),
+        safeGet(Cr5db_objectivesService.getAll),
+        safeGet(Cr5db_systemnotificationsService.getAll),
+        safeGet(Cr5db_projectphasesService.getAll),
+        safeGet(Cr5db_projectrisksService.getAll),
+        safeGet(Cr5db_kpilibrariesService.getAll),
+        safeGet(Cr5db_approvalroutesesService.getAll),
+        safeGet(Cr5db_changerequestsesService.getAll)
+      ]);
+
+      // Map job position names onto user records
+      allUsers.forEach((u: any) => {
+        if (u._cr5db_jobposition_value) {
+          const matchedPos = allJobPositions.find((p: any) => p.cr5db_jobpositionid === u._cr5db_jobposition_value);
+          if (matchedPos) u.cr5db_jobpositionname = matchedPos.cr5db_positionname;
+        }
+      });
+
+      // Wrap for downstream compatibility
+      const tasksResponse = { data: rawTasks };
+      const headcountResponse = { data: rawHeadcount };
+      const kpiResponse = { data: rawKpi };
+      const timesheetsResponse = { data: rawTimesheets };
+      const appraisalsResponse = { data: rawAppraisals };
+
+      setters.setUsersList(allUsers);
+      setters.setDepartmentsList(allDepts);
+      setters.setCompaniesList(allCompanies);
+      setters.setPositionCatalogList(allCatalogs);
+      setters.setJobPositionsList(allJobPositions as any);
+      setters.setAuditLogsList(allAuditLogs);
+      setters.setResourceAllocationsList(rawAllocations);
+      setters.setObjectivesList(rawObjectives);
+      setters.setProjects(rawProjects);
+      setters.setProjectPhases(rawProjectPhases);
+      setters.setProjectRisks(rawProjectRisks);
+      setters.setSystemNotifications(rawNotifications);
+      setters.setKpiLibrariesList(rawKpiLibraries);
+      setters.setApprovalRoutesList(rawRoutes);
+      setters.setChangeRequestsList(rawRequests);
+
+      // Populate default select values
+      if (allDepts.length > 0) {
+        setters.setNewReqDeptId(allDepts[0].cr5db_departmentid);
+        setters.setNewJobPosDeptId(allDepts[0].cr5db_departmentid);
+      }
+      if (allUsers.length > 0) {
+        setters.setNewTaskAssigneeId(allUsers[0].cr5db_userid);
+        setters.setAssignRoleUserId(allUsers[0].cr5db_userid);
+      }
+      if (allCatalogs.length > 0) {
+        setters.setNewReqCatalogId(allCatalogs[0].cr5db_positioncatalogid);
+        setters.setNewJobPosCatalogId(allCatalogs[0].cr5db_positioncatalogid);
+      }
+      if (allCompanies.length > 0) {
+        setters.setSelectedDeptCompanyId(allCompanies[0].cr5db_companyid);
+      }
+
+      // Auto-register user if not found
+      let userProfile = allUsers.find((u: User) => u.cr5db_email?.toLowerCase() === authenticatedEmail.toLowerCase());
+      if (!userProfile) {
+        console.log(`Email '${authenticatedEmail}' not found. Auto-registering as Employee...`);
+        try {
+          const newUserName = authenticatedName || authenticatedEmail.split('@')[0];
+          const createResult = await Cr5db_usersService.create({
+            cr5db_fullname: newUserName,
+            cr5db_email: authenticatedEmail,
+            cr5db_systemrole: 'Employee',
+            cr5db_isactive: true
+          } as any);
+
+          if (createResult.data) {
+            const newUserRecord = createResult.data;
+            allUsers.push(newUserRecord);
+            setters.setUsersList([...allUsers]);
+            userProfile = newUserRecord;
+
+            await Cr5db_audittraillogsService.create({
+              cr5db_logname: 'User Auto-Registration',
+              cr5db_actionexecuted: `Auto-registered new user ${newUserName} (${authenticatedEmail}) on first login`,
+              cr5db_changedfromvalue: 'None',
+              cr5db_changedtovalue: 'Role: Employee'
+            } as any);
+          } else {
+            throw new Error('Không thể tạo mới tài khoản.');
+          }
+        } catch (regErr) {
+          console.error('Auto-registration failed:', regErr);
+          throw new Error(`Tài khoản email '${authenticatedEmail}' chưa được đăng ký và tự động đăng ký thất bại.`);
+        }
+      }
+
+      // Role determination
+      const systemRole = userProfile.cr5db_systemrole || '';
+      const positionTitle = userProfile.cr5db_jobpositionname || '';
+      const derived = getDerivedRole(positionTitle);
+      const manual = systemRole ? normalizeRole(systemRole) : null;
+      const effectiveRole = manual || derived || 'Employee';
+
+      const devOverride = sessionStorage.getItem('devRoleOverride');
+      setters.setActiveRole(devOverride ? devOverride : effectiveRole);
+
+      // Map Tasks
+      const mappedTasks: Task[] = (tasksResponse.data || []).map((t: any) => {
+        const assigneeLookup = t.cr5db_assigneeid as any;
+        const assigneeId = t._cr5db_assigneeid_value || assigneeLookup?.cr5db_userid || assigneeLookup?.id || '';
+        const assignee = assigneeId ? allUsers.find((u: User) => u.cr5db_userid === assigneeId) : undefined;
+        const assigneeName = t.cr5db_assigneeidname || assigneeLookup?.name || assigneeLookup?.cr5db_fullname || '';
+        return {
+          cr5db_taskid: t.cr5db_taskid,
+          cr5db_taskname: t.cr5db_taskname,
+          cr5db_description: t.cr5db_description || '',
+          cr5db_status: t.statecode === 1 ? 'Completed' : 'In Progress',
+          cr5db_assignee_email: assignee?.cr5db_email || '',
+          cr5db_assignee_name: assignee?.cr5db_fullname || assigneeName || 'Chưa phân công',
+          cr5db_project_name: t.cr5db_projectphaseidname || 'Không thuộc dự án',
+          cr5db_due_date: t.cr5db_duedate || '',
+          _cr5db_parenttask_value: t._cr5db_parenttask_value || undefined,
+          _cr5db_objectivename_value: t._cr5db_objectivename_value || undefined,
+          _cr5db_projectphaseid_value: t._cr5db_projectphaseid_value || undefined,
+          _cr5db_assigneeid_value: t._cr5db_assigneeid_value || undefined,
+          createdbyname: t.createdbyname || '',
+          _createdby_value: t._createdby_value || ''
+        };
+      });
+      setters.setTasks(mappedTasks);
+      if (mappedTasks.length > 0) setters.setNewTimesheetTaskId(mappedTasks[0].cr5db_taskid);
+
+      // Map Headcount Requests
+      const mappedHeadcount: HeadcountRequest[] = (headcountResponse.data || []).map((r: any) => {
+        const dept = allDepts.find((d: any) => d.cr5db_departmentid === r._cr5db_department_value);
+        let statusStr: 'Pending' | 'Approved' | 'Rejected' = 'Pending';
+        if (r.cr5db_approvalstatus === 122650001) statusStr = 'Approved';
+        else if (r.cr5db_approvalstatus === 122650002) statusStr = 'Rejected';
+        return {
+          cr5db_headcountrequestid: r.cr5db_headcountrequestid,
+          cr5db_requestname: r.cr5db_requestname,
+          cr5db_requesttype: r.cr5db_requesttype === 122650001 ? 'Decrease Headcount' : r.cr5db_requesttype === 122650002 ? 'New Position' : 'Increase Headcount',
+          cr5db_departmentname: dept?.cr5db_departmentname || r.cr5db_departmentname || 'Chung',
+          cr5db_positiontitle: r.cr5db_positioncatalogname || r.cr5db_jobpositionname || 'Chức danh',
+          cr5db_requestedquantity: r.cr5db_requestedquantity || 1,
+          cr5db_reason: r.cr5db_reason || '',
+          cr5db_approvalstatus: statusStr,
+          cr5db_createddate: r.cr5db_createddate || '',
+          _cr5db_department_value: r._cr5db_department_value || undefined,
+          _cr5db_positioncatalog_value: r._cr5db_positioncatalog_value || undefined,
+          raw_requesttype: r.cr5db_requesttype,
+          raw_approvalstatus: r.cr5db_approvalstatus
+        };
+      });
+      setters.setHeadcountRequests(mappedHeadcount);
+
+      // Map KPIs
+      const mappedKpis: KPITarget[] = (kpiResponse.data || []).map((k: any) => {
+        const employee = allUsers.find((u: User) => u.cr5db_userid === k._cr5db_employeeid_value);
+        const libraryItem = rawKpiLibraries.find((lib: any) => lib.cr5db_kpilibraryid === k._cr5db_kpicode_value);
+        const parentObjective = rawObjectives.find((obj: any) => obj.cr5db_objectiveid === k._cr5db_parentobjective_value);
+        return {
+          cr5db_kpitargetid: k.cr5db_kpitargetid,
+          cr5db_kpiname: k.cr5db_kpitarget1 || libraryItem?.cr5db_kpiname || 'Mục tiêu KPI',
+          cr5db_targetvalue: k.cr5db_targetvalue || 100,
+          cr5db_actualvalue: k.cr5db_actualvalue || 0,
+          cr5db_unit: libraryItem?.cr5db_unit || '%',
+          cr5db_weightpercentage: k.cr5db_weightpercentage || 0,
+          cr5db_user_email: employee?.cr5db_email || '',
+          cr5db_period: parentObjective?.cr5db_objective1 || 'Q2/2026',
+          _cr5db_parentobjective_value: k._cr5db_parentobjective_value || undefined,
+          _cr5db_employeeid_value: k._cr5db_employeeid_value || undefined,
+          _cr5db_kpicode_value: k._cr5db_kpicode_value || undefined
+        };
+      });
+      setters.setKpiTargets(mappedKpis);
+
+      // Map Timesheets
+      const mappedTimesheets = (timesheetsResponse.data || []).map((ts: any) => {
+        const user = allUsers.find((u: User) => u.cr5db_userid === ts._cr5db_userid_value);
+        return {
+          cr5db_timesheetlogid: ts.cr5db_timesheetlogid,
+          cr5db_timesheetlog1: ts.cr5db_timesheetlog1,
+          cr5db_actualhoursworked: ts.cr5db_actualhoursworked || 0,
+          cr5db_logdate: ts.cr5db_logdate || '',
+          cr5db_taskname: ts.cr5db_taskidname || 'Không thuộc dự án',
+          cr5db_username: ts.cr5db_useridname || user?.cr5db_fullname || 'Thành viên',
+          cr5db_useremail: user?.cr5db_email || '',
+          statecode: ts.statecode
+        };
+      });
+      setters.setTimesheets(mappedTimesheets);
+
+      // Map Appraisals
+      const mappedAppraisals = (appraisalsResponse.data || []).map((ap: any) => {
+        const employee = allUsers.find((u: User) => u.cr5db_userid === ap._cr5db_employeeid_value);
+        const evaluator = allUsers.find((u: User) => u.cr5db_userid === ap._cr5db_evaluatorid_value);
+        return {
+          cr5db_performanceappraisalid: ap.cr5db_performanceappraisalid,
+          cr5db_performanceappraisal1: ap.cr5db_performanceappraisal1,
+          cr5db_finalscore: ap.cr5db_finalscore || 0,
+          cr5db_selfscore: ap.cr5db_selfscore || 0,
+          cr5db_employeename: ap.cr5db_employeeidname || employee?.cr5db_fullname || '',
+          cr5db_employeeemail: employee?.cr5db_email || '',
+          cr5db_evaluatorname: ap.cr5db_evaluatoridname || evaluator?.cr5db_fullname || '',
+          cr5db_periodname: ap.cr5db_periodidname || 'Kỳ đánh giá'
+        };
+      });
+      setters.setAppraisals(mappedAppraisals);
+
+    } catch (err: any) {
+      console.error('Initialization error: ', err);
+      setters.setErrorMsg(err.message || 'Lỗi khi kết nối Dataverse.');
+    } finally {
+      setters.setIsLoading(false);
+    }
+  };
+
+  // Auto-fetch on mount
+  useEffect(() => {
+    fetchLiveValues();
+  }, []);
+
+  return { fetchLiveValues };
+}

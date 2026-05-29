@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import './App.css';
-import { getContext } from '@microsoft/power-apps/app';
 
-// Services
+// Hooks
+import { useAppState } from './hooks/useAppState';
+import { useLiveData } from './hooks/useLiveData';
+import { buildApprovalEngine, renderDiffContainer, ENTITY_MAPPINGS } from './hooks/useApprovalEngine';
+
+// Services still used in CRUD handlers in this file
 import { Cr5db_usersService } from './generated/services/Cr5db_usersService';
-import { Cr5db_systemnotificationsService } from './generated/services/Cr5db_systemnotificationsService';
 import { Cr5db_tasksService } from './generated/services/Cr5db_tasksService';
 import { Cr5db_headcountrequestsService } from './generated/services/Cr5db_headcountrequestsService';
-import { Cr5db_kpitargetsService } from './generated/services/Cr5db_kpitargetsService';
 import { Cr5db_departmentsService } from './generated/services/Cr5db_departmentsService';
 import { Cr5db_timesheetlogsService } from './generated/services/Cr5db_timesheetlogsService';
-import { Cr5db_projectsService } from './generated/services/Cr5db_projectsService';
 import { Cr5db_performanceappraisalsService } from './generated/services/Cr5db_performanceappraisalsService';
 import { Cr5db_companiesService } from './generated/services/Cr5db_companiesService';
 import { Cr5db_positioncatalogsService } from './generated/services/Cr5db_positioncatalogsService';
@@ -18,14 +19,7 @@ import { Cr5db_jobpositionsService } from './generated/services/Cr5db_jobpositio
 import { Cr5db_audittraillogsService } from './generated/services/Cr5db_audittraillogsService';
 import { Cr5db_projectphasesService } from './generated/services/Cr5db_projectphasesService';
 import { Cr5db_projectrisksService } from './generated/services/Cr5db_projectrisksService';
-// import { Cr5db_evaluationperiodsService } from './generated/services/Cr5db_evaluationperiodsService';
-import { Cr5db_kpilibrariesService } from './generated/services/Cr5db_kpilibrariesService';
-import { Cr5db_objectivesService } from './generated/services/Cr5db_objectivesService';
-import { Cr5db_resourceallocationsService } from './generated/services/Cr5db_resourceallocationsService';
-// import { Cr5db_projectteamsService } from './generated/services/Cr5db_projectteamsService';
-// import { Cr5db_projectobjectivealignmentsService } from './generated/services/Cr5db_projectobjectivealignmentsService';
 import { Cr5db_approvalroutesesService } from './generated/services/Cr5db_approvalroutesesService';
-import { Cr5db_changerequestsesService } from './generated/services/Cr5db_changerequestsesService';
 
 // SVG Icons
 const DashboardIcon = () => (
@@ -98,1127 +92,195 @@ const BellIcon = () => (
 //   </svg>
 // );
 
-// Type Interfaces
-interface User {
-  cr5db_userid: string;
-  cr5db_fullname: string;
-  cr5db_email?: string;
-  cr5db_systemrole?: string;
-  cr5db_jobpositionname?: string;
-  cr5db_isactive?: boolean;
-  _cr5db_jobposition_value?: string;
-  ownerid?: string;
-  owneridtype?: string;
-}
-
-interface Task {
-  cr5db_taskid: string;
-  cr5db_taskname: string;
-  cr5db_description: string;
-  cr5db_status: 'Not Started' | 'In Progress' | 'Completed';
-  cr5db_assignee_email: string;
-  cr5db_assignee_name: string;
-  cr5db_project_name: string;
-  cr5db_due_date: string;
-  _cr5db_parenttask_value?: string;
-  _cr5db_objectivename_value?: string;
-  _cr5db_projectphaseid_value?: string;
-  _cr5db_assigneeid_value?: string;
-  createdbyname?: string;
-  _createdby_value?: string;
-}
-
-interface HeadcountRequest {
-  cr5db_headcountrequestid: string;
-  cr5db_requestname: string;
-  cr5db_requesttype: string;
-  cr5db_departmentname: string;
-  cr5db_positiontitle: string;
-  cr5db_requestedquantity: number;
-  cr5db_reason: string;
-  cr5db_approvalstatus: 'Pending' | 'Approved' | 'Rejected';
-  cr5db_createddate: string;
-  _cr5db_department_value?: string;
-  _cr5db_positioncatalog_value?: string;
-  raw_requesttype?: number;
-  raw_approvalstatus?: number;
-}
-
-interface KPITarget {
-  cr5db_kpitargetid: string;
-  cr5db_kpiname: string;
-  cr5db_targetvalue: number;
-  cr5db_actualvalue: number;
-  cr5db_unit: string;
-  cr5db_weightpercentage: number;
-  cr5db_user_email: string;
-  cr5db_period: string;
-  _cr5db_parentobjective_value?: string;
-  _cr5db_employeeid_value?: string;
-  _cr5db_kpicode_value?: string;
-}
-
-interface Company {
-  cr5db_companyid: string;
-  cr5db_companycode: string;
-  cr5db_companyname: string;
-}
-
-interface PositionCatalog {
-  cr5db_positioncatalogid: string;
-  cr5db_code?: string;
-  cr5db_positioncatalog1: string;
-}
-
-interface JobPosition {
-  cr5db_jobpositionid: string;
-  cr5db_positionname: string;
-  _cr5db_department_value?: string;
-  _cr5db_positioncatalogtitle_value?: string;
-  _cr5db_reportstopositionid_value?: string;
-  cr5db_headcountquota?: number;
-  cr5db_currentheadcount?: number;
-  cr5db_departmentname?: string;
-}
-
-interface AuditLog {
-  cr5db_audittraillogid: string;
-  cr5db_logname: string;
-  cr5db_actionexecuted?: string;
-  cr5db_changedfromvalue?: string;
-  cr5db_changedtovalue?: string;
-  createdon?: string;
-  createdbyname?: string;
-}
-
-function normalizeRole(roleStr: string | undefined): 'Employee' | 'ProjectManager' | 'HRManager' | 'Admin' {
-  if (!roleStr) return 'Employee';
-  const norm = roleStr.toLowerCase().replace(/[^a-z]/g, '');
-  if (norm.includes('superadmin') || norm === 'admin' || norm.includes('hradmin')) return 'Admin';
-  if (norm.includes('hrmanager') || norm.includes('hr')) return 'HRManager';
-  if (norm.includes('projectmanager') || norm.includes('pm') || norm.includes('manager')) return 'ProjectManager';
-  return 'Employee';
-}
-
-function getDerivedRole(positionTitle: string | undefined): 'Employee' | 'ProjectManager' | 'HRManager' | 'Admin' {
-  if (!positionTitle) return 'Employee';
-  const title = positionTitle.toLowerCase();
-  if (title.includes('admin') || title.includes('administrator')) return 'Admin';
-  if (title.includes('hr') || title.includes('human resource') || title.includes('recruiter')) return 'HRManager';
-  if (title.includes('project lead') || title.includes('project manager') || title.includes('pm')) return 'ProjectManager';
-  return 'Employee';
-}
+// Types are now in lib/types.ts — imported from hooks automatically.
+// Only User and Task are referenced directly in JSX handlers below:
+import type { User, Task } from './lib/types';
 
 function App() {
-  // Navigation State
-  const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'tasks' | 'timesheets' | 'kpi' | 'performance' | 'companies' | 'positions' | 'headcount' | 'requests' | 'directory' | 'roles' | 'resources' | 'routes'
-  >('dashboard');
+  // ── Hooks ────────────────────────────────────────────────────────────────
+  const s = useAppState();
 
-  const [requestsSubTab, setRequestsSubTab] = useState<'change' | 'headcount'>('change');
-  const [expandedRequests, setExpandedRequests] = useState<Record<string, boolean>>({});
+  // Destructure everything from state so the rest of the file can use names
+  // identical to the old inline declarations — zero changes needed in JSX.
+  const {
+    activeTab, setActiveTab,
+    requestsSubTab, setRequestsSubTab,
+    expandedRequests, setExpandedRequests,
+    activeRole, setActiveRole,
+    currentUserEmail, setCurrentUserEmail,
+    currentUserName, setCurrentUserName,
+    showRoleSwitcher, setShowRoleSwitcher,
+    usersList, setUsersList,
+    departmentsList, setDepartmentsList,
+    tasks, setTasks,
+    headcountRequests, setHeadcountRequests,
+    kpiTargets, setKpiTargets,
+    timesheets, setTimesheets,
+    projects, setProjects,
+    projectPhases, setProjectPhases,
+    projectRisks, setProjectRisks,
+    appraisals, setAppraisals,
+    systemNotifications, setSystemNotifications,
+    companiesList, setCompaniesList,
+    positionCatalogList, setPositionCatalogList,
+    jobPositionsList, setJobPositionsList,
+    auditLogsList, setAuditLogsList,
+    kpiLibrariesList, setKpiLibrariesList,
+    resourceAllocationsList, setResourceAllocationsList,
+    objectivesList, setObjectivesList,
+    approvalRoutesList, setApprovalRoutesList,
+    changeRequestsList, setChangeRequestsList,
+    showKpiModal, setShowKpiModal,
+    editingKpi, setEditingKpi,
+    kpiTargetName, setKpiTargetName,
+    kpiTargetValue, setKpiTargetValue,
+    kpiActualValue, setKpiActualValue,
+    kpiWeight, setKpiWeight,
+    kpiUnit, setKpiUnit,
+    kpiEmployeeId, setKpiEmployeeId,
+    kpiObjectiveId, setKpiObjectiveId,
+    kpiLibraryId, setKpiLibraryId,
+    kpiPeriod, setKpiPeriod,
+    activeTimesheetSubTab, setActiveTimesheetSubTab,
+    activePerformanceSubTab, setActivePerformanceSubTab,
+    activeResourcesSubTab, setActiveResourcesSubTab,
+    collapsedProjects, setCollapsedProjects,
+    activeKpiSubTab, setActiveKpiSubTab,
+    kpiTimeRange, setKpiTimeRange,
+    activeDirectorySubTab, setActiveDirectorySubTab,
+    showEmployeeModal, setShowEmployeeModal,
+    editingEmployee, setEditingEmployee,
+    employeeFullName, setEmployeeFullName,
+    employeeEmail, setEmployeeEmail,
+    employeeRole, setEmployeeRole,
+    employeeJobPositionId, setEmployeeJobPositionId,
+    employeeIsActive, setEmployeeIsActive,
+    selectedDirectoryUser, setSelectedDirectoryUser,
+    showProjectModal, setShowProjectModal,
+    editingProject, setEditingProject,
+    projectName, setProjectName,
+    projectDesc, setProjectDesc,
+    projectStartDate, setProjectStartDate,
+    projectEndDate, setProjectEndDate,
+    projectStatus, setProjectStatus,
+    activeProjectDetails, setActiveProjectDetails,
+    showPhaseModal, setShowPhaseModal,
+    newPhaseName, setNewPhaseName,
+    newPhaseStatus, setNewPhaseStatus,
+    showRiskModal, setShowRiskModal,
+    newRiskName, setNewRiskName,
+    newRiskImpact, setNewRiskImpact,
+    newRiskProbability, setNewRiskProbability,
+    newRiskMitigation, setNewRiskMitigation,
+    selectedDeptCompanyId, setSelectedDeptCompanyId,
+    selectedReportsToPositionId, setSelectedReportsToPositionId,
+    selectedKpiEmployeeFilter, setSelectedKpiEmployeeFilter,
+    isSidebarHidden, setIsSidebarHidden,
+    showNotificationsModal, setShowNotificationsModal,
+    taskSearchQuery, setTaskSearchQuery,
+    selectedFilterProject, setSelectedFilterProject,
+    isLoading, setIsLoading,
+    errorMsg, setErrorMsg,
+    showTaskModal, setShowTaskModal,
+    newTaskName, setNewTaskName,
+    newTaskDesc, setNewTaskDesc,
+    newTaskAssigneeId, setNewTaskAssigneeId,
+    newTaskDueDate, setNewTaskDueDate,
+    newTaskObjectiveId, setNewTaskObjectiveId,
+    newTaskParentId, setNewTaskParentId,
+    newTaskProjectId, setNewTaskProjectId,
+    newTaskPhaseId, setNewTaskPhaseId,
+    editingTask, setEditingTask,
+    newTaskStatus, setNewTaskStatus,
+    showTimesheetModal, setShowTimesheetModal,
+    newTimesheetHours, setNewTimesheetHours,
+    newTimesheetDate, setNewTimesheetDate,
+    newTimesheetDesc, setNewTimesheetDesc,
+    newTimesheetTaskId, setNewTimesheetTaskId,
+    showRejectionModal, setShowRejectionModal,
+    timesheetToRejectId, setTimesheetToRejectId,
+    rejectionReason, setRejectionReason,
+    showHeadcountRequestModal, setShowHeadcountRequestModal,
+    newRequestName, setNewRequestName,
+    newRequestType, setNewRequestType,
+    newReqDeptId, setNewReqDeptId,
+    newReqCatalogId, setNewReqCatalogId,
+    newReqQty, setNewReqQty,
+    newReqReason, setNewReqReason,
+    editingHeadcountRequest, setEditingHeadcountRequest,
+    newReqStatus, setNewReqStatus,
+    showCompanyModal, setShowCompanyModal,
+    newCompanyCode, setNewCompanyCode,
+    newCompanyName, setNewCompanyName,
+    showDeptModal, setShowDeptModal,
+    newDeptCode, setNewDeptCode,
+    newDeptName, setNewDeptName,
+    editingCompany, setEditingCompany,
+    editingDept, setEditingDept,
+    showCatalogModal, setShowCatalogModal,
+    newCatalogCode, setNewCatalogCode,
+    newCatalogName, setNewCatalogName,
+    editingCatalog, setEditingCatalog,
+    showJobPositionModal, setShowJobPositionModal,
+    newJobPosName, setNewJobPosName,
+    newJobPosDeptId, setNewJobPosDeptId,
+    newJobPosCatalogId, setNewJobPosCatalogId,
+    newJobPosQuota, setNewJobPosQuota,
+    editingJobPosition, setEditingJobPosition,
+    showAssignRoleModal, setShowAssignRoleModal,
+    assignRoleUserId, setAssignRoleUserId,
+    assignRoleName, setAssignRoleName,
+    assignRoleNotes, setAssignRoleNotes,
+    showApprovalModal, setShowApprovalModal,
+    approvalModalData, setApprovalModalData,
+    requestReason, setRequestReason,
+    selectedApproverId, setSelectedApproverId,
+    showRouteModal, setShowRouteModal,
+    editingRoute, setEditingRoute,
+    routeName, setRouteName,
+    routeTargetEntity, setRouteTargetEntity,
+    routeOperation, setRouteOperation,
+    routeRequesterRole, setRouteRequesterRole,
+    routeRoutingType, setRouteRoutingType,
+    routeApproverRole, setRouteApproverRole,
+    routeApproverUserId, setRouteApproverUserId,
+    routePriority, setRoutePriority,
+  } = s;
 
-  // Authenticated Role states
-  const [activeRole, setActiveRole] = useState<'Employee' | 'ProjectManager' | 'HRManager' | 'Admin'>(() => {
-    const saved = sessionStorage.getItem('devRoleOverride');
-    return (saved as any) || 'Employee';
+  // ── Live Data ─────────────────────────────────────────────────────────────
+  const { fetchLiveValues } = useLiveData({
+    setIsLoading, setErrorMsg,
+    setCurrentUserEmail, setCurrentUserName, setActiveRole,
+    setUsersList, setDepartmentsList, setCompaniesList,
+    setPositionCatalogList, setJobPositionsList, setAuditLogsList,
+    setResourceAllocationsList, setObjectivesList,
+    setProjects, setProjectPhases, setProjectRisks,
+    setSystemNotifications, setKpiLibrariesList,
+    setApprovalRoutesList, setChangeRequestsList,
+    setTasks, setHeadcountRequests, setKpiTargets,
+    setTimesheets, setAppraisals,
+    setNewReqDeptId, setNewJobPosDeptId,
+    setNewTaskAssigneeId, setAssignRoleUserId,
+    setNewReqCatalogId, setNewJobPosCatalogId,
+    setSelectedDeptCompanyId, setNewTimesheetTaskId,
   });
-  const [currentUserEmail, setCurrentUserEmail] = useState('');
-  const [currentUserName, setCurrentUserName] = useState('');
 
-  // Floating Switcher
-  const [showRoleSwitcher, setShowRoleSwitcher] = useState(false);
-
-  // Live Data States
-  const [usersList, setUsersList] = useState<User[]>([]);
-  const [departmentsList, setDepartmentsList] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [headcountRequests, setHeadcountRequests] = useState<HeadcountRequest[]>([]);
-  const [kpiTargets, setKpiTargets] = useState<KPITarget[]>([]);
-  const [timesheets, setTimesheets] = useState<any[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
-  const [projectPhases, setProjectPhases] = useState<any[]>([]);
-  const [projectRisks, setProjectRisks] = useState<any[]>([]);
-  const [appraisals, setAppraisals] = useState<any[]>([]);
-  const [systemNotifications, setSystemNotifications] = useState<any[]>([]);
-
-  // Newly mapped master list states
-  const [companiesList, setCompaniesList] = useState<Company[]>([]);
-  const [positionCatalogList, setPositionCatalogList] = useState<PositionCatalog[]>([]);
-  const [jobPositionsList, setJobPositionsList] = useState<JobPosition[]>([]);
-  const [auditLogsList, setAuditLogsList] = useState<AuditLog[]>([]);
-  // const [evaluationPeriodsList, setEvaluationPeriodsList] = useState<any[]>([]);
-  const [kpiLibrariesList, setKpiLibrariesList] = useState<any[]>([]);
-  const [resourceAllocationsList, setResourceAllocationsList] = useState<any[]>([]);
-  const [objectivesList, setObjectivesList] = useState<any[]>([]);
-  const [approvalRoutesList, setApprovalRoutesList] = useState<any[]>([]);
-  const [changeRequestsList, setChangeRequestsList] = useState<any[]>([]);
-
-  useEffect(() => {
-    console.log(`Routes loaded: ${approvalRoutesList.length}, Requests loaded: ${changeRequestsList.length}`);
-  }, [approvalRoutesList, changeRequestsList]);
-
-  // KPI CRUD Management states
-  const [showKpiModal, setShowKpiModal] = useState(false);
-  const [editingKpi, setEditingKpi] = useState<any>(null);
-  const [kpiTargetName, setKpiTargetName] = useState('');
-  const [kpiTargetValue, setKpiTargetValue] = useState<number>(100);
-  const [kpiActualValue, setKpiActualValue] = useState<number>(0);
-  const [kpiWeight, setKpiWeight] = useState<number>(10);
-  const [kpiUnit, setKpiUnit] = useState('%');
-  const [kpiEmployeeId, setKpiEmployeeId] = useState('');
-  const [kpiObjectiveId, setKpiObjectiveId] = useState('');
-  const [kpiLibraryId, setKpiLibraryId] = useState('');
-  const [kpiPeriod, setKpiPeriod] = useState('Q2/2026');
-
-  // Sub-tabs
-  const [activeTimesheetSubTab, setActiveTimesheetSubTab] = useState<'my' | 'approvals'>('my');
-  const [activePerformanceSubTab, setActivePerformanceSubTab] = useState<'my' | 'team' | 'admin'>('my');
-  const [activeResourcesSubTab, setActiveResourcesSubTab] = useState<'allocations' | 'projects'>('allocations');
-
-  const [collapsedProjects, setCollapsedProjects] = useState<{ [key: string]: boolean }>({});
-  const [activeKpiSubTab, setActiveKpiSubTab] = useState<'overview' | 'charts'>('overview');
-  const [kpiTimeRange, setKpiTimeRange] = useState<'week' | 'month' | 'quarter' | 'custom'>('quarter');
-
-  // Employee sub-tab & CRUD state
-  const [activeDirectorySubTab, setActiveDirectorySubTab] = useState<'view' | 'manage' | 'history'>('view');
-  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<User | null>(null);
-  const [employeeFullName, setEmployeeFullName] = useState('');
-  const [employeeEmail, setEmployeeEmail] = useState('');
-  const [employeeRole, setEmployeeRole] = useState('Employee');
-  const [employeeJobPositionId, setEmployeeJobPositionId] = useState('');
-  const [employeeIsActive, setEmployeeIsActive] = useState(true);
-
-  // Project Management states
-  const [showProjectModal, setShowProjectModal] = useState(false);
-  const [editingProject, setEditingProject] = useState<any>(null);
-  const [projectName, setProjectName] = useState('');
-  const [projectDesc, setProjectDesc] = useState('');
-  const [projectStartDate, setProjectStartDate] = useState('');
-  const [projectEndDate, setProjectEndDate] = useState('');
-  const [projectStatus, setProjectStatus] = useState('Not Started');
-  const [activeProjectDetails, setActiveProjectDetails] = useState<any>(null);
-
-  // Phase and Risk states
-  const [showPhaseModal, setShowPhaseModal] = useState(false);
-  const [newPhaseName, setNewPhaseName] = useState('');
-  const [newPhaseStatus, setNewPhaseStatus] = useState('Not Started');
-
-  const [showRiskModal, setShowRiskModal] = useState(false);
-  const [newRiskName, setNewRiskName] = useState('');
-  const [newRiskImpact, setNewRiskImpact] = useState('Medium');
-  const [newRiskProbability, setNewRiskProbability] = useState('Medium');
-  const [newRiskMitigation, setNewRiskMitigation] = useState('');
-
-  // Filter selections
-  // const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
-  const [selectedDeptCompanyId, setSelectedDeptCompanyId] = useState<string>('');
-  const [selectedReportsToPositionId, setSelectedReportsToPositionId] = useState<string>('');
-  const [selectedKpiEmployeeFilter, setSelectedKpiEmployeeFilter] = useState<string>('All');
-
-  // Sidebar Hide & Notification states
-  const [isSidebarHidden, setIsSidebarHidden] = useState(false);
-  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
-  const [taskSearchQuery, setTaskSearchQuery] = useState('');
-  const [selectedFilterProject, setSelectedFilterProject] = useState('All Projects');
-
-  // Modals & form fields
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const [showTaskModal, setShowTaskModal] = useState(false);
-  const [newTaskName, setNewTaskName] = useState('');
-  const [newTaskDesc, setNewTaskDesc] = useState('');
-  const [newTaskAssigneeId, setNewTaskAssigneeId] = useState('');
-  const [newTaskDueDate, setNewTaskDueDate] = useState('');
-  const [newTaskObjectiveId, setNewTaskObjectiveId] = useState('');
-  const [newTaskParentId, setNewTaskParentId] = useState('');
-  const [newTaskProjectId, setNewTaskProjectId] = useState('');
-  const [newTaskPhaseId, setNewTaskPhaseId] = useState('');
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [newTaskStatus, setNewTaskStatus] = useState<'Not Started' | 'In Progress' | 'Completed'>('In Progress');
-
-  const [showTimesheetModal, setShowTimesheetModal] = useState(false);
-  const [newTimesheetHours, setNewTimesheetHours] = useState(8);
-  const [newTimesheetDate, setNewTimesheetDate] = useState(new Date().toISOString().split('T')[0]);
-  const [newTimesheetDesc, setNewTimesheetDesc] = useState('');
-  const [newTimesheetTaskId, setNewTimesheetTaskId] = useState('');
-
-  const [showRejectionModal, setShowRejectionModal] = useState(false);
-  const [timesheetToRejectId, setTimesheetToRejectId] = useState<string>('');
-  const [rejectionReason, setRejectionReason] = useState('');
-
-  const [showHeadcountRequestModal, setShowHeadcountRequestModal] = useState(false);
-  const [newRequestName, setNewRequestName] = useState('');
-  const [newRequestType, setNewRequestType] = useState('Increase Headcount');
-  const [newReqDeptId, setNewReqDeptId] = useState('');
-  const [newReqCatalogId, setNewReqCatalogId] = useState('');
-  const [newReqQty, setNewReqQty] = useState(1);
-  const [newReqReason, setNewReqReason] = useState('');
-  const [editingHeadcountRequest, setEditingHeadcountRequest] = useState<HeadcountRequest | null>(null);
-  const [newReqStatus, setNewReqStatus] = useState<string>('Pending');
-
-  // Companies & departments modal
-  const [showCompanyModal, setShowCompanyModal] = useState(false);
-  const [newCompanyCode, setNewCompanyCode] = useState('');
-  const [newCompanyName, setNewCompanyName] = useState('');
-
-  const [showDeptModal, setShowDeptModal] = useState(false);
-  const [newDeptCode, setNewDeptCode] = useState('');
-  const [newDeptName, setNewDeptName] = useState('');
-  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
-  const [editingDept, setEditingDept] = useState<any | null>(null);
-
-  // Positions catalog modal
-  const [showCatalogModal, setShowCatalogModal] = useState(false);
-  const [newCatalogCode, setNewCatalogCode] = useState('');
-  const [newCatalogName, setNewCatalogName] = useState('');
-  const [editingCatalog, setEditingCatalog] = useState<any | null>(null);
-
-  // Headcount Quota Job Position modal
-  const [showJobPositionModal, setShowJobPositionModal] = useState(false);
-  const [newJobPosName, setNewJobPosName] = useState('');
-  const [newJobPosDeptId, setNewJobPosDeptId] = useState('');
-  const [newJobPosCatalogId, setNewJobPosCatalogId] = useState('');
-  const [newJobPosQuota, setNewJobPosQuota] = useState(1);
-  const [editingJobPosition, setEditingJobPosition] = useState<any | null>(null);
-
-  // Role assignment modal
-  const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
-  const [assignRoleUserId, setAssignRoleUserId] = useState('');
-  const [assignRoleName, setAssignRoleName] = useState('Employee');
-  const [assignRoleNotes, setAssignRoleNotes] = useState('');
-
-  // Change Request Modal states
-  const [showApprovalModal, setShowApprovalModal] = useState(false);
-  const [approvalModalData, setApprovalModalData] = useState<{
-    entityName: string;
-    operation: 'Create' | 'Update' | 'Delete';
-    payload: any;
-    targetRecordId?: string;
-    description: string;
-    oldValue?: any;
-    defaultApproverId: string;
-    validApprovers: User[];
-    appliedRouteId?: string;
-  } | null>(null);
-  const [requestReason, setRequestReason] = useState('');
-  const [selectedApproverId, setSelectedApproverId] = useState('');
-
-  // Approval routes management states
-  const [showRouteModal, setShowRouteModal] = useState(false);
-  const [editingRoute, setEditingRoute] = useState<any | null>(null);
-  const [routeName, setRouteName] = useState('');
-  const [routeTargetEntity, setRouteTargetEntity] = useState<number>(1);
-  const [routeOperation, setRouteOperation] = useState<number>(4); // Default All
-  const [routeRequesterRole, setRouteRequesterRole] = useState<number>(1); // Default Employee
-  const [routeRoutingType, setRouteRoutingType] = useState<number>(1); // Default POSITION_HIERARCHY
-  const [routeApproverRole, setRouteApproverRole] = useState('');
-  const [routeApproverUserId, setRouteApproverUserId] = useState('');
-  const [routePriority, setRoutePriority] = useState<number>(10);
-
-  // Employee details dialog
-  const [selectedDirectoryUser, setSelectedDirectoryUser] = useState<User | null>(null);
-
-  // Redirect role gates
-  useEffect(() => {
-    if (activeRole === 'Employee') {
-      const allowed = ['dashboard', 'tasks', 'timesheets', 'kpi', 'performance', 'requests'];
-      if (!allowed.includes(activeTab)) {
-        setActiveTab('dashboard');
-      }
-    } else if (activeRole === 'ProjectManager') {
-      const allowed = ['dashboard', 'tasks', 'timesheets', 'kpi', 'performance', 'resources', 'directory', 'requests'];
-      if (!allowed.includes(activeTab)) {
-        setActiveTab('dashboard');
-      }
-    }
-  }, [activeRole, activeTab]);
-
-  // ─── Universal Change Request & Approval Routing Engine ─────────────────
-  const ENTITY_MAPPINGS: Record<string, { service: any; label: string; key: string }> = {
-    "Tasks": { service: Cr5db_tasksService, label: "Task", key: "cr5db_taskid" },
-    "KPITargets": { service: Cr5db_kpitargetsService, label: "KPI Target", key: "cr5db_kpitargetid" },
-    "JobPositions": { service: Cr5db_jobpositionsService, label: "Vị trí công việc", key: "cr5db_jobpositionid" },
-    "HeadcountRequests": { service: Cr5db_headcountrequestsService, label: "Yêu cầu Định biên (Headcount)", key: "cr5db_headcountrequestid" },
-    "Projects": { service: Cr5db_projectsService, label: "Dự án", key: "cr5db_projectid" },
-    "Users": { service: Cr5db_usersService, label: "Người dùng", key: "cr5db_userid" }
-  };
-
-  const ENTITY_NAME_TO_CODE: Record<string, number> = {
-    "Tasks": 1,
-    "KPITargets": 2,
-    "JobPositions": 3,
-    "HeadcountRequests": 4,
-    "Projects": 5,
-    "Users": 6
-  };
-
-  const OP_TO_CODE = {
-    'Create': 1,
-    'Update': 2,
-    'Delete': 3,
-    'All': 4
-  };
-
-  const ROLE_TO_CODE = {
-    'Employee': 1,
-    'ProjectManager': 2,
-    'HRManager': 3,
-    'Admin': 4
-  };
-
-  const renderDiffContainer = (req: any) => {
-    try {
-      const isCreate = req.cr5db_operationtype === 1;
-      const isUpdate = req.cr5db_operationtype === 2;
-      const isDelete = req.cr5db_operationtype === 3;
-
-      const oldVal = req.cr5db_oldvaluejson ? JSON.parse(req.cr5db_oldvaluejson) : null;
-      const newVal = req.cr5db_payloadjson ? JSON.parse(req.cr5db_payloadjson) : null;
-
-      const formatVal = (v: any) => {
-        if (v === null || v === undefined) return <em style={{ color: 'var(--color-text-secondary)' }}>null</em>;
-        if (typeof v === 'object') return JSON.stringify(v);
-        return String(v);
-      };
-
-      if (isCreate && newVal) {
-        return (
-          <div style={{ backgroundColor: '#f4fbf7', border: '1px solid #d1eedc', borderRadius: '4px', padding: '12px', marginTop: '10px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: '#1b5e20', marginBottom: '6px' }}>Dữ liệu tạo mới:</div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-              <tbody>
-                {Object.keys(newVal).map(key => (
-                  <tr key={key} style={{ borderBottom: '1px solid #e8f5e9' }}>
-                    <td style={{ padding: '4px 8px', fontWeight: 600, color: 'var(--color-text-secondary)', width: '35%' }}>{key}</td>
-                    <td style={{ padding: '4px 8px', color: '#1b5e20', backgroundColor: '#e8f5e9' }}>{formatVal(newVal[key])}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        );
-      }
-
-      if (isDelete && oldVal) {
-        return (
-          <div style={{ backgroundColor: '#fff8f8', border: '1px solid #ffd1d1', borderRadius: '4px', padding: '12px', marginTop: '10px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: '#c62828', marginBottom: '6px' }}>Dữ liệu xóa:</div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-              <tbody>
-                {Object.keys(oldVal).map(key => (
-                  <tr key={key} style={{ borderBottom: '1px solid #ffebee' }}>
-                    <td style={{ padding: '4px 8px', fontWeight: 600, color: 'var(--color-text-secondary)', width: '35%' }}>{key}</td>
-                    <td style={{ padding: '4px 8px', color: '#c62828', backgroundColor: '#ffebee', textDecoration: 'line-through' }}>{formatVal(oldVal[key])}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        );
-      }
-
-      if (isUpdate && newVal && oldVal) {
-        const keys = Object.keys(newVal);
-        return (
-          <div style={{ backgroundColor: '#fcfcfc', border: '1px solid var(--color-border-light)', borderRadius: '4px', padding: '12px', marginTop: '10px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text)', marginBottom: '6px' }}>So sánh thay đổi (Trước vs. Sau):</div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left' }}>
-                  <th style={{ padding: '4px 8px', color: 'var(--color-text-secondary)' }}>Trường dữ liệu</th>
-                  <th style={{ padding: '4px 8px', color: 'var(--color-text-secondary)' }}>Giá trị cũ (Trước)</th>
-                  <th style={{ padding: '4px 8px', color: 'var(--color-text-secondary)' }}>Giá trị mới (Sau)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {keys.map(key => {
-                  const oVal = oldVal[key];
-                  const nVal = newVal[key];
-                  const hasChanged = JSON.stringify(oVal) !== JSON.stringify(nVal);
-                  return (
-                    <tr key={key} style={{ borderBottom: '1px solid var(--color-border-light)', backgroundColor: hasChanged ? '#fffde7' : 'transparent' }}>
-                      <td style={{ padding: '6px 8px', fontWeight: 600, color: 'var(--color-text-secondary)', width: '30%' }}>{key}</td>
-                      <td style={{ padding: '6px 8px', color: '#a80000', textDecoration: hasChanged ? 'line-through' : 'none' }}>{formatVal(oVal)}</td>
-                      <td style={{ padding: '6px 8px', color: hasChanged ? '#1b5e20' : 'var(--color-text)', fontWeight: hasChanged ? 600 : 400 }}>{formatVal(nVal)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        );
-      }
-    } catch (e) {
-      console.error(e);
-      return <div style={{ fontSize: '11px', color: '#a80000' }}>Không thể hiển thị so sánh dữ liệu (JSON không hợp lệ).</div>;
-    }
-    return null;
-  };
-
-  const executeDirectCrud = async (
-    entityName: string,
-    operation: 'Create' | 'Update' | 'Delete',
-    payload: any,
-    targetRecordId?: string
-  ) => {
-    const mapping = ENTITY_MAPPINGS[entityName];
-    if (!mapping) {
-      throw new Error(`Không tìm thấy cấu hình cho thực thể: ${entityName}`);
-    }
-
-    if (operation === 'Create') {
-      return await mapping.service.create(payload);
-    } else if (operation === 'Update') {
-      if (!targetRecordId) throw new Error("Thiếu ID bản ghi cần cập nhật");
-      return await mapping.service.update(targetRecordId, payload);
-    } else if (operation === 'Delete') {
-      if (!targetRecordId) throw new Error("Thiếu ID bản ghi cần xóa");
-      return await mapping.service.delete(targetRecordId);
-    }
-  };
-
-  const resolveApprover = (route: any, requesterEmail: string): { defaultApproverId: string; validApprovers: User[] } => {
-    const requester = usersList.find(u => u.cr5db_email?.toLowerCase() === requesterEmail.toLowerCase());
-    const fallbackAdmin = usersList.find(u => u.cr5db_systemrole === 'Admin') || usersList[0];
-    const fallbackAdminId = fallbackAdmin?.cr5db_userid || '';
-
-    // Default list of valid approvers (all PMs, HRs, and Admins)
-    const generalApproversList = usersList.filter(u => 
-      u.cr5db_systemrole === 'Admin' || 
-      u.cr5db_systemrole === 'HRManager' || 
-      u.cr5db_systemrole === 'ProjectManager'
-    );
-
-    if (!requester) {
-      return { defaultApproverId: fallbackAdminId, validApprovers: generalApproversList };
-    }
-
-    // Convert routing type representation
-    // 1: POSITION_HIERARCHY, 2: SPECIFIC_ROLE, 3: DEPARTMENT_HEAD, 4: SPECIFIC_USER
-    const rType = typeof route.cr5db_routingtype === 'string' 
-      ? route.cr5db_routingtype 
-      : { 1: 'POSITION_HIERARCHY', 2: 'SPECIFIC_ROLE', 3: 'DEPARTMENT_HEAD', 4: 'SPECIFIC_USER' }[route.cr5db_routingtype as number] || 'POSITION_HIERARCHY';
-
-    switch (rType) {
-      case 'POSITION_HIERARCHY': {
-        // Find position -> ReportsToPosition -> find User in that position
-        const myPos = jobPositionsList.find(p => p.cr5db_jobpositionid === requester._cr5db_jobposition_value);
-        let reportsTo = myPos?._cr5db_reportstopositionid_value;
-        let approverUser: User | undefined;
-
-        // Traverse up hierarchy if position is vacant
-        while (reportsTo) {
-          const matchedUser = usersList.find(u => u._cr5db_jobposition_value === reportsTo);
-          if (matchedUser) {
-            approverUser = matchedUser;
-            break;
-          }
-          const nextPos = jobPositionsList.find(p => p.cr5db_jobpositionid === reportsTo);
-          reportsTo = nextPos?._cr5db_reportstopositionid_value;
-        }
-
-        const resolvedId = approverUser?.cr5db_userid || fallbackAdminId;
-        // In hierarchical routing, we display the resolved manager first, but let them select other PM/HR/Admins too.
-        return { 
-          defaultApproverId: resolvedId, 
-          validApprovers: generalApproversList.some(u => u.cr5db_userid === resolvedId)
-            ? generalApproversList 
-            : (approverUser ? [approverUser, ...generalApproversList] : generalApproversList)
-        };
-      }
-
-      case 'SPECIFIC_ROLE': {
-        const targetRole = route.cr5db_approverrole || 'HRManager';
-        const filtered = usersList.filter(u => u.cr5db_systemrole === targetRole);
-        return {
-          defaultApproverId: filtered[0]?.cr5db_userid || fallbackAdminId,
-          validApprovers: filtered.length > 0 ? filtered : generalApproversList
-        };
-      }
-
-      case 'DEPARTMENT_HEAD': {
-        const myPos = jobPositionsList.find(p => p.cr5db_jobpositionid === requester._cr5db_jobposition_value);
-        if (!myPos?._cr5db_department_value) {
-          return { defaultApproverId: fallbackAdminId, validApprovers: generalApproversList };
-        }
-        
-        // Find all positions in department
-        const deptPositions = jobPositionsList.filter(p => p._cr5db_department_value === myPos._cr5db_department_value);
-        // Find position with no reportsto (head position in department)
-        const headPos = deptPositions.find(p => !p._cr5db_reportstopositionid_value) || deptPositions[0];
-        const matchedHead = headPos ? usersList.find(u => u._cr5db_jobposition_value === headPos.cr5db_jobpositionid) : undefined;
-        
-        const resolvedId = matchedHead?.cr5db_userid || fallbackAdminId;
-        return { 
-          defaultApproverId: resolvedId, 
-          validApprovers: matchedHead ? [matchedHead, ...generalApproversList.filter(u => u.cr5db_userid !== resolvedId)] : generalApproversList 
-        };
-      }
-
-      case 'SPECIFIC_USER': {
-        const specificUserId = route._cr5db_approveruser_value || '';
-        const matched = usersList.find(u => u.cr5db_userid === specificUserId);
-        return {
-          defaultApproverId: specificUserId || fallbackAdminId,
-          validApprovers: matched ? [matched] : generalApproversList
-        };
-      }
-
-      default:
-        return { defaultApproverId: fallbackAdminId, validApprovers: generalApproversList };
-    }
-  };
-
-  const executeCrudWithApproval = async (
-    entityName: string,
-    operation: 'Create' | 'Update' | 'Delete',
-    payload: any,
-    targetRecordId?: string,
-    description?: string,
-    oldValue?: any
-  ): Promise<any> => {
-    // 1. If Admin/SuperAdmin -> Bypass approval routing and execute directly
-    if (activeRole === 'Admin') {
-      const res = await executeDirectCrud(entityName, operation, payload, targetRecordId);
-      await fetchLiveValues();
-      return res;
-    }
-
-    // 2. Find matching routing rule
-    const entityCode = ENTITY_NAME_TO_CODE[entityName];
-    const opCode = OP_TO_CODE[operation];
-    const reqRoleCode = ROLE_TO_CODE[activeRole];
-
-    const matchedRoute = approvalRoutesList.find((route: any) => {
-      const rEntity = typeof route.cr5db_targetentity === 'string' ? ENTITY_NAME_TO_CODE[route.cr5db_targetentity] : route.cr5db_targetentity;
-      const rOp = typeof route.cr5db_operationtype === 'string' ? (OP_TO_CODE as any)[route.cr5db_operationtype] : route.cr5db_operationtype;
-      const rRole = typeof route.cr5db_requesterrole === 'string' ? (ROLE_TO_CODE as any)[route.cr5db_requesterrole] : route.cr5db_requesterrole;
-
-      return (
-        route.cr5db_isactive &&
-        rEntity === entityCode &&
-        (rOp === opCode || rOp === 4) && // Matches operation or 'All'
-        rRole === reqRoleCode
-      );
-    });
-
-    if (!matchedRoute) {
-      // No rule matches -> Entity does not require approval for this role -> Bypass and execute directly
-      console.log(`No approval route matched for ${entityName} - ${operation}. Executing directly.`);
-      const res = await executeDirectCrud(entityName, operation, payload, targetRecordId);
-      await fetchLiveValues();
-      return res;
-    }
-
-    // 3. Resolve default approver and valid approver choices
-    const { defaultApproverId, validApprovers } = resolveApprover(matchedRoute, currentUserEmail);
-
-    // 4. Open Modal for reason input and approver selection
-    setApprovalModalData({
-      entityName,
-      operation,
-      payload,
-      targetRecordId,
-      description: description || `${operation} ${entityName} request`,
-      oldValue,
-      defaultApproverId,
-      validApprovers: validApprovers.filter(u => u.cr5db_email?.toLowerCase() !== currentUserEmail.toLowerCase()), // prevent self-approval selection
-      appliedRouteId: matchedRoute.cr5db_approvalroutesid
-    });
-    setSelectedApproverId(defaultApproverId);
-    setRequestReason('');
-    setShowApprovalModal(true);
-
-    // Return a dummy resolved promise, actual execution happens on Modal Submit
-    return null;
-  };
-
-  const handleApproveChangeRequest = async (request: any) => {
-    try {
-      const payload = JSON.parse(request.cr5db_payloadjson || '{}');
-      const entityCode = request.cr5db_targetentity;
-      
-      // Map entityCode (number) back to entityName
-      const entityName = {
-        1: "Tasks",
-        2: "KPITargets",
-        3: "JobPositions",
-        4: "HeadcountRequests",
-        5: "Projects",
-        6: "Users"
-      }[entityCode as number] || "";
-
-      const operationCode = request.cr5db_operationtype;
-      const operation = {
-        1: "Create",
-        2: "Update",
-        3: "Delete"
-      }[operationCode as number] as 'Create' | 'Update' | 'Delete';
-
-      if (!entityName || !operation) {
-        alert("❌ Dữ liệu Change Request không hợp lệ.");
-        return;
-      }
-
-      setIsLoading(true);
-      
-      // 1. Execute direct CRUD operation
-      await executeDirectCrud(entityName, operation, payload, request.cr5db_targetrecordid);
-
-      // 2. Update Change Request status to Approved (Choice 2)
-      await Cr5db_changerequestsesService.update(request.cr5db_changerequestsid, {
-        cr5db_status: 2, // Approved
-        cr5db_approvercomment: "Yêu cầu đã được phê duyệt và áp dụng."
-      });
-
-      // 3. Create Audit Trail log
-      await Cr5db_audittraillogsService.create({
-        cr5db_logname: `Change Request Approved`,
-        cr5db_actionexecuted: `Approved request: ${request.cr5db_requesttitle}`,
-        cr5db_changedfromvalue: "Pending",
-        cr5db_changedtovalue: "Approved"
-      } as any);
-
-      // 4. Create system notification for requester
-      const requesterUser = usersList.find(u => u.cr5db_userid === request._cr5db_requester_value);
-      if (requesterUser && requesterUser.ownerid) {
-        try {
-          await Cr5db_systemnotificationsService.create({
-            cr5db_systemnotification1: `Yêu cầu được phê duyệt`,
-            cr5db_content: `Yêu cầu thay đổi "${request.cr5db_requesttitle}" của bạn đã được phê duyệt và áp dụng thành công.`,
-            cr5db_deeplinkurl: `#requests`,
-            cr5db_isread: false,
-            ownerid: requesterUser.ownerid,
-            owneridtype: requesterUser.owneridtype || 'systemusers',
-            statecode: 0
-          });
-        } catch (notificationErr) {
-          console.error("Error creating approval notification:", notificationErr);
-        }
-      }
-
-      alert("✅ Yêu cầu thay đổi đã được phê duyệt và áp dụng thành công!");
-      await fetchLiveValues();
-    } catch (err: any) {
-      console.error(err);
-      alert(`❌ Phê duyệt thất bại: ${err.message || 'Lỗi không xác định'}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRejectChangeRequest = async (request: any, comment: string) => {
-    try {
-      setIsLoading(true);
-
-      // Update Change Request status to Rejected (Choice 3)
-      await Cr5db_changerequestsesService.update(request.cr5db_changerequestsid, {
-        cr5db_status: 3, // Rejected
-        cr5db_approvercomment: comment || "Yêu cầu bị từ chối."
-      });
-
-      // Create Audit Trail log
-      await Cr5db_audittraillogsService.create({
-        cr5db_logname: `Change Request Rejected`,
-        cr5db_actionexecuted: `Rejected request: ${request.cr5db_requesttitle}`,
-        cr5db_changedfromvalue: "Pending",
-        cr5db_changedtovalue: "Rejected"
-      } as any);
-
-      // Create system notification for requester
-      const requesterUser = usersList.find(u => u.cr5db_userid === request._cr5db_requester_value);
-      if (requesterUser && requesterUser.ownerid) {
-        try {
-          await Cr5db_systemnotificationsService.create({
-            cr5db_systemnotification1: `Yêu cầu bị từ chối`,
-            cr5db_content: `Yêu cầu thay đổi "${request.cr5db_requesttitle}" của bạn đã bị từ chối. Lý do: ${comment || 'Không có bình luận.'}`,
-            cr5db_deeplinkurl: `#requests`,
-            cr5db_isread: false,
-            ownerid: requesterUser.ownerid,
-            owneridtype: requesterUser.owneridtype || 'systemusers',
-            statecode: 0
-          });
-        } catch (notificationErr) {
-          console.error("Error creating rejection notification:", notificationErr);
-        }
-      }
-
-      alert("❌ Yêu cầu thay đổi đã bị từ chối.");
-      await fetchLiveValues();
-    } catch (err: any) {
-      console.error(err);
-      alert(`❌ Từ chối thất bại: ${err.message || 'Lỗi không xác định'}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSubmittingApprovalRequest = async () => {
-    if (!approvalModalData) return;
-    if (!requestReason.trim()) {
-      alert("Vui lòng nhập lý do gửi yêu cầu.");
-      return;
-    }
-    if (!selectedApproverId) {
-      alert("Vui lòng chọn người phê duyệt.");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const requesterRecord = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
-      if (!requesterRecord) {
-        throw new Error("Không tìm thấy thông tin tài khoản người gửi.");
-      }
-
-      const entityCode = ENTITY_NAME_TO_CODE[approvalModalData.entityName];
-      const operationCode = OP_TO_CODE[approvalModalData.operation];
-
-      await Cr5db_changerequestsesService.create({
-        cr5db_requesttitle: approvalModalData.description,
-        cr5db_targetentity: entityCode as any,
-        cr5db_operationtype: operationCode as any,
-        cr5db_payloadjson: JSON.stringify(approvalModalData.payload),
-        cr5db_targetrecordid: approvalModalData.targetRecordId || '',
-        cr5db_oldvaluejson: approvalModalData.oldValue ? JSON.stringify(approvalModalData.oldValue) : '',
-        cr5db_status: 1, // Pending
-        cr5db_reason: requestReason,
-        "cr5db_Requester@odata.bind": `/cr5db_users(${requesterRecord.cr5db_userid})`,
-        "cr5db_Approver@odata.bind": `/cr5db_users(${selectedApproverId})`,
-        "cr5db_AppliedRoute@odata.bind": approvalModalData.appliedRouteId ? `/cr5db_approvalrouteses(${approvalModalData.appliedRouteId})` : undefined,
-        ownerid: '',
-        owneridtype: '',
-        statecode: 0
-      });
-
-      // Create system notification for the selected approver
-      const approverUser = usersList.find(u => u.cr5db_userid === selectedApproverId);
-      if (approverUser && approverUser.ownerid) {
-        try {
-          await Cr5db_systemnotificationsService.create({
-            cr5db_systemnotification1: `Yêu cầu phê duyệt mới`,
-            cr5db_content: `${requesterRecord.cr5db_fullname} đã gửi yêu cầu thay đổi: ${approvalModalData.description}. Vui lòng phê duyệt hoặc từ chối.`,
-            cr5db_deeplinkurl: `#requests`,
-            cr5db_isread: false,
-            ownerid: approverUser.ownerid,
-            owneridtype: approverUser.owneridtype || 'systemusers',
-            statecode: 0
-          });
-        } catch (notificationErr) {
-          console.error("Error creating request notification:", notificationErr);
-        }
-      }
-
-      alert("✅ Yêu cầu thay đổi đã được gửi thành công. Vui lòng chờ người duyệt phản hồi.");
-      setShowApprovalModal(false);
-      await fetchLiveValues();
-    } catch (err: any) {
-      console.error(err);
-      alert(`❌ Gửi yêu cầu thất bại: ${err.message || 'Lỗi không xác định'}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch from Dataverse
-  const fetchLiveValues = async () => {
-    try {
-      setIsLoading(true);
-      setErrorMsg(null);
-
-      // 1. Fetch current user context
-      let authenticatedEmail = '';
-      let authenticatedName = '';
-      try {
-        const context = await getContext();
-        authenticatedEmail = context.user.userPrincipalName || '';
-        authenticatedName = context.user.fullName || '';
-      } catch (err) {
-        console.error("SDK getContext failed: ", err);
-        throw new Error("Ứng dụng chỉ hoạt động trong Power Apps Host. Vui lòng mở từ Power Apps Portal hoặc link Local Play.");
-      }
-
-      if (!authenticatedEmail) {
-        throw new Error("Không xác thực được danh tính người dùng (thiếu email trong context).");
-      }
-
-      setCurrentUserEmail(authenticatedEmail);
-      setCurrentUserName(authenticatedName || authenticatedEmail.split('@')[0]);
-
-      // 2. Fetch all tables from Dataverse services (isolated - one failure won't block others)
-      const safeGet = async <T,>(fn: () => Promise<{ data?: T[] }>): Promise<T[]> => {
-        try { return (await fn()).data || []; }
-        catch (e) { console.warn('Dataverse fetch failed:', e); return []; }
-      };
-
-      const [
-        allUsers,
-        allDepts,
-        rawTasks,
-        rawHeadcount,
-        rawKpi,
-        rawTimesheets,
-        rawProjects,
-        rawAppraisals,
-        allCompanies,
-        allCatalogs,
-        allJobPositions,
-        allAuditLogs,
-        rawAllocations,
-        rawObjectives,
-        rawNotifications,
-        rawProjectPhases,
-        rawProjectRisks,
-        rawKpiLibraries,
-        rawRoutes,
-        rawRequests
-      ] = await Promise.all([
-        safeGet<User>(Cr5db_usersService.getAll),
-        safeGet(Cr5db_departmentsService.getAll),
-        safeGet(Cr5db_tasksService.getAll),
-        safeGet(Cr5db_headcountrequestsService.getAll),
-        safeGet(Cr5db_kpitargetsService.getAll),
-        safeGet(Cr5db_timesheetlogsService.getAll),
-        safeGet(Cr5db_projectsService.getAll),
-        safeGet(Cr5db_performanceappraisalsService.getAll),
-        safeGet(Cr5db_companiesService.getAll),
-        safeGet(Cr5db_positioncatalogsService.getAll),
-        safeGet(Cr5db_jobpositionsService.getAll),
-        safeGet(Cr5db_audittraillogsService.getAll),
-        safeGet(Cr5db_resourceallocationsService.getAll),
-        safeGet(Cr5db_objectivesService.getAll),
-        safeGet(Cr5db_systemnotificationsService.getAll),
-        safeGet(Cr5db_projectphasesService.getAll),
-        safeGet(Cr5db_projectrisksService.getAll),
-        safeGet(Cr5db_kpilibrariesService.getAll),
-        safeGet(Cr5db_approvalroutesesService.getAll),
-        safeGet(Cr5db_changerequestsesService.getAll)
-      ]);
-
-      // Map job position names to user records dynamically
-      allUsers.forEach((u: any) => {
-        if (u._cr5db_jobposition_value) {
-          const matchedPos = allJobPositions.find((p: any) => p.cr5db_jobpositionid === u._cr5db_jobposition_value);
-          if (matchedPos) {
-            u.cr5db_jobpositionname = matchedPos.cr5db_positionname;
-          }
-        }
-      });
-
-      // Wrap into response-shaped objects where downstream code needs them
-      const tasksResponse = { data: rawTasks };
-      const headcountResponse = { data: rawHeadcount };
-      const kpiResponse = { data: rawKpi };
-      const timesheetsResponse = { data: rawTimesheets };
-      const appraisalsResponse = { data: rawAppraisals };
-      const allAllocations = rawAllocations;
-      const allObjectives = rawObjectives;
-      const allNotifications = rawNotifications;
-
-      setUsersList(allUsers);
-      setDepartmentsList(allDepts);
-      setCompaniesList(allCompanies);
-      setPositionCatalogList(allCatalogs);
-      setJobPositionsList(allJobPositions as any);
-      setAuditLogsList(allAuditLogs);
-      setResourceAllocationsList(allAllocations);
-      setObjectivesList(allObjectives);
-      setProjects(rawProjects);
-      setProjectPhases(rawProjectPhases);
-      setProjectRisks(rawProjectRisks);
-      setSystemNotifications(allNotifications);
-      setKpiLibrariesList(rawKpiLibraries);
-      setApprovalRoutesList(rawRoutes);
-      setChangeRequestsList(rawRequests);
-
-      if (allDepts.length > 0) {
-        setNewReqDeptId(allDepts[0].cr5db_departmentid);
-        setNewJobPosDeptId(allDepts[0].cr5db_departmentid);
-      }
-      if (allUsers.length > 0) {
-        setNewTaskAssigneeId(allUsers[0].cr5db_userid);
-        setAssignRoleUserId(allUsers[0].cr5db_userid);
-      }
-      if (allCatalogs.length > 0) {
-        setNewReqCatalogId(allCatalogs[0].cr5db_positioncatalogid);
-        setNewJobPosCatalogId(allCatalogs[0].cr5db_positioncatalogid);
-      }
-      if (allCompanies.length > 0) {
-        // setSelectedCompanyId(allCompanies[0].cr5db_companyid);
-        setSelectedDeptCompanyId(allCompanies[0].cr5db_companyid);
-      }
-
-      // Check User Profile
-      let userProfile = allUsers.find(u => u.cr5db_email?.toLowerCase() === authenticatedEmail.toLowerCase());
-      if (!userProfile) {
-        console.log(`Email '${authenticatedEmail}' not found. Auto-registering as Employee...`);
-        try {
-          const newUserName = authenticatedName || authenticatedEmail.split('@')[0];
-          const createResult = await Cr5db_usersService.create({
-            cr5db_fullname: newUserName,
-            cr5db_email: authenticatedEmail,
-            cr5db_systemrole: 'Employee',
-            cr5db_isactive: true
-          } as any);
-
-          if (createResult.data) {
-            const newUserRecord = createResult.data;
-            allUsers.push(newUserRecord);
-            setUsersList([...allUsers]);
-            userProfile = newUserRecord;
-
-            // Add to audit trail log
-            await Cr5db_audittraillogsService.create({
-              cr5db_logname: "User Auto-Registration",
-              cr5db_actionexecuted: `Auto-registered new user ${newUserName} (${authenticatedEmail}) on first login`,
-              cr5db_changedfromvalue: "None",
-              cr5db_changedtovalue: "Role: Employee"
-            } as any);
-          } else {
-            throw new Error("Không thể tạo mới tài khoản.");
-          }
-        } catch (regErr) {
-          console.error("Auto-registration failed:", regErr);
-          throw new Error(`Tài khoản email '${authenticatedEmail}' chưa được đăng ký và tự động đăng ký thất bại.`);
-        }
-      }
-
-      // Role determination
-      const systemRole = userProfile.cr5db_systemrole || '';
-      const positionTitle = userProfile.cr5db_jobpositionname || '';
-      const derived = getDerivedRole(positionTitle);
-      const manual = systemRole ? normalizeRole(systemRole) : null;
-      const effectiveRole = manual || derived || 'Employee';
-      
-      const devOverride = sessionStorage.getItem('devRoleOverride');
-      if (devOverride) {
-        setActiveRole(devOverride as any);
-      } else {
-        setActiveRole(effectiveRole);
-      }
-
-      // Map Tasks
-      const mappedTasks: Task[] = (tasksResponse.data || []).map(t => {
-        const assigneeLookup = t.cr5db_assigneeid as any;
-        const assigneeId = t._cr5db_assigneeid_value || assigneeLookup?.cr5db_userid || assigneeLookup?.id || '';
-        const assignee = assigneeId ? allUsers.find(u => u.cr5db_userid === assigneeId) : undefined;
-        const assigneeName = t.cr5db_assigneeidname || assigneeLookup?.name || assigneeLookup?.cr5db_fullname || '';
-        return {
-          cr5db_taskid: t.cr5db_taskid,
-          cr5db_taskname: t.cr5db_taskname,
-          cr5db_description: t.cr5db_description || '',
-          cr5db_status: t.statecode === 1 ? 'Completed' : 'In Progress',
-          cr5db_assignee_email: assignee?.cr5db_email || '',
-          cr5db_assignee_name: assignee?.cr5db_fullname || assigneeName || 'Chưa phân công',
-          cr5db_project_name: t.cr5db_projectphaseidname || 'Không thuộc dự án',
-          cr5db_due_date: t.cr5db_duedate || '',
-          _cr5db_parenttask_value: t._cr5db_parenttask_value || undefined,
-          _cr5db_objectivename_value: t._cr5db_objectivename_value || undefined,
-          _cr5db_projectphaseid_value: t._cr5db_projectphaseid_value || undefined,
-          _cr5db_assigneeid_value: t._cr5db_assigneeid_value || undefined,
-          createdbyname: t.createdbyname || '',
-          _createdby_value: t._createdby_value || ''
-        };
-      });
-      setTasks(mappedTasks);
-      if (mappedTasks.length > 0) {
-        setNewTimesheetTaskId(mappedTasks[0].cr5db_taskid);
-      }
-
-      // Map Headcount Requests
-      const mappedHeadcount: HeadcountRequest[] = (headcountResponse.data || []).map(r => {
-        const dept = allDepts.find(d => d.cr5db_departmentid === r._cr5db_department_value);
-        let statusStr: 'Pending' | 'Approved' | 'Rejected' = 'Pending';
-        if (r.cr5db_approvalstatus === 122650001) statusStr = 'Approved';
-        else if (r.cr5db_approvalstatus === 122650002) statusStr = 'Rejected';
-        return {
-          cr5db_headcountrequestid: r.cr5db_headcountrequestid,
-          cr5db_requestname: r.cr5db_requestname,
-          cr5db_requesttype: r.cr5db_requesttype === 122650001 ? 'Decrease Headcount' : r.cr5db_requesttype === 122650002 ? 'New Position' : 'Increase Headcount',
-          cr5db_departmentname: dept?.cr5db_departmentname || r.cr5db_departmentname || 'Chung',
-          cr5db_positiontitle: r.cr5db_positioncatalogname || r.cr5db_jobpositionname || 'Chức danh',
-          cr5db_requestedquantity: r.cr5db_requestedquantity || 1,
-          cr5db_reason: r.cr5db_reason || '',
-          cr5db_approvalstatus: statusStr,
-          cr5db_createddate: r.cr5db_createddate || '',
-          _cr5db_department_value: r._cr5db_department_value || undefined,
-          _cr5db_positioncatalog_value: r._cr5db_positioncatalog_value || undefined,
-          raw_requesttype: r.cr5db_requesttype,
-          raw_approvalstatus: r.cr5db_approvalstatus
-        };
-      });
-      setHeadcountRequests(mappedHeadcount);
-
-      // Map KPIs
-      const mappedKpis: KPITarget[] = (kpiResponse.data || []).map(k => {
-        const employee = allUsers.find(u => u.cr5db_userid === k._cr5db_employeeid_value);
-        const libraryItem = rawKpiLibraries.find((lib: any) => lib.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-        const parentObjective = rawObjectives.find((obj: any) => obj.cr5db_objectiveid === k._cr5db_parentobjective_value);
-        return {
-          cr5db_kpitargetid: k.cr5db_kpitargetid,
-          cr5db_kpiname: k.cr5db_kpitarget1 || libraryItem?.cr5db_kpiname || 'Mục tiêu KPI',
-          cr5db_targetvalue: k.cr5db_targetvalue || 100,
-          cr5db_actualvalue: k.cr5db_actualvalue || 0,
-          cr5db_unit: libraryItem?.cr5db_unit || '%',
-          cr5db_weightpercentage: k.cr5db_weightpercentage || 0,
-          cr5db_user_email: employee?.cr5db_email || '',
-          cr5db_period: parentObjective?.cr5db_objective1 || 'Q2/2026',
-          _cr5db_parentobjective_value: k._cr5db_parentobjective_value || undefined,
-          _cr5db_employeeid_value: k._cr5db_employeeid_value || undefined,
-          _cr5db_kpicode_value: k._cr5db_kpicode_value || undefined
-        };
-      });
-      setKpiTargets(mappedKpis);
-
-      // Map Timesheets
-      const mappedTimesheets = (timesheetsResponse.data || []).map(ts => {
-        const user = allUsers.find(u => u.cr5db_userid === ts._cr5db_userid_value);
-        return {
-          cr5db_timesheetlogid: ts.cr5db_timesheetlogid,
-          cr5db_timesheetlog1: ts.cr5db_timesheetlog1,
-          cr5db_actualhoursworked: ts.cr5db_actualhoursworked || 0,
-          cr5db_logdate: ts.cr5db_logdate || '',
-          cr5db_taskname: ts.cr5db_taskidname || 'Không thuộc dự án',
-          cr5db_username: ts.cr5db_useridname || user?.cr5db_fullname || 'Thành viên',
-          cr5db_useremail: user?.cr5db_email || '',
-          statecode: ts.statecode
-        };
-      });
-      setTimesheets(mappedTimesheets);
-
-      // Map Appraisals
-      const mappedAppraisals = (appraisalsResponse.data || []).map(ap => {
-        const employee = allUsers.find(u => u.cr5db_userid === ap._cr5db_employeeid_value);
-        const evaluator = allUsers.find(u => u.cr5db_userid === ap._cr5db_evaluatorid_value);
-        return {
-          cr5db_performanceappraisalid: ap.cr5db_performanceappraisalid,
-          cr5db_performanceappraisal1: ap.cr5db_performanceappraisal1,
-          cr5db_finalscore: ap.cr5db_finalscore || 0,
-          cr5db_selfscore: ap.cr5db_selfscore || 0,
-          cr5db_employeename: ap.cr5db_employeeidname || employee?.cr5db_fullname || '',
-          cr5db_employeeemail: employee?.cr5db_email || '',
-          cr5db_evaluatorname: ap.cr5db_evaluatoridname || evaluator?.cr5db_fullname || '',
-          cr5db_periodname: ap.cr5db_periodidname || 'Kỳ đánh giá'
-        };
-      });
-      setAppraisals(mappedAppraisals);
-
-    } catch (err: any) {
-      console.error("Initialization error: ", err);
-      setErrorMsg(err.message || "Lỗi khi kết nối Dataverse.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchLiveValues();
-  }, []);
-
-  // CRUD API Calls
+  // ── Approval Engine ───────────────────────────────────────────────────────
+  const {
+    executeCrudWithApproval,
+    handleApproveChangeRequest,
+    handleRejectChangeRequest,
+    handleSubmittingApprovalRequest,
+  } = buildApprovalEngine({
+    activeRole, currentUserEmail,
+    usersList, jobPositionsList, approvalRoutesList,
+    setIsLoading, setApprovalModalData, setSelectedApproverId,
+    setRequestReason, setShowApprovalModal,
+    approvalModalData, requestReason, selectedApproverId,
+    fetchLiveValues,
+  });
+
+  // ── CRUD API Calls ───────────────────────────────────────────────────────
 
   // Tasks CRUD
   const handleSaveTask = async (e: React.FormEvent) => {
