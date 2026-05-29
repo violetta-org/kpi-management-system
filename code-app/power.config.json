@@ -18,6 +18,16 @@
           "logicalName": "cr5db_user",
           "isHidden": false
         },
+        "approvalroutes": {
+          "entitySetName": "cr5db_approvalrouteses",
+          "logicalName": "cr5db_approvalroutes",
+          "isHidden": false
+        },
+        "changerequests": {
+          "entitySetName": "cr5db_changerequestses",
+          "logicalName": "cr5db_changerequests",
+          "isHidden": false
+        },
         "appraisalkpidetails": {
           "entitySetName": "cr5db_appraisalkpidetails",
           "logicalName": "cr5db_appraisalkpidetail",

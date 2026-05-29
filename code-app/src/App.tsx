@@ -24,6 +24,8 @@ import { Cr5db_objectivesService } from './generated/services/Cr5db_objectivesSe
 import { Cr5db_resourceallocationsService } from './generated/services/Cr5db_resourceallocationsService';
 import { Cr5db_projectteamsService } from './generated/services/Cr5db_projectteamsService';
 import { Cr5db_projectobjectivealignmentsService } from './generated/services/Cr5db_projectobjectivealignmentsService';
+import { Cr5db_approvalroutesesService } from './generated/services/Cr5db_approvalroutesesService';
+import { Cr5db_changerequestsesService } from './generated/services/Cr5db_changerequestsesService';
 
 // SVG Icons
 const DashboardIcon = () => (
@@ -244,6 +246,12 @@ function App() {
   const [kpiLibrariesList, setKpiLibrariesList] = useState<any[]>([]);
   const [resourceAllocationsList, setResourceAllocationsList] = useState<any[]>([]);
   const [objectivesList, setObjectivesList] = useState<any[]>([]);
+  const [approvalRoutesList, setApprovalRoutesList] = useState<any[]>([]);
+  const [changeRequestsList, setChangeRequestsList] = useState<any[]>([]);
+
+  useEffect(() => {
+    console.log(`Routes loaded: ${approvalRoutesList.length}, Requests loaded: ${changeRequestsList.length}`);
+  }, [approvalRoutesList, changeRequestsList]);
 
   // KPI CRUD Management states
   const [showKpiModal, setShowKpiModal] = useState(false);
@@ -444,7 +452,9 @@ function App() {
         rawNotifications,
         rawProjectPhases,
         rawProjectRisks,
-        rawKpiLibraries
+        rawKpiLibraries,
+        rawRoutes,
+        rawRequests
       ] = await Promise.all([
         safeGet<User>(Cr5db_usersService.getAll),
         safeGet(Cr5db_departmentsService.getAll),
@@ -463,7 +473,9 @@ function App() {
         safeGet(Cr5db_systemnotificationsService.getAll),
         safeGet(Cr5db_projectphasesService.getAll),
         safeGet(Cr5db_projectrisksService.getAll),
-        safeGet(Cr5db_kpilibrariesService.getAll)
+        safeGet(Cr5db_kpilibrariesService.getAll),
+        safeGet(Cr5db_approvalroutesesService.getAll),
+        safeGet(Cr5db_changerequestsesService.getAll)
       ]);
 
       // Map job position names to user records dynamically
@@ -499,6 +511,8 @@ function App() {
       setProjectRisks(rawProjectRisks);
       setSystemNotifications(allNotifications);
       setKpiLibrariesList(rawKpiLibraries);
+      setApprovalRoutesList(rawRoutes);
+      setChangeRequestsList(rawRequests);
 
       if (allDepts.length > 0) {
         setNewReqDeptId(allDepts[0].cr5db_departmentid);

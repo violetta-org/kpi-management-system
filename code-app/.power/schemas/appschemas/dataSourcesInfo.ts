@@ -19,10 +19,24 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "cr5db_approvalrouteses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cr5db_approvalroutesid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "cr5db_audittraillogs": {
     "tableId": "",
     "version": "",
     "primaryKey": "cr5db_audittraillogid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "cr5db_changerequestses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cr5db_changerequestsid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },

@@ -4,3 +4,4 @@
 obj/
 bin/
 env/
+scratch/token_cache.json

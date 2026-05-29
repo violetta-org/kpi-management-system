@@ -7,7 +7,9 @@
 export * as CommonModels from './models/CommonModels';
 export * as Cr5db_appraisalkpidetailsModel from './models/Cr5db_appraisalkpidetailsModel';
 export * as Cr5db_approvaldelegationsModel from './models/Cr5db_approvaldelegationsModel';
+export * as Cr5db_approvalroutesesModel from './models/Cr5db_approvalroutesesModel';
 export * as Cr5db_audittraillogsModel from './models/Cr5db_audittraillogsModel';
+export * as Cr5db_changerequestsesModel from './models/Cr5db_changerequestsesModel';
 export * as Cr5db_companiesModel from './models/Cr5db_companiesModel';
 export * as Cr5db_departmentsModel from './models/Cr5db_departmentsModel';
 export * as Cr5db_evaluationperiodsModel from './models/Cr5db_evaluationperiodsModel';
@@ -42,7 +44,9 @@ export * as Cr5db_usersModel from './models/Cr5db_usersModel';
 // Services
 export * from './services/Cr5db_appraisalkpidetailsService';
 export * from './services/Cr5db_approvaldelegationsService';
+export * from './services/Cr5db_approvalroutesesService';
 export * from './services/Cr5db_audittraillogsService';
+export * from './services/Cr5db_changerequestsesService';
 export * from './services/Cr5db_companiesService';
 export * from './services/Cr5db_departmentsService';
 export * from './services/Cr5db_evaluationperiodsService';
