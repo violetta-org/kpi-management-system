@@ -135,9 +135,9 @@ interface HeadcountRequest {
   cr5db_approvalstatus: 'Pending' | 'Approved' | 'Rejected';
   cr5db_createddate: string;
   _cr5db_department_value?: string;
-  _cr5db_job_position_id_value?: string;
-  _cr5db_position_catalog_id_value?: string;
-  _cr5db_approver_positionid_value?: string;
+  _cr5db_positioncatalog_value?: string;
+  raw_requesttype?: number;
+  raw_approvalstatus?: number;
 }
 
 interface KPITarget {
@@ -343,6 +343,8 @@ function App() {
   const [newReqCatalogId, setNewReqCatalogId] = useState('');
   const [newReqQty, setNewReqQty] = useState(1);
   const [newReqReason, setNewReqReason] = useState('');
+  const [editingHeadcountRequest, setEditingHeadcountRequest] = useState<HeadcountRequest | null>(null);
+  const [newReqStatus, setNewReqStatus] = useState<string>('Pending');
 
   // Companies & departments modal
   const [showCompanyModal, setShowCompanyModal] = useState(false);
@@ -600,11 +602,15 @@ function App() {
           cr5db_requestname: r.cr5db_requestname,
           cr5db_requesttype: r.cr5db_requesttype === 122650001 ? 'Decrease Headcount' : r.cr5db_requesttype === 122650002 ? 'New Position' : 'Increase Headcount',
           cr5db_departmentname: dept?.cr5db_departmentname || r.cr5db_departmentname || 'Chung',
-          cr5db_positiontitle: r.cr5db_jobpositionname || 'Chức danh',
+          cr5db_positiontitle: r.cr5db_positioncatalogname || r.cr5db_jobpositionname || 'Chức danh',
           cr5db_requestedquantity: r.cr5db_requestedquantity || 1,
           cr5db_reason: r.cr5db_reason || '',
           cr5db_approvalstatus: statusStr,
-          cr5db_createddate: r.cr5db_createddate || ''
+          cr5db_createddate: r.cr5db_createddate || '',
+          _cr5db_department_value: r._cr5db_department_value || undefined,
+          _cr5db_positioncatalog_value: r._cr5db_positioncatalog_value || undefined,
+          raw_requesttype: r.cr5db_requesttype,
+          raw_approvalstatus: r.cr5db_approvalstatus
         };
       });
       setHeadcountRequests(mappedHeadcount);
@@ -1118,29 +1124,96 @@ function App() {
   };
 
   // Headcount Requests
-  const handleAddHeadcountRequest = async (e: React.FormEvent) => {
+  // Headcount Requests CRUD
+  const handleSaveHeadcountRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRequestName.trim() || !newReqReason.trim()) return;
     try {
       setIsLoading(true);
       const reqTypeVal = newRequestType === 'Decrease Headcount' ? 122650001 : newRequestType === 'New Position' ? 122650002 : 122650000;
-      await Cr5db_headcountrequestsService.create({
+      
+      const payload: any = {
         cr5db_requestname: newRequestName,
         cr5db_requestedquantity: Number(newReqQty),
         cr5db_reason: newReqReason,
-        cr5db_approvalstatus: 122650000, // Pending
         cr5db_requesttype: reqTypeVal,
-        cr5db_createddate: new Date().toISOString().split('T')[0],
-        "cr5db_Department@odata.bind": newReqDeptId ? `/cr5db_departments(${newReqDeptId})` : undefined,
-        "cr5db_PositionCatalog@odata.bind": newReqCatalogId ? `/cr5db_positioncatalogs(${newReqCatalogId})` : undefined
-      } as any);
+      };
+
+      if (newReqDeptId) {
+        payload["cr5db_Department@odata.bind"] = `/cr5db_departments(${newReqDeptId})`;
+      } else if (editingHeadcountRequest) {
+        payload.cr5db_department = null;
+      }
+
+      if (newReqCatalogId) {
+        payload["cr5db_PositionCatalog@odata.bind"] = `/cr5db_positioncatalogs(${newReqCatalogId})`;
+      } else if (editingHeadcountRequest) {
+        payload.cr5db_positioncatalog = null;
+      }
+
+      if (editingHeadcountRequest) {
+        if (activeRole === 'Admin' || activeRole === 'HRManager') {
+          let statusVal = 122650000;
+          if (newReqStatus === 'Approved') statusVal = 122650001;
+          else if (newReqStatus === 'Rejected') statusVal = 122650002;
+          payload.cr5db_approvalstatus = statusVal;
+        }
+
+        await Cr5db_headcountrequestsService.update(editingHeadcountRequest.cr5db_headcountrequestid, payload);
+
+        const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+        await Cr5db_audittraillogsService.create({
+          cr5db_logname: "Headcount Request Update",
+          cr5db_actionexecuted: `Updated headcount request ${newRequestName}`,
+          cr5db_changedfromvalue: editingHeadcountRequest.cr5db_approvalstatus,
+          cr5db_changedtovalue: `Updated By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+        } as any);
+      } else {
+        payload.cr5db_approvalstatus = 122650000;
+        payload.cr5db_createddate = new Date().toISOString().split('T')[0];
+
+        await Cr5db_headcountrequestsService.create(payload);
+
+        const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+        await Cr5db_audittraillogsService.create({
+          cr5db_logname: "Headcount Request Creation",
+          cr5db_actionexecuted: `Created headcount request ${newRequestName}`,
+          cr5db_changedfromvalue: "None",
+          cr5db_changedtovalue: `Created By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+        } as any);
+      }
+
       setShowHeadcountRequestModal(false);
+      setEditingHeadcountRequest(null);
       setNewRequestName('');
       setNewReqReason('');
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
-      alert("Lỗi khi tạo đề xuất headcount.");
+      alert("Lỗi khi lưu đề xuất headcount.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteHeadcountRequest = async (id: string) => {
+    const confirmDelete = window.confirm("Bạn có chắc chắn muốn xóa đề xuất headcount này không?");
+    if (!confirmDelete) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_headcountrequestsService.delete(id);
+      
+      const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+      await Cr5db_audittraillogsService.create({
+        cr5db_logname: "Headcount Request Deletion",
+        cr5db_actionexecuted: `Deleted headcount request ID ${id}`,
+        cr5db_changedfromvalue: "Active",
+        cr5db_changedtovalue: `Deleted By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+      } as any);
+
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Xóa đề xuất headcount thất bại.");
       setIsLoading(false);
     }
   };
@@ -3076,12 +3149,43 @@ function App() {
                         <span style={{ fontSize: '13px', fontWeight: 700, color: r.cr5db_approvalstatus === 'Approved' ? '#107C41' : r.cr5db_approvalstatus === 'Rejected' ? '#a80000' : '#E29E2E' }}>
                           {r.cr5db_approvalstatus}
                         </span>
-                        {r.cr5db_approvalstatus === 'Pending' && (
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button onClick={() => handleApproveHeadcountRequest(r.cr5db_headcountrequestid, 'Approved')} className="btn-filled-2">Duyệt</button>
-                            <button onClick={() => handleApproveHeadcountRequest(r.cr5db_headcountrequestid, 'Rejected')} className="btn-filled-3">Từ chối</button>
-                          </div>
-                        )}
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {r.cr5db_approvalstatus === 'Pending' && (activeRole === 'Admin' || activeRole === 'HRManager') && (
+                            <>
+                              <button onClick={() => handleApproveHeadcountRequest(r.cr5db_headcountrequestid, 'Approved')} className="btn-filled-2" style={{ padding: '6px 12px', fontSize: '12px' }}>Duyệt</button>
+                              <button onClick={() => handleApproveHeadcountRequest(r.cr5db_headcountrequestid, 'Rejected')} className="btn-filled-3" style={{ padding: '6px 12px', fontSize: '12px' }}>Từ chối</button>
+                            </>
+                          )}
+                          
+                          {(activeRole === 'Admin' || activeRole === 'HRManager') && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setEditingHeadcountRequest(r);
+                                  setNewRequestName(r.cr5db_requestname);
+                                  setNewRequestType(r.cr5db_requesttype);
+                                  setNewReqDeptId(r._cr5db_department_value || '');
+                                  setNewReqCatalogId(r._cr5db_positioncatalog_value || '');
+                                  setNewReqQty(r.cr5db_requestedquantity);
+                                  setNewReqReason(r.cr5db_reason);
+                                  setNewReqStatus(r.cr5db_approvalstatus);
+                                  setShowHeadcountRequestModal(true);
+                                }}
+                                className="btn-filled-3"
+                                style={{ padding: '6px 12px', fontSize: '12px', color: '#742774', borderColor: '#742774' }}
+                              >
+                                Sửa
+                              </button>
+                              <button
+                                onClick={() => handleDeleteHeadcountRequest(r.cr5db_headcountrequestid)}
+                                className="btn-filled-3"
+                                style={{ padding: '6px 12px', fontSize: '12px', color: '#a80000', borderColor: '#a80000' }}
+                              >
+                                Xóa
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))
@@ -4035,8 +4139,8 @@ function App() {
       {showHeadcountRequestModal && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>Đề xuất bổ sung định biên</h3>
-            <form onSubmit={handleAddHeadcountRequest} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>{editingHeadcountRequest ? 'Cập nhật đề xuất định biên' : 'Đề xuất bổ sung định biên'}</h3>
+            <form onSubmit={handleSaveHeadcountRequest} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Tên đề xuất</label>
                 <input type="text" value={newRequestName} onChange={(e) => setNewRequestName(e.target.value)} className="input-spec" required placeholder="Đề xuất bổ sung..." />
@@ -4077,9 +4181,26 @@ function App() {
                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Lý do đề xuất</label>
                 <textarea value={newReqReason} onChange={(e) => setNewReqReason(e.target.value)} className="input-spec" style={{ height: '70px', fontFamily: 'inherit' }} placeholder="Lý do..." />
               </div>
+              
+              {editingHeadcountRequest && (activeRole === 'Admin' || activeRole === 'HRManager') && (
+                <div>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Trạng thái phê duyệt</label>
+                  <select value={newReqStatus} onChange={(e) => setNewReqStatus(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
+                    <option value="Pending">Chờ duyệt</option>
+                    <option value="Approved">Đã duyệt</option>
+                    <option value="Rejected">Từ chối</option>
+                  </select>
+                </div>
+              )}
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-                <button type="button" onClick={() => setShowHeadcountRequestModal(false)} className="btn-filled-3">Hủy</button>
-                <button type="submit" className="btn-primary">Gửi đề xuất</button>
+                <button type="button" onClick={() => {
+                  setShowHeadcountRequestModal(false);
+                  setEditingHeadcountRequest(null);
+                  setNewRequestName('');
+                  setNewReqReason('');
+                }} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary">{editingHeadcountRequest ? 'Lưu thay đổi' : 'Gửi đề xuất'}</button>
               </div>
             </form>
           </div>
