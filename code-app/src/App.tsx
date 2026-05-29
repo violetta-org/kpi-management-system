@@ -2052,22 +2052,29 @@ function App() {
       if (!editingKpi) return;
       try {
         setIsLoading(true);
-        await Cr5db_kpitargetsService.update(editingKpi.cr5db_kpitargetid, {
+        const payload = {
           cr5db_actualvalue: Number(kpiActualValue)
-        } as any);
+        };
+        await executeCrudWithApproval(
+          "KPITargets",
+          "Update",
+          payload,
+          editingKpi.cr5db_kpitargetid,
+          `Cập nhật thực tế KPI ${editingKpi.cr5db_kpiname || editingKpi.cr5db_kpitarget1} thành ${kpiActualValue}`,
+          editingKpi
+        );
 
         // Audit Log
         const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
         await Cr5db_audittraillogsService.create({
-          cr5db_logname: "KPI Quick Update",
-          cr5db_actionexecuted: `Updated KPI ${editingKpi.cr5db_kpiname} actual value to ${kpiActualValue}`,
-          cr5db_changedfromvalue: editingKpi.cr5db_actualvalue.toString(),
-          cr5db_changedtovalue: `Updated By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+          cr5db_logname: "KPI Quick Update Request",
+          cr5db_actionexecuted: `Requested/Executed KPI ${editingKpi.cr5db_kpiname || editingKpi.cr5db_kpitarget1} actual value update to ${kpiActualValue}`,
+          cr5db_changedfromvalue: editingKpi.cr5db_actualvalue?.toString() || "0",
+          cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
         } as any);
 
         setShowKpiModal(false);
         setEditingKpi(null);
-        await fetchLiveValues();
       } catch (err) {
         console.error(err);
         alert("Không thể cập nhật thực tế KPI.");
@@ -2097,26 +2104,39 @@ function App() {
       };
 
       if (editingKpi) {
-        await Cr5db_kpitargetsService.update(editingKpi.cr5db_kpitargetid, payload);
+        await executeCrudWithApproval(
+          "KPITargets",
+          "Update",
+          payload,
+          editingKpi.cr5db_kpitargetid,
+          `Cập nhật mục tiêu KPI: ${kpiTargetName}`,
+          editingKpi
+        );
         
         // Audit log
         const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
         await Cr5db_audittraillogsService.create({
-          cr5db_logname: "KPI Update",
-          cr5db_actionexecuted: `Updated KPI ${kpiTargetName} configuration`,
-          cr5db_changedfromvalue: editingKpi.cr5db_kpiname,
-          cr5db_changedtovalue: `Updated By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+          cr5db_logname: "KPI Update Request",
+          cr5db_actionexecuted: `Requested/Executed update for KPI: ${kpiTargetName}`,
+          cr5db_changedfromvalue: editingKpi.cr5db_kpitarget1 || "None",
+          cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
         } as any);
       } else {
-        await Cr5db_kpitargetsService.create(payload);
+        await executeCrudWithApproval(
+          "KPITargets",
+          "Create",
+          payload,
+          undefined,
+          `Tạo mục tiêu KPI mới: ${kpiTargetName}`
+        );
 
         // Audit log
         const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
         await Cr5db_audittraillogsService.create({
-          cr5db_logname: "KPI Assignment",
-          cr5db_actionexecuted: `Assigned KPI ${kpiTargetName} to ${usersList.find(u => u.cr5db_userid === kpiEmployeeId)?.cr5db_fullname || kpiEmployeeId}`,
+          cr5db_logname: "KPI Creation Request",
+          cr5db_actionexecuted: `Requested/Executed KPI creation: ${kpiTargetName}`,
           cr5db_changedfromvalue: "None",
-          cr5db_changedtovalue: `Assigned By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+          cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
         } as any);
       }
 
@@ -2131,7 +2151,6 @@ function App() {
       setKpiObjectiveId('');
       setKpiLibraryId('');
       setKpiPeriod('Q2/2026');
-      await fetchLiveValues();
     } catch (err) {
       console.error(err);
       alert("Không thể lưu mục tiêu KPI.");
@@ -2144,18 +2163,23 @@ function App() {
     try {
       setIsLoading(true);
       const targetKpi = kpiTargets.find(k => k.cr5db_kpitargetid === id);
-      await Cr5db_kpitargetsService.delete(id);
+      await executeCrudWithApproval(
+        "KPITargets",
+        "Delete",
+        null,
+        id,
+        `Xóa mục tiêu KPI: ${targetKpi?.cr5db_kpiname || targetKpi?.cr5db_kpitarget1 || id}`,
+        targetKpi
+      );
 
       // Audit Log
       const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       await Cr5db_audittraillogsService.create({
-        cr5db_logname: "KPI Deletion",
-        cr5db_actionexecuted: `Deleted KPI ${targetKpi?.cr5db_kpiname || id}`,
-        cr5db_changedfromvalue: targetKpi?.cr5db_kpiname || "None",
-        cr5db_changedtovalue: `Deleted By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+        cr5db_logname: "KPI Deletion Request",
+        cr5db_actionexecuted: `Requested/Executed deletion for KPI: ${targetKpi?.cr5db_kpiname || targetKpi?.cr5db_kpitarget1 || id}`,
+        cr5db_changedfromvalue: targetKpi?.cr5db_kpiname || targetKpi?.cr5db_kpitarget1 || "None",
+        cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
       } as any);
-
-      await fetchLiveValues();
     } catch (err) {
       console.error(err);
       alert("Không thể xóa KPI.");
