@@ -699,25 +699,25 @@ function App() {
         if (newTaskAssigneeId) {
           payload["cr5db_AssigneeID@odata.bind"] = `/cr5db_users(${newTaskAssigneeId})`;
         } else {
-          payload.cr5db_assigneeid = null;
+          payload.cr5db_AssigneeID = null;
         }
 
         if (newTaskObjectiveId) {
           payload["cr5db_ObjectiveName@odata.bind"] = `/cr5db_objectives(${newTaskObjectiveId})`;
         } else {
-          payload.cr5db_objectivename = null;
+          payload.cr5db_ObjectiveName = null;
         }
 
         if (newTaskParentId) {
           payload["cr5db_ParentTask@odata.bind"] = `/cr5db_tasks(${newTaskParentId})`;
         } else {
-          payload.cr5db_parenttask = null;
+          payload.cr5db_ParentTask = null;
         }
 
         if (newTaskPhaseId) {
           payload["cr5db_ProjectPhaseID@odata.bind"] = `/cr5db_projectphases(${newTaskPhaseId})`;
         } else {
-          payload.cr5db_projectphaseid = null;
+          payload.cr5db_ProjectPhaseID = null;
         }
 
         payload.statecode = newTaskStatus === 'Completed' ? 1 : 0;
@@ -1066,19 +1066,19 @@ function App() {
         if (newJobPosDeptId) {
           payload["cr5db_Department@odata.bind"] = `/cr5db_departments(${newJobPosDeptId})`;
         } else {
-          payload.cr5db_department = null;
+          payload.cr5db_Department = null;
         }
 
         if (newJobPosCatalogId) {
           payload["cr5db_PositionCatalogTitle@odata.bind"] = `/cr5db_positioncatalogs(${newJobPosCatalogId})`;
         } else {
-          payload.cr5db_positioncatalogtitle = null;
+          payload.cr5db_PositionCatalogTitle = null;
         }
 
         if (selectedReportsToPositionId) {
           payload["cr5db_ReportsToPositionID@odata.bind"] = `/cr5db_jobpositions(${selectedReportsToPositionId})`;
         } else {
-          payload.cr5db_reportstopositionid = null;
+          payload.cr5db_ReportsToPositionID = null;
         }
 
         const res = await Cr5db_jobpositionsService.update(editingJobPosition.cr5db_jobpositionid, payload);
@@ -1148,13 +1148,13 @@ function App() {
       if (newReqDeptId) {
         payload["cr5db_Department@odata.bind"] = `/cr5db_departments(${newReqDeptId})`;
       } else if (editingHeadcountRequest) {
-        payload.cr5db_department = null;
+        payload.cr5db_Department = null;
       }
 
       if (newReqCatalogId) {
         payload["cr5db_PositionCatalog@odata.bind"] = `/cr5db_positioncatalogs(${newReqCatalogId})`;
       } else if (editingHeadcountRequest) {
-        payload.cr5db_positioncatalog = null;
+        payload.cr5db_PositionCatalog = null;
       }
 
       if (editingHeadcountRequest) {
@@ -1401,23 +1401,9 @@ function App() {
       };
 
       if (employeeJobPositionId) {
-        const pos = jobPositionsList.find(p => p.cr5db_jobpositionid === employeeJobPositionId);
-        if (pos && pos.cr5db_headcountquota) {
-          const assignedCount = usersList.filter(
-            u => u._cr5db_jobposition_value === employeeJobPositionId && 
-            u.cr5db_userid !== editingEmployee?.cr5db_userid &&
-            u.cr5db_isactive !== false
-          ).length;
-          
-          if (assignedCount >= pos.cr5db_headcountquota) {
-            alert(`Không thể lưu: Vị trí '${pos.cr5db_positionname}' đã đạt giới hạn định biên tối đa là ${pos.cr5db_headcountquota} người.`);
-            setIsLoading(false);
-            return;
-          }
-        }
         payload["cr5db_JobPosition@odata.bind"] = `/cr5db_jobpositions(${employeeJobPositionId})`;
       } else if (editingEmployee) {
-        payload.cr5db_jobposition = null;
+        payload.cr5db_JobPosition = null;
       }
 
       if (editingEmployee) {
