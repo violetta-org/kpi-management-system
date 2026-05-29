@@ -2514,6 +2514,22 @@ function App() {
   const underQuotaCount = jobPositionsList.filter(p => getJobPositionActualCount(p.cr5db_jobpositionid) < (p.cr5db_headcountquota || 0)).length;
   const pendingRequestCount = headcountRequests.filter(r => r.cr5db_approvalstatus === 'Pending').length;
 
+  // Diagnostic useEffect to avoid unused variables error in strict TypeScript compilation
+  useEffect(() => {
+    if (showApprovalModal) {
+      console.log("Approval modal state read:", showApprovalModal);
+    }
+    const dummy = {
+      executeCrudWithApproval,
+      handleApproveChangeRequest,
+      handleRejectChangeRequest,
+      handleSubmittingApprovalRequest
+    };
+    if (typeof dummy.executeCrudWithApproval === 'function') {
+      // Diagnostic read
+    }
+  }, [showApprovalModal, executeCrudWithApproval, handleApproveChangeRequest, handleRejectChangeRequest, handleSubmittingApprovalRequest]);
+
   if (isLoading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', fontFamily: 'var(--font-body)', gap: '16px' }}>
@@ -2540,22 +2556,6 @@ function App() {
       </div>
     );
   }
-
-  // Diagnostic useEffect to avoid unused variables error in strict TypeScript compilation
-  useEffect(() => {
-    if (showApprovalModal) {
-      console.log("Approval modal state read:", showApprovalModal);
-    }
-    const dummy = {
-      executeCrudWithApproval,
-      handleApproveChangeRequest,
-      handleRejectChangeRequest,
-      handleSubmittingApprovalRequest
-    };
-    if (typeof dummy.executeCrudWithApproval === 'function') {
-      // Diagnostic read
-    }
-  }, [showApprovalModal, executeCrudWithApproval, handleApproveChangeRequest, handleRejectChangeRequest, handleSubmittingApprovalRequest]);
 
   return (
     <div className="app-container">
