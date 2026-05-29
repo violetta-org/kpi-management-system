@@ -4120,8 +4120,6 @@ function App() {
                     </div>
                   )}
 
-                    </div>
-                  )}
                 </>
               )}
 
@@ -4182,8 +4180,6 @@ function App() {
                     </div>
                   )}
 
-                    </div>
-                  )}
                 </>
               )}
             </div>
