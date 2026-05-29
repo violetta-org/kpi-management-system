@@ -455,11 +455,12 @@ function App() {
   const handleApproveTimesheet = async (id: string) => {
     try {
       setIsLoading(true);
-      await Cr5db_timesheetlogsService.update(id, { statecode: 1 });
+      // statecode:1 = Inactive (closed), statuscode:1 = Approved
+      await Cr5db_timesheetlogsService.update(id, { statecode: 1, statuscode: 1 } as any);
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
-      alert("Không thể phê duyệt timesheet.");
+      alert('Không thể phê duyệt timesheet.');
       setIsLoading(false);
     }
   };
@@ -506,13 +507,14 @@ function App() {
     if (!rejectionReason.trim()) return;
     try {
       setIsLoading(true);
-      await Cr5db_timesheetlogsService.update(timesheetToRejectId, { statecode: 2 as any });
-      
+      // statecode:1 = Inactive (closed), statuscode:2 = Rejected
+      await Cr5db_timesheetlogsService.update(timesheetToRejectId, { statecode: 1, statuscode: 2 } as any);
+
       const adminUser = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       await Cr5db_audittraillogsService.create({
-        cr5db_logname: "Timesheet Rejection",
+        cr5db_logname: 'Timesheet Rejection',
         cr5db_actionexecuted: `Timesheet log ${timesheetToRejectId} rejected`,
-        cr5db_changedfromvalue: "Status: Pending",
+        cr5db_changedfromvalue: 'Status: Pending',
         cr5db_changedtovalue: `Reason: ${rejectionReason} | Rejected By: ${adminUser?.cr5db_fullname || currentUserEmail}`
       } as any);
 
@@ -521,7 +523,7 @@ function App() {
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
-      alert("Lỗi khi từ chối timesheet.");
+      alert('Lỗi khi từ chối timesheet.');
       setIsLoading(false);
     }
   };
@@ -2321,8 +2323,12 @@ function App() {
                             <td style={{ padding: '12px' }}>{ts.cr5db_timesheetlog1}</td>
                             <td style={{ padding: '12px', fontWeight: 600 }}>{ts.cr5db_actualhoursworked}h</td>
                             <td style={{ padding: '12px' }}>
-                              <span className={ts.statecode === 1 ? 'status-approved' : ts.statecode === 2 ? 'status-rejected' : 'status-pending'}>
-                                {ts.statecode === 1 ? 'Approved' : ts.statecode === 2 ? 'Rejected' : 'Pending'}
+                              <span className={
+                                ts.statecode === 0 ? 'status-pending'
+                                : ts.statuscode === 2 ? 'status-rejected'
+                                : 'status-approved'
+                              }>
+                                {ts.statecode === 0 ? 'Pending' : ts.statuscode === 2 ? 'Từ chối' : 'Approved'}
                               </span>
                             </td>
                           </tr>
