@@ -956,27 +956,38 @@ function App() {
         cr5db_headcountquota: Number(newJobPosQuota)
       };
 
-      if (newJobPosDeptId) {
-        payload["cr5db_Department@odata.bind"] = `/cr5db_departments(${newJobPosDeptId})`;
-      } else {
-        payload.cr5db_department = null;
-      }
-
-      if (newJobPosCatalogId) {
-        payload["cr5db_PositionCatalogTitle@odata.bind"] = `/cr5db_positioncatalogs(${newJobPosCatalogId})`;
-      } else {
-        payload.cr5db_positioncatalogtitle = null;
-      }
-
-      if (selectedReportsToPositionId) {
-        payload["cr5db_ReportsToPositionID@odata.bind"] = `/cr5db_jobpositions(${selectedReportsToPositionId})`;
-      } else {
-        payload.cr5db_reportstopositionid = null;
-      }
-
       if (editingJobPosition) {
+        if (newJobPosDeptId) {
+          payload["cr5db_Department@odata.bind"] = `/cr5db_departments(${newJobPosDeptId})`;
+        } else {
+          payload.cr5db_department = null;
+        }
+
+        if (newJobPosCatalogId) {
+          payload["cr5db_PositionCatalogTitle@odata.bind"] = `/cr5db_positioncatalogs(${newJobPosCatalogId})`;
+        } else {
+          payload.cr5db_positioncatalogtitle = null;
+        }
+
+        if (selectedReportsToPositionId) {
+          payload["cr5db_ReportsToPositionID@odata.bind"] = `/cr5db_jobpositions(${selectedReportsToPositionId})`;
+        } else {
+          payload.cr5db_reportstopositionid = null;
+        }
+
         await Cr5db_jobpositionsService.update(editingJobPosition.cr5db_jobpositionid, payload);
       } else {
+        // For creation, only include lookup fields if they are selected (avoid null properties)
+        if (newJobPosDeptId) {
+          payload["cr5db_Department@odata.bind"] = `/cr5db_departments(${newJobPosDeptId})`;
+        }
+        if (newJobPosCatalogId) {
+          payload["cr5db_PositionCatalogTitle@odata.bind"] = `/cr5db_positioncatalogs(${newJobPosCatalogId})`;
+        }
+        if (selectedReportsToPositionId) {
+          payload["cr5db_ReportsToPositionID@odata.bind"] = `/cr5db_jobpositions(${selectedReportsToPositionId})`;
+        }
+
         await Cr5db_jobpositionsService.create(payload);
       }
       setShowJobPositionModal(false);
@@ -1135,7 +1146,7 @@ function App() {
 
       if (employeeJobPositionId) {
         payload["cr5db_JobPosition@odata.bind"] = `/cr5db_jobpositions(${employeeJobPositionId})`;
-      } else {
+      } else if (editingEmployee) {
         payload.cr5db_jobposition = null;
       }
 
