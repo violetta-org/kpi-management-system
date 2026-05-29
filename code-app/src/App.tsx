@@ -2402,7 +2402,7 @@ function App() {
                             <td style={{ padding: '12px' }}>{ts.cr5db_timesheetlog1}</td>
                             <td style={{ padding: '12px', fontWeight: 600 }}>{ts.cr5db_actualhoursworked}h</td>
                             <td style={{ padding: '12px' }}>
-                              <span style={{ color: ts.statecode === 1 ? '#107C41' : ts.statecode === 2 ? '#a80000' : '#E29E2E', fontWeight: 600 }}>
+                              <span className={ts.statecode === 1 ? 'status-approved' : ts.statecode === 2 ? 'status-rejected' : 'status-pending'}>
                                 {ts.statecode === 1 ? 'Approved' : ts.statecode === 2 ? 'Rejected' : 'Pending'}
                               </span>
                             </td>
@@ -3146,7 +3146,11 @@ function App() {
                         <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>Lý do: {r.cr5db_reason}</p>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: r.cr5db_approvalstatus === 'Approved' ? '#107C41' : r.cr5db_approvalstatus === 'Rejected' ? '#a80000' : '#E29E2E' }}>
+                        <span className={
+                          r.cr5db_approvalstatus === 'Approved' ? 'status-approved' :
+                          r.cr5db_approvalstatus === 'Rejected' ? 'status-rejected' :
+                          'status-pending'
+                        }>
                           {r.cr5db_approvalstatus}
                         </span>
                         <div style={{ display: 'flex', gap: '8px' }}>
