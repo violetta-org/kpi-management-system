@@ -365,54 +365,57 @@ function App() {
       setCurrentUserEmail(authenticatedEmail);
       setCurrentUserName(authenticatedName || authenticatedEmail.split('@')[0]);
 
-      // 2. Fetch all tables from Dataverse services
+      // 2. Fetch all tables from Dataverse services (isolated - one failure won't block others)
+      const safeGet = async <T,>(fn: () => Promise<{ data?: T[] }>): Promise<T[]> => {
+        try { return (await fn()).data || []; }
+        catch (e) { console.warn('Dataverse fetch failed:', e); return []; }
+      };
+
       const [
-        usersResponse,
-        deptsResponse,
-        tasksResponse,
-        headcountResponse,
-        kpiResponse,
-        timesheetsResponse,
-        projectsResponse,
-        appraisalsResponse,
-        companiesResponse,
-        positionCatalogResponse,
-        jobPositionsResponse,
-        auditLogsResponse,
-        allocationsResponse,
-        objectivesResponse,
-        notificationsResponse,
-        projectPhasesResponse
+        allUsers,
+        allDepts,
+        rawTasks,
+        rawHeadcount,
+        rawKpi,
+        rawTimesheets,
+        rawProjects,
+        rawAppraisals,
+        allCompanies,
+        allCatalogs,
+        allJobPositions,
+        allAuditLogs,
+        rawAllocations,
+        rawObjectives,
+        rawNotifications,
+        rawProjectPhases
       ] = await Promise.all([
-        Cr5db_usersService.getAll(),
-        Cr5db_departmentsService.getAll(),
-        Cr5db_tasksService.getAll(),
-        Cr5db_headcountrequestsService.getAll(),
-        Cr5db_kpitargetsService.getAll(),
-        Cr5db_timesheetlogsService.getAll(),
-        Cr5db_projectsService.getAll(),
-        Cr5db_performanceappraisalsService.getAll(),
-        Cr5db_companiesService.getAll(),
-        Cr5db_positioncatalogsService.getAll(),
-        Cr5db_jobpositionsService.getAll(),
-        Cr5db_audittraillogsService.getAll(),
-        Cr5db_resourceallocationsService.getAll(),
-        Cr5db_objectivesService.getAll(),
-        Cr5db_systemnotificationsService.getAll(),
-        Cr5db_projectphasesService.getAll()
+        safeGet<User>(Cr5db_usersService.getAll),
+        safeGet(Cr5db_departmentsService.getAll),
+        safeGet(Cr5db_tasksService.getAll),
+        safeGet(Cr5db_headcountrequestsService.getAll),
+        safeGet(Cr5db_kpitargetsService.getAll),
+        safeGet(Cr5db_timesheetlogsService.getAll),
+        safeGet(Cr5db_projectsService.getAll),
+        safeGet(Cr5db_performanceappraisalsService.getAll),
+        safeGet(Cr5db_companiesService.getAll),
+        safeGet(Cr5db_positioncatalogsService.getAll),
+        safeGet(Cr5db_jobpositionsService.getAll),
+        safeGet(Cr5db_audittraillogsService.getAll),
+        safeGet(Cr5db_resourceallocationsService.getAll),
+        safeGet(Cr5db_objectivesService.getAll),
+        safeGet(Cr5db_systemnotificationsService.getAll),
+        safeGet(Cr5db_projectphasesService.getAll)
       ]);
 
-      const allUsers = (usersResponse.data || []) as User[];
-      const allDepts = deptsResponse.data || [];
-      const allCompanies = companiesResponse.data || [];
-      const allCatalogs = positionCatalogResponse.data || [];
-      const allJobPositions = jobPositionsResponse.data || [];
-      const allAuditLogs = auditLogsResponse.data || [];
-      // const allPeriods = periodsResponse.data || [];
-      // const allLibraries = kpiLibrariesResponse.data || [];
-      const allAllocations = allocationsResponse.data || [];
-      const allObjectives = objectivesResponse.data || [];
-      const allNotifications = notificationsResponse.data || [];
+      // Wrap into response-shaped objects where downstream code needs them
+      const tasksResponse = { data: rawTasks };
+      const headcountResponse = { data: rawHeadcount };
+      const kpiResponse = { data: rawKpi };
+      const timesheetsResponse = { data: rawTimesheets };
+      const appraisalsResponse = { data: rawAppraisals };
+      const allAllocations = rawAllocations;
+      const allObjectives = rawObjectives;
+      const allNotifications = rawNotifications;
 
       setUsersList(allUsers);
       setDepartmentsList(allDepts);
@@ -420,12 +423,10 @@ function App() {
       setPositionCatalogList(allCatalogs);
       setJobPositionsList(allJobPositions as any);
       setAuditLogsList(allAuditLogs);
-      // setEvaluationPeriodsList(allPeriods);
-      // setKpiLibrariesList(allLibraries);
       setResourceAllocationsList(allAllocations);
       setObjectivesList(allObjectives);
-      setProjects(projectsResponse.data || []);
-      setProjectPhases(projectPhasesResponse.data || []);
+      setProjects(rawProjects);
+      setProjectPhases(rawProjectPhases);
       setSystemNotifications(allNotifications);
 
       if (allDepts.length > 0) {
