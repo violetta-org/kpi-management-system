@@ -107,6 +107,8 @@ interface User {
   cr5db_jobpositionname?: string;
   cr5db_isactive?: boolean;
   _cr5db_jobposition_value?: string;
+  ownerid?: string;
+  owneridtype?: string;
 }
 
 interface Task {
@@ -780,6 +782,24 @@ function App() {
         cr5db_changedtovalue: "Approved"
       } as any);
 
+      // 4. Create system notification for requester
+      const requesterUser = usersList.find(u => u.cr5db_userid === request._cr5db_requester_value);
+      if (requesterUser && requesterUser.ownerid) {
+        try {
+          await Cr5db_systemnotificationsService.create({
+            cr5db_systemnotification1: `Yêu cầu được phê duyệt`,
+            cr5db_content: `Yêu cầu thay đổi "${request.cr5db_requesttitle}" của bạn đã được phê duyệt và áp dụng thành công.`,
+            cr5db_deeplinkurl: `#requests`,
+            cr5db_isread: false,
+            ownerid: requesterUser.ownerid,
+            owneridtype: requesterUser.owneridtype || 'systemusers',
+            statecode: 0
+          });
+        } catch (notificationErr) {
+          console.error("Error creating approval notification:", notificationErr);
+        }
+      }
+
       alert("✅ Yêu cầu thay đổi đã được phê duyệt và áp dụng thành công!");
       await fetchLiveValues();
     } catch (err: any) {
@@ -807,6 +827,24 @@ function App() {
         cr5db_changedfromvalue: "Pending",
         cr5db_changedtovalue: "Rejected"
       } as any);
+
+      // Create system notification for requester
+      const requesterUser = usersList.find(u => u.cr5db_userid === request._cr5db_requester_value);
+      if (requesterUser && requesterUser.ownerid) {
+        try {
+          await Cr5db_systemnotificationsService.create({
+            cr5db_systemnotification1: `Yêu cầu bị từ chối`,
+            cr5db_content: `Yêu cầu thay đổi "${request.cr5db_requesttitle}" của bạn đã bị từ chối. Lý do: ${comment || 'Không có bình luận.'}`,
+            cr5db_deeplinkurl: `#requests`,
+            cr5db_isread: false,
+            ownerid: requesterUser.ownerid,
+            owneridtype: requesterUser.owneridtype || 'systemusers',
+            statecode: 0
+          });
+        } catch (notificationErr) {
+          console.error("Error creating rejection notification:", notificationErr);
+        }
+      }
 
       alert("❌ Yêu cầu thay đổi đã bị từ chối.");
       await fetchLiveValues();
@@ -855,6 +893,24 @@ function App() {
         owneridtype: '',
         statecode: 0
       });
+
+      // Create system notification for the selected approver
+      const approverUser = usersList.find(u => u.cr5db_userid === selectedApproverId);
+      if (approverUser && approverUser.ownerid) {
+        try {
+          await Cr5db_systemnotificationsService.create({
+            cr5db_systemnotification1: `Yêu cầu phê duyệt mới`,
+            cr5db_content: `${requesterRecord.cr5db_fullname} đã gửi yêu cầu thay đổi: ${approvalModalData.description}. Vui lòng phê duyệt hoặc từ chối.`,
+            cr5db_deeplinkurl: `#requests`,
+            cr5db_isread: false,
+            ownerid: approverUser.ownerid,
+            owneridtype: approverUser.owneridtype || 'systemusers',
+            statecode: 0
+          });
+        } catch (notificationErr) {
+          console.error("Error creating request notification:", notificationErr);
+        }
+      }
 
       alert("✅ Yêu cầu thay đổi đã được gửi thành công. Vui lòng chờ người duyệt phản hồi.");
       setShowApprovalModal(false);
