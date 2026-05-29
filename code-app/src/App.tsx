@@ -850,16 +850,16 @@ function App() {
           cr5db_positionname: newJobPosName,
           cr5db_headcountquota: Number(newJobPosQuota),
           "cr5db_Department@odata.bind": newJobPosDeptId ? `/cr5db_departments(${newJobPosDeptId})` : undefined,
-          "cr5db_PositionCatalogTitle@odata.bind": newJobPosCatalogId ? `/cr5db_position_catalogs(${newJobPosCatalogId})` : undefined,
-          "cr5db_ReportsToPositionID@odata.bind": selectedReportsToPositionId ? `/cr5db_job_positions(${selectedReportsToPositionId})` : undefined
+          "cr5db_PositionCatalogTitle@odata.bind": newJobPosCatalogId ? `/cr5db_positioncatalogs(${newJobPosCatalogId})` : undefined,
+          "cr5db_ReportsToPositionID@odata.bind": selectedReportsToPositionId ? `/cr5db_jobpositions(${selectedReportsToPositionId})` : undefined
         } as any);
       } else {
         await Cr5db_jobpositionsService.create({
           cr5db_positionname: newJobPosName,
           cr5db_headcountquota: Number(newJobPosQuota),
           "cr5db_Department@odata.bind": newJobPosDeptId ? `/cr5db_departments(${newJobPosDeptId})` : undefined,
-          "cr5db_PositionCatalogTitle@odata.bind": newJobPosCatalogId ? `/cr5db_position_catalogs(${newJobPosCatalogId})` : undefined,
-          "cr5db_ReportsToPositionID@odata.bind": selectedReportsToPositionId ? `/cr5db_job_positions(${selectedReportsToPositionId})` : undefined
+          "cr5db_PositionCatalogTitle@odata.bind": newJobPosCatalogId ? `/cr5db_positioncatalogs(${newJobPosCatalogId})` : undefined,
+          "cr5db_ReportsToPositionID@odata.bind": selectedReportsToPositionId ? `/cr5db_jobpositions(${selectedReportsToPositionId})` : undefined
         } as any);
       }
       setShowJobPositionModal(false);
@@ -904,7 +904,7 @@ function App() {
         cr5db_requesttype: reqTypeVal,
         cr5db_createddate: new Date().toISOString().split('T')[0],
         "cr5db_Department@odata.bind": newReqDeptId ? `/cr5db_departments(${newReqDeptId})` : undefined,
-        "cr5db_PositionCatalog@odata.bind": newReqCatalogId ? `/cr5db_position_catalogs(${newReqCatalogId})` : undefined
+        "cr5db_PositionCatalog@odata.bind": newReqCatalogId ? `/cr5db_positioncatalogs(${newReqCatalogId})` : undefined
       } as any);
       setShowHeadcountRequestModal(false);
       setNewRequestName('');
