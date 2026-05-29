@@ -17,6 +17,7 @@ import { Cr5db_positioncatalogsService } from './generated/services/Cr5db_positi
 import { Cr5db_jobpositionsService } from './generated/services/Cr5db_jobpositionsService';
 import { Cr5db_audittraillogsService } from './generated/services/Cr5db_audittraillogsService';
 import { Cr5db_projectphasesService } from './generated/services/Cr5db_projectphasesService';
+import { Cr5db_projectrisksService } from './generated/services/Cr5db_projectrisksService';
 // import { Cr5db_evaluationperiodsService } from './generated/services/Cr5db_evaluationperiodsService';
 // import { Cr5db_kpilibrariesService } from './generated/services/Cr5db_kpilibrariesService';
 import { Cr5db_objectivesService } from './generated/services/Cr5db_objectivesService';
@@ -222,6 +223,7 @@ function App() {
   const [timesheets, setTimesheets] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [projectPhases, setProjectPhases] = useState<any[]>([]);
+  const [projectRisks, setProjectRisks] = useState<any[]>([]);
   const [appraisals, setAppraisals] = useState<any[]>([]);
   const [systemNotifications, setSystemNotifications] = useState<any[]>([]);
 
@@ -253,6 +255,27 @@ function App() {
   const [employeeRole, setEmployeeRole] = useState('Employee');
   const [employeeJobPositionId, setEmployeeJobPositionId] = useState('');
   const [employeeIsActive, setEmployeeIsActive] = useState(true);
+
+  // Project Management states
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [editingProject, setEditingProject] = useState<any>(null);
+  const [projectName, setProjectName] = useState('');
+  const [projectDesc, setProjectDesc] = useState('');
+  const [projectStartDate, setProjectStartDate] = useState('');
+  const [projectEndDate, setProjectEndDate] = useState('');
+  const [projectStatus, setProjectStatus] = useState('Not Started');
+  const [activeProjectDetails, setActiveProjectDetails] = useState<any>(null);
+
+  // Phase and Risk states
+  const [showPhaseModal, setShowPhaseModal] = useState(false);
+  const [newPhaseName, setNewPhaseName] = useState('');
+  const [newPhaseStatus, setNewPhaseStatus] = useState('Not Started');
+
+  const [showRiskModal, setShowRiskModal] = useState(false);
+  const [newRiskName, setNewRiskName] = useState('');
+  const [newRiskImpact, setNewRiskImpact] = useState('Medium');
+  const [newRiskProbability, setNewRiskProbability] = useState('Medium');
+  const [newRiskMitigation, setNewRiskMitigation] = useState('');
 
   // Filter selections
   // const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
@@ -393,7 +416,8 @@ function App() {
         rawAllocations,
         rawObjectives,
         rawNotifications,
-        rawProjectPhases
+        rawProjectPhases,
+        rawProjectRisks
       ] = await Promise.all([
         safeGet<User>(Cr5db_usersService.getAll),
         safeGet(Cr5db_departmentsService.getAll),
@@ -410,7 +434,8 @@ function App() {
         safeGet(Cr5db_resourceallocationsService.getAll),
         safeGet(Cr5db_objectivesService.getAll),
         safeGet(Cr5db_systemnotificationsService.getAll),
-        safeGet(Cr5db_projectphasesService.getAll)
+        safeGet(Cr5db_projectphasesService.getAll),
+        safeGet(Cr5db_projectrisksService.getAll)
       ]);
 
       // Wrap into response-shaped objects where downstream code needs them
@@ -433,6 +458,7 @@ function App() {
       setObjectivesList(allObjectives);
       setProjects(rawProjects);
       setProjectPhases(rawProjectPhases);
+      setProjectRisks(rawProjectRisks);
       setSystemNotifications(allNotifications);
 
       if (allDepts.length > 0) {
@@ -777,14 +803,25 @@ function App() {
   };
 
   const handleDeleteCompany = async (id: string) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa công ty này không?")) return;
+    if (!window.confirm("Bạn có chắc chắn muốn xóa công ty này không? Việc này sẽ đồng thời xóa tất cả các phòng ban trực thuộc.")) return;
     try {
       setIsLoading(true);
+      
+      // Cascade delete: Find all departments linked to this company
+      const linkedDepts = departmentsList.filter(d => d._cr5db_companyid_value === id);
+      console.log(`Cascade deleting ${linkedDepts.length} departments linked to company ${id}...`);
+      
+      // Delete all linked departments
+      for (const dept of linkedDepts) {
+        await Cr5db_departmentsService.delete(dept.cr5db_departmentid);
+      }
+      
+      // Finally delete the company
       await Cr5db_companiesService.delete(id);
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
-      alert("Không thể xóa công ty.");
+      alert("Không thể xóa công ty hoặc các phòng ban trực thuộc.");
       setIsLoading(false);
     }
   };
@@ -1144,6 +1181,135 @@ function App() {
     } catch (err) {
       console.error(err);
       alert("Không thể xóa nhân viên.");
+      setIsLoading(false);
+    }
+  };
+
+  // Project Management CRUD Handlers
+  const handleSaveProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projectName.trim()) {
+      alert("Tên dự án không được để trống.");
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const payload: any = {
+        cr5db_projectname: projectName,
+        cr5db_description: projectDesc,
+        cr5db_startdate: projectStartDate ? new Date(projectStartDate).toISOString() : undefined,
+        cr5db_enddate: projectEndDate ? new Date(projectEndDate).toISOString() : undefined,
+        cr5db_status: projectStatus === 'Completed' ? 122650002 : projectStatus === 'In Progress' ? 122650001 : 122650000,
+      };
+
+      if (editingProject) {
+        await Cr5db_projectsService.update(editingProject.cr5db_projectid, payload);
+        
+        // Audit log
+        const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+        await Cr5db_audittraillogsService.create({
+          cr5db_logname: "Project Update",
+          cr5db_actionexecuted: `Updated project ${projectName}`,
+          cr5db_changedfromvalue: editingProject.cr5db_projectname,
+          cr5db_changedtovalue: `Updated By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+        } as any);
+      } else {
+        await Cr5db_projectsService.create(payload);
+
+        // Audit log
+        const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+        await Cr5db_audittraillogsService.create({
+          cr5db_logname: "Project Creation",
+          cr5db_actionexecuted: `Created new project ${projectName}`,
+          cr5db_changedfromvalue: "None",
+          cr5db_changedtovalue: `Created By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+        } as any);
+      }
+
+      setShowProjectModal(false);
+      setEditingProject(null);
+      setProjectName('');
+      setProjectDesc('');
+      setProjectStartDate('');
+      setProjectEndDate('');
+      setProjectStatus('Not Started');
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể lưu dự án.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteProject = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa vĩnh viễn dự án này khỏi hệ thống?")) return;
+    try {
+      setIsLoading(true);
+      const targetProj = projects.find(p => p.cr5db_projectid === id);
+      await Cr5db_projectsService.delete(id);
+
+      // Audit Log
+      const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+      await Cr5db_audittraillogsService.create({
+        cr5db_logname: "Project Deletion",
+        cr5db_actionexecuted: `Deleted project ${targetProj?.cr5db_projectname || id}`,
+        cr5db_changedfromvalue: targetProj?.cr5db_projectname || "None",
+        cr5db_changedtovalue: `Deleted By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+      } as any);
+
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể xóa dự án.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleSavePhase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeProjectDetails || !newPhaseName.trim()) return;
+    try {
+      setIsLoading(true);
+      const statusVal = newPhaseStatus === 'Completed' ? 122650002 : newPhaseStatus === 'In Progress' ? 122650001 : 122650000;
+      await Cr5db_projectphasesService.create({
+        cr5db_phasename: newPhaseName,
+        cr5db_status: statusVal as any,
+        "cr5db_ProjectID@odata.bind": `/cr5db_projects(${activeProjectDetails.cr5db_projectid})`
+      } as any);
+
+      setShowPhaseModal(false);
+      setNewPhaseName('');
+      setNewPhaseStatus('Not Started');
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể thêm giai đoạn dự án.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveRisk = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeProjectDetails || !newRiskName.trim()) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_projectrisksService.create({
+        cr5db_riskname: newRiskName,
+        cr5db_impact: newRiskImpact,
+        cr5db_probability: newRiskProbability,
+        cr5db_mitigationplan: newRiskMitigation,
+        "cr5db_ProjectID@odata.bind": `/cr5db_projects(${activeProjectDetails.cr5db_projectid})`
+      } as any);
+
+      setShowRiskModal(false);
+      setNewRiskName('');
+      setNewRiskImpact('Medium');
+      setNewRiskProbability('Medium');
+      setNewRiskMitigation('');
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể thêm rủi ro dự án.");
       setIsLoading(false);
     }
   };
@@ -2625,26 +2791,355 @@ function App() {
                   );
                 })()
               ) : (
-                <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-                    <thead>
-                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
-                        <th style={{ padding: '14px 20px' }}>Tên dự án</th>
-                        <th style={{ padding: '14px 20px' }}>Mô tả</th>
-                        <th style={{ padding: '14px 20px' }}>Ngày bắt đầu</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {projects.map(p => (
-                        <tr key={p.cr5db_projectid} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                          <td style={{ padding: '14px 20px', fontWeight: 600 }}>{p.cr5db_projectname}</td>
-                          <td style={{ padding: '14px 20px' }}>{p.cr5db_description || 'Không có mô tả'}</td>
-                          <td style={{ padding: '14px 20px' }}>{p.cr5db_startdate ? new Date(p.cr5db_startdate).toLocaleDateString('vi-VN') : ''}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                (() => {
+                  const canManageProject = activeRole === 'Admin' || activeRole === 'HRManager' || activeRole === 'ProjectManager';
+                  const canDeleteProject = activeRole === 'Admin';
+                  
+                  // Get active project team allocations (matched by project name or team name containing project name)
+                  const getProjectAllocations = (projName: string) => {
+                    return resourceAllocationsList.filter(a => {
+                      const teamName = (a.cr5db_projectteamidname || '').toLowerCase();
+                      const pName = projName.toLowerCase();
+                      return teamName.includes(pName) || pName.includes(teamName);
+                    });
+                  };
+
+                  // Map OData status codes to labels and styles
+                  // In handleSaveProject: statusVal = Completed ? 122650002 : In Progress ? 122650001 : 122650000
+                  const getProjectStatusLabel = (statusCode: number | undefined) => {
+                    if (statusCode === 122650002) return 'Completed';
+                    if (statusCode === 122650001) return 'In Progress';
+                    return 'Not Started';
+                  };
+
+                  const getProjectStatusStyle = (statusLabel: string) => {
+                    switch (statusLabel) {
+                      case 'Completed':
+                        return { backgroundColor: '#dff6dd', color: '#107c41' };
+                      case 'In Progress':
+                        return { backgroundColor: '#d9effc', color: '#005a9e' };
+                      default:
+                        return { backgroundColor: '#f3f2f1', color: '#323130' };
+                    }
+                  };
+
+                  // Let's find latest data for the active project details if one is selected
+                  const currentActiveProject = activeProjectDetails 
+                    ? projects.find(p => p.cr5db_projectid === activeProjectDetails.cr5db_projectid) 
+                    : null;
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                      {/* Top action bar */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Danh sách dự án ({projects.length})</h3>
+                          <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Xem thông tin dự án, các giai đoạn (Phases) và quản lý rủi ro (Risks)</p>
+                        </div>
+                        {canManageProject && (
+                          <button 
+                            onClick={() => {
+                              setEditingProject(null);
+                              setProjectName('');
+                              setProjectDesc('');
+                              setProjectStartDate('');
+                              setProjectEndDate('');
+                              setProjectStatus('Not Started');
+                              setShowProjectModal(true);
+                            }}
+                            className="btn-primary"
+                          >
+                            + Thêm dự án
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Main split dashboard view */}
+                      <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                        
+                        {/* LEFT HAND SIDE: PROJECTS LIST */}
+                        <div style={{ flex: currentActiveProject ? '1 1 50%' : '1 1 100%', minWidth: '350px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          {projects.length === 0 ? (
+                            <div className="card-spec" style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+                              Không có dự án nào trong hệ thống.
+                            </div>
+                          ) : (
+                            projects.map(p => {
+                              const isSelected = currentActiveProject?.cr5db_projectid === p.cr5db_projectid;
+                              const statusLabel = getProjectStatusLabel(p.cr5db_status || p.cr5db_projectstatus);
+                              const statusStyle = getProjectStatusStyle(statusLabel);
+                              
+                              // Count phases
+                              const phasesForProj = projectPhases.filter(ph => ph._cr5db_projectid_value === p.cr5db_projectid);
+                              const completedPhases = phasesForProj.filter(ph => ph.cr5db_status === 122650002 || ph.statecode === 1).length;
+                              const progressPct = phasesForProj.length > 0 ? Math.round((completedPhases / phasesForProj.length) * 100) : 0;
+
+                              return (
+                                <div 
+                                  key={p.cr5db_projectid} 
+                                  className="card-spec" 
+                                  style={{ 
+                                    padding: '20px', 
+                                    borderColor: isSelected ? 'var(--color-primary)' : 'var(--color-border)',
+                                    borderWidth: isSelected ? '2px' : '1px',
+                                    boxShadow: isSelected ? '0 4px 12px rgba(182, 57, 58, 0.08)' : 'none',
+                                    cursor: 'pointer'
+                                  }}
+                                  onClick={() => setActiveProjectDetails(p)}
+                                >
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                                      <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text)' }}>
+                                        {p.cr5db_projectname}
+                                      </h4>
+                                      <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', height: '36px', lineHeight: '1.4' }}>
+                                        {p.cr5db_description || 'Không có mô tả chi tiết.'}
+                                      </p>
+                                    </div>
+                                    <span style={{ 
+                                      padding: '4px 8px', 
+                                      borderRadius: '4px', 
+                                      fontSize: '11px', 
+                                      fontWeight: 600, 
+                                      ...statusStyle
+                                    }}>
+                                      {statusLabel}
+                                    </span>
+                                  </div>
+
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--color-text-secondary)', borderTop: '1px solid var(--color-border-light)', paddingTop: '12px', marginTop: '12px' }}>
+                                    <div style={{ display: 'flex', gap: '12px' }}>
+                                      <span>⏱️ {p.cr5db_startdate ? new Date(p.cr5db_startdate).toLocaleDateString('vi-VN') : 'N/A'}</span>
+                                      <span>🏁 {p.cr5db_enddate ? new Date(p.cr5db_enddate).toLocaleDateString('vi-VN') : 'N/A'}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <span style={{ fontWeight: 600 }}>Phases: {completedPhases}/{phasesForProj.length} ({progressPct}%)</span>
+                                      <div style={{ width: '60px', height: '6px', backgroundColor: '#f3f2f1', borderRadius: '3px', overflow: 'hidden' }}>
+                                        <div style={{ width: `${progressPct}%`, height: '100%', backgroundColor: progressPct === 100 ? '#107c41' : 'var(--color-primary)', borderRadius: '3px' }} />
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Item footer action buttons */}
+                                  <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid var(--color-border-light)', paddingTop: '10px', marginTop: '10px' }}>
+                                    <button 
+                                      onClick={() => setActiveProjectDetails(p)} 
+                                      className="btn-filled-3" 
+                                      style={{ padding: '4px 8px', fontSize: '12px' }}
+                                    >
+                                      Chi tiết / Manage ➔
+                                    </button>
+                                    {canManageProject && (
+                                      <button 
+                                        onClick={() => {
+                                          setEditingProject(p);
+                                          setProjectName(p.cr5db_projectname || '');
+                                          setProjectDesc(p.cr5db_description || '');
+                                          setProjectStartDate(p.cr5db_startdate ? p.cr5db_startdate.substring(0, 10) : '');
+                                          setProjectEndDate(p.cr5db_enddate ? p.cr5db_enddate.substring(0, 10) : '');
+                                          
+                                          const statusStr = p.cr5db_status === 122650002 ? 'Completed' : p.cr5db_status === 122650001 ? 'In Progress' : 'Not Started';
+                                          setProjectStatus(statusStr);
+                                          setShowProjectModal(true);
+                                        }} 
+                                        className="btn-filled-3" 
+                                        style={{ padding: '4px 8px', fontSize: '12px' }}
+                                      >
+                                        Sửa
+                                      </button>
+                                    )}
+                                    {canDeleteProject && (
+                                      <button 
+                                        onClick={() => handleDeleteProject(p.cr5db_projectid)} 
+                                        className="btn-filled-3" 
+                                        style={{ padding: '4px 8px', fontSize: '12px', color: '#a80000', borderColor: '#fde7e9' }}
+                                      >
+                                        Xóa
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+
+                        {/* RIGHT HAND SIDE: SELECTED PROJECT DETAILS PANEL */}
+                        {currentActiveProject && (
+                          <div className="card-spec" style={{ flex: '1 1 45%', minWidth: '350px', padding: '24px', backgroundColor: '#fcfcfc', border: '1px solid var(--color-border)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--color-border)', paddingBottom: '12px', marginBottom: '16px' }}>
+                              <div>
+                                <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-primary)', fontWeight: 700 }}>Project Details</span>
+                                <h3 style={{ fontSize: '16px', fontWeight: 700 }}>{currentActiveProject.cr5db_projectname}</h3>
+                              </div>
+                              <button 
+                                onClick={() => setActiveProjectDetails(null)} 
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}
+                                title="Close details"
+                              >
+                                ✕
+                              </button>
+                            </div>
+
+                            {/* Project Meta Info */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', marginBottom: '20px' }}>
+                              <div><strong>Mô tả:</strong> <span style={{ color: 'var(--color-text-secondary)' }}>{currentActiveProject.cr5db_description || 'Không có mô tả'}</span></div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '4px' }}>
+                                <div><strong>Ngày bắt đầu:</strong> <span style={{ color: 'var(--color-text-secondary)' }}>{currentActiveProject.cr5db_startdate ? new Date(currentActiveProject.cr5db_startdate).toLocaleDateString('vi-VN') : 'N/A'}</span></div>
+                                <div><strong>Ngày kết thúc:</strong> <span style={{ color: 'var(--color-text-secondary)' }}>{currentActiveProject.cr5db_enddate ? new Date(currentActiveProject.cr5db_enddate).toLocaleDateString('vi-VN') : 'N/A'}</span></div>
+                              </div>
+                              <div>
+                                <strong>Trạng thái: </strong>
+                                <span style={{ 
+                                  padding: '2px 6px', 
+                                  borderRadius: '4px', 
+                                  fontSize: '11px', 
+                                  fontWeight: 600, 
+                                  marginLeft: '4px',
+                                  ...getProjectStatusStyle(getProjectStatusLabel(currentActiveProject.cr5db_status || currentActiveProject.cr5db_projectstatus))
+                                }}>
+                                  {getProjectStatusLabel(currentActiveProject.cr5db_status || currentActiveProject.cr5db_projectstatus)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Nested Section: Project PHASES */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid var(--color-border-light)', paddingTop: '16px', marginBottom: '20px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h4 style={{ fontSize: '13px', fontWeight: 700 }}>Giai đoạn dự án (Phases)</h4>
+                                {canManageProject && (
+                                  <button 
+                                    onClick={() => {
+                                      setNewPhaseName('');
+                                      setNewPhaseStatus('Not Started');
+                                      setShowPhaseModal(true);
+                                    }}
+                                    className="btn-filled-3" 
+                                    style={{ padding: '2px 8px', fontSize: '11px', color: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+                                  >
+                                    + Add Phase
+                                  </button>
+                                )}
+                              </div>
+                              
+                              {(() => {
+                                const phases = projectPhases.filter(ph => ph._cr5db_projectid_value === currentActiveProject.cr5db_projectid);
+                                if (phases.length === 0) {
+                                  return <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontStyle: 'italic', padding: '6px' }}>Chưa ghi nhận giai đoạn nào.</div>;
+                                }
+                                return (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {phases.map(ph => {
+                                      const phStatus = ph.cr5db_status === 122650002 ? 'Completed' : ph.cr5db_status === 122650001 ? 'In Progress' : 'Not Started';
+                                      const phStyle = getProjectStatusStyle(phStatus);
+                                      return (
+                                        <div key={ph.cr5db_projectphaseid} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', border: '1px solid var(--color-border-light)', borderRadius: '6px', backgroundColor: '#ffffff' }}>
+                                          <span style={{ fontSize: '13px', fontWeight: 600 }}>{ph.cr5db_phasename}</span>
+                                          <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, ...phStyle }}>{phStatus}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+
+                            {/* Nested Section: Project RISKS */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid var(--color-border-light)', paddingTop: '16px', marginBottom: '20px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h4 style={{ fontSize: '13px', fontWeight: 700 }}>Rủi ro & Giảm thiểu (Risks)</h4>
+                                {canManageProject && (
+                                  <button 
+                                    onClick={() => {
+                                      setNewRiskName('');
+                                      setNewRiskImpact('Medium');
+                                      setNewRiskProbability('Medium');
+                                      setNewRiskMitigation('');
+                                      setShowRiskModal(true);
+                                    }}
+                                    className="btn-filled-3" 
+                                    style={{ padding: '2px 8px', fontSize: '11px', color: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
+                                  >
+                                    + Log Risk
+                                  </button>
+                                )}
+                              </div>
+
+                              {(() => {
+                                const risks = projectRisks.filter(risk => 
+                                  risk._cr5db_projectid_value === currentActiveProject.cr5db_projectid ||
+                                  risk._cr5db_project_value === currentActiveProject.cr5db_projectid ||
+                                  risk.cr5db_projectid === currentActiveProject.cr5db_projectid ||
+                                  risk._cr5db_projectid_value?.toLowerCase() === currentActiveProject.cr5db_projectid.toLowerCase()
+                                );
+                                if (risks.length === 0) {
+                                  return <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontStyle: 'italic', padding: '6px' }}>Chưa ghi nhận rủi ro nào.</div>;
+                                }
+                                return (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    {risks.map(r => {
+                                      // probability percentage or string, impact level
+                                      const impact = r.cr5db_impact || r.cr5db_impactlevel || 'Medium';
+                                      const prob = r.cr5db_probability || r.cr5db_probabilitypercentage || 'Medium';
+                                      const mitigation = r.cr5db_mitigationplan || 'Chưa lập phương án giảm thiểu.';
+                                      
+                                      const getBadgeColor = (val: string) => {
+                                        if (val === 'High' || val === '122650000') return { backgroundColor: '#fde7e9', color: '#a80000' };
+                                        if (val === 'Medium' || val === '122650001') return { backgroundColor: '#fffdf6', color: '#e29e2e' };
+                                        return { backgroundColor: '#dff6dd', color: '#107c41' };
+                                      };
+
+                                      return (
+                                        <div key={r.cr5db_projectriskid} style={{ padding: '10px 12px', border: '1px solid var(--color-border-light)', borderRadius: '6px', backgroundColor: '#ffffff', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '13px', fontWeight: 700 }}>{r.cr5db_riskname || r.cr5db_projectrisk1}</span>
+                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                              <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600, ...getBadgeColor(impact.toString()) }}>Impact: {impact}</span>
+                                              <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600, ...getBadgeColor(prob.toString()) }}>Prob: {prob}</span>
+                                            </div>
+                                          </div>
+                                          <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>
+                                            <strong>Phương án giảm thiểu:</strong> {mitigation}
+                                          </p>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+
+                            {/* Nested Section: Project TEAM ALLOCATIONS */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid var(--color-border-light)', paddingTop: '16px' }}>
+                              <h4 style={{ fontSize: '13px', fontWeight: 700 }}>Nhân sự phân bổ (Team Allocations)</h4>
+                              {(() => {
+                                const teamAllocations = getProjectAllocations(currentActiveProject.cr5db_projectname);
+                                if (teamAllocations.length === 0) {
+                                  return <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontStyle: 'italic', padding: '6px' }}>Chưa phân bổ nhân sự cho dự án này.</div>;
+                                }
+                                return (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    {teamAllocations.map(a => (
+                                      <div key={a.cr5db_resourceallocationid} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', backgroundColor: '#ffffff', border: '1px solid var(--color-border-light)', borderRadius: '6px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                          <span style={{ fontSize: '12px', fontWeight: 700 }}>{a.cr5db_useridname || 'Thành viên chưa rõ'}</span>
+                                          <span style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>{a.cr5db_resourceallocation1}</span>
+                                        </div>
+                                        <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--color-primary)' }}>{a.cr5db_allocationpercentage}%</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+
+                          </div>
+                        )}
+                        
+                      </div>
+                    </div>
+                  );
+                })()
               )}
             </div>
           )}
@@ -3431,6 +3926,228 @@ function App() {
                 </button>
                 <button type="submit" className="btn-primary">
                   Lưu hồ sơ
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Project Modal (Add / Edit) */}
+      {showProjectModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '15px', fontWeight: 700 }}>
+              {editingProject ? 'Chỉnh sửa dự án' : 'Tạo mới dự án'}
+            </h3>
+            <form onSubmit={handleSaveProject} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Tên dự án</label>
+                <input 
+                  type="text" 
+                  value={projectName} 
+                  onChange={(e) => setProjectName(e.target.value)} 
+                  className="input-spec" 
+                  required 
+                  placeholder="Ví dụ: Triển khai ERP" 
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Mô tả dự án</label>
+                <textarea 
+                  value={projectDesc} 
+                  onChange={(e) => setProjectDesc(e.target.value)} 
+                  className="input-spec" 
+                  rows={3}
+                  placeholder="Mô tả mục tiêu, phạm vi dự án..."
+                  style={{ fontFamily: 'inherit', resize: 'vertical' }}
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Ngày bắt đầu</label>
+                  <input 
+                    type="date" 
+                    value={projectStartDate ? projectStartDate.substring(0, 10) : ''} 
+                    onChange={(e) => setProjectStartDate(e.target.value)} 
+                    className="input-spec" 
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Ngày kết thúc</label>
+                  <input 
+                    type="date" 
+                    value={projectEndDate ? projectEndDate.substring(0, 10) : ''} 
+                    onChange={(e) => setProjectEndDate(e.target.value)} 
+                    className="input-spec" 
+                  />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Trạng thái</label>
+                <select 
+                  value={projectStatus} 
+                  onChange={(e) => setProjectStatus(e.target.value)} 
+                  className="input-spec"
+                  style={{ height: '38px', padding: '6px 12px' }}
+                >
+                  <option value="Not Started">Chưa bắt đầu</option>
+                  <option value="In Progress">Đang thực hiện</option>
+                  <option value="Completed">Đã hoàn thành</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowProjectModal(false);
+                    setEditingProject(null);
+                    setProjectName('');
+                    setProjectDesc('');
+                    setProjectStartDate('');
+                    setProjectEndDate('');
+                    setProjectStatus('Not Started');
+                  }} 
+                  className="btn-filled-3"
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="btn-filled-2" style={{ backgroundColor: '#742774' }}>
+                  {editingProject ? 'Cập nhật' : 'Lưu lại'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Phase Modal */}
+      {showPhaseModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '15px', fontWeight: 700 }}>
+              Thêm giai đoạn dự án
+            </h3>
+            <form onSubmit={handleSavePhase} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Tên giai đoạn</label>
+                <input 
+                  type="text" 
+                  value={newPhaseName} 
+                  onChange={(e) => setNewPhaseName(e.target.value)} 
+                  className="input-spec" 
+                  required 
+                  placeholder="Ví dụ: Phân tích yêu cầu" 
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Trạng thái</label>
+                <select 
+                  value={newPhaseStatus} 
+                  onChange={(e) => setNewPhaseStatus(e.target.value)} 
+                  className="input-spec"
+                  style={{ height: '38px', padding: '6px 12px' }}
+                >
+                  <option value="Not Started">Chưa bắt đầu</option>
+                  <option value="In Progress">Đang thực hiện</option>
+                  <option value="Completed">Đã hoàn thành</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowPhaseModal(false);
+                    setNewPhaseName('');
+                    setNewPhaseStatus('Not Started');
+                  }} 
+                  className="btn-filled-3"
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="btn-filled-2" style={{ backgroundColor: '#742774' }}>
+                  Lưu giai đoạn
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Risk Modal */}
+      {showRiskModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '15px', fontWeight: 700 }}>
+              Ghi nhận rủi ro dự án
+            </h3>
+            <form onSubmit={handleSaveRisk} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Tên/Mô tả rủi ro</label>
+                <input 
+                  type="text" 
+                  value={newRiskName} 
+                  onChange={(e) => setNewRiskName(e.target.value)} 
+                  className="input-spec" 
+                  required 
+                  placeholder="Ví dụ: Thiếu hụt nhân lực chủ chốt" 
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Mức độ ảnh hưởng (Impact)</label>
+                  <select 
+                    value={newRiskImpact} 
+                    onChange={(e) => setNewRiskImpact(e.target.value)} 
+                    className="input-spec"
+                    style={{ height: '38px', padding: '6px 12px' }}
+                  >
+                    <option value="High">Cao (High)</option>
+                    <option value="Medium">Trung bình (Medium)</option>
+                    <option value="Low">Thấp (Low)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Khả năng xảy ra (Probability)</label>
+                  <select 
+                    value={newRiskProbability} 
+                    onChange={(e) => setNewRiskProbability(e.target.value)} 
+                    className="input-spec"
+                    style={{ height: '38px', padding: '6px 12px' }}
+                  >
+                    <option value="High">Cao (High)</option>
+                    <option value="Medium">Trung bình (Medium)</option>
+                    <option value="Low">Thấp (Low)</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Kế hoạch giảm thiểu (Mitigation Plan)</label>
+                <textarea 
+                  value={newRiskMitigation} 
+                  onChange={(e) => setNewRiskMitigation(e.target.value)} 
+                  className="input-spec" 
+                  rows={3}
+                  placeholder="Phương án dự phòng, phân công người phụ trách..."
+                  style={{ fontFamily: 'inherit', resize: 'vertical' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowRiskModal(false);
+                    setNewRiskName('');
+                    setNewRiskImpact('Medium');
+                    setNewRiskProbability('Medium');
+                    setNewRiskMitigation('');
+                  }} 
+                  className="btn-filled-3"
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="btn-filled-2" style={{ backgroundColor: '#742774' }}>
+                  Lưu rủi ro
                 </button>
               </div>
             </form>
