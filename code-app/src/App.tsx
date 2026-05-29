@@ -2188,7 +2188,17 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {jobPositionsList.map(pos => {
+                    {jobPositionsList.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '28px' }}>📋</span>
+                            <span style={{ fontWeight: 600 }}>Chưa có dữ liệu định biên</span>
+                            <span style={{ fontSize: '12px' }}>Nhấn "+ Add Job Position" để tạo mới, hoặc kiểm tra kết nối Dataverse nếu đã có dữ liệu.</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : jobPositionsList.map(pos => {
                       const dept = departmentsList.find(d => d.cr5db_departmentid === pos._cr5db_department_value);
                       const quota = pos.cr5db_headcountquota || 0;
                       const actual = pos.cr5db_currentheadcount || 0;
