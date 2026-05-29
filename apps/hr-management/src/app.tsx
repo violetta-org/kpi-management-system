@@ -20,6 +20,8 @@ import { Cr5db_audittraillogsService } from './generated/services/Cr5db_audittra
 import { Cr5db_projectphasesService } from './generated/services/Cr5db_projectphasesService';
 import { Cr5db_projectrisksService } from './generated/services/Cr5db_projectrisksService';
 import { Cr5db_approvalroutesesService } from './generated/services/Cr5db_approvalroutesesService';
+import { Cr5db_kpilibrariesService } from './generated/services/Cr5db_kpilibrariesService';
+import { Cr5db_objectivesService } from './generated/services/Cr5db_objectivesService';
 
 // SVG Icons
 const DashboardIcon = () => (
@@ -245,6 +247,17 @@ function App() {
     routeApproverRole, setRouteApproverRole,
     routeApproverUserId, setRouteApproverUserId,
     routePriority, setRoutePriority,
+    // KPI Catalog
+    activeKpiCatalogSubTab, setActiveKpiCatalogSubTab,
+    showKpiLibraryModal, setShowKpiLibraryModal,
+    editingKpiLibrary, setEditingKpiLibrary,
+    kpiLibName, setKpiLibName,
+    kpiLibUnit, setKpiLibUnit,
+    kpiLibFormula, setKpiLibFormula,
+    showObjectiveModal, setShowObjectiveModal,
+    editingObjective, setEditingObjective,
+    objectiveName, setObjectiveName,
+    objectiveTarget, setObjectiveTarget,
   } = s;
 
   // ── Live Data ─────────────────────────────────────────────────────────────
@@ -649,6 +662,71 @@ function App() {
       alert("Không thể xóa chức danh.");
       setIsLoading(false);
     }
+  };
+
+  // KPI Library CRUD
+  const handleSaveKpiLibrary = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!kpiLibName.trim()) return;
+    try {
+      setIsLoading(true);
+      const payload: any = {
+        cr5db_kpiname: kpiLibName,
+        cr5db_unit: kpiLibUnit,
+        cr5db_formula: kpiLibFormula,
+        ownerid: '', owneridtype: 'systemusers', statecode: 0,
+      };
+      if (editingKpiLibrary) {
+        await Cr5db_kpilibrariesService.update(editingKpiLibrary.cr5db_kpilibraryid, payload);
+      } else {
+        await Cr5db_kpilibrariesService.create(payload);
+      }
+      setShowKpiLibraryModal(false);
+      setEditingKpiLibrary(null);
+      setKpiLibName(''); setKpiLibUnit('%'); setKpiLibFormula('');
+      await fetchLiveValues();
+    } catch (err) { console.error(err); alert('Loi khi luu thu vien KPI.'); setIsLoading(false); }
+  };
+
+  const handleDeleteKpiLibrary = async (id: string) => {
+    if (!window.confirm('Xoa muc KPI nay khoi thu vien?')) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_kpilibrariesService.delete(id);
+      await fetchLiveValues();
+    } catch (err) { console.error(err); alert('Khong the xoa muc KPI.'); setIsLoading(false); }
+  };
+
+  // Objectives CRUD
+  const handleSaveObjective = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!objectiveName.trim()) return;
+    try {
+      setIsLoading(true);
+      const payload: any = {
+        cr5db_objective1: objectiveName,
+        cr5db_targetvalue: objectiveTarget,
+        ownerid: '', owneridtype: 'systemusers', statecode: 0,
+      };
+      if (editingObjective) {
+        await Cr5db_objectivesService.update(editingObjective.cr5db_objectiveid, payload);
+      } else {
+        await Cr5db_objectivesService.create(payload);
+      }
+      setShowObjectiveModal(false);
+      setEditingObjective(null);
+      setObjectiveName(''); setObjectiveTarget(100);
+      await fetchLiveValues();
+    } catch (err) { console.error(err); alert('Loi khi luu muc tieu.'); setIsLoading(false); }
+  };
+
+  const handleDeleteObjective = async (id: string) => {
+    if (!window.confirm('Xoa muc tieu nay?')) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_objectivesService.delete(id);
+      await fetchLiveValues();
+    } catch (err) { console.error(err); alert('Khong the xoa muc tieu.'); setIsLoading(false); }
   };
 
   // Approval Routes CRUD Handlers
@@ -1706,6 +1784,14 @@ function App() {
               </button>
               <button onClick={() => setActiveTab('positions')} className={`nav-item ${activeTab === 'positions' ? 'active' : ''}`}>
                 <span className="nav-icon"><RequestIcon /></span>Catalog
+              </button>
+              <button onClick={() => setActiveTab('kpi-catalog')} className={`nav-item ${activeTab === 'kpi-catalog' ? 'active' : ''}`}>
+                <span className="nav-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 19V6l12-3v13" /><circle cx="6" cy="19" r="3" /><circle cx="18" cy="16" r="3" />
+                  </svg>
+                </span>
+                Danh mục KPI
               </button>
               <button onClick={() => setActiveTab('headcount')} className={`nav-item ${activeTab === 'headcount' ? 'active' : ''}`}>
                 <span className="nav-icon"><ShieldIcon /></span>Headcount
@@ -3906,6 +3992,252 @@ function App() {
                     </tbody>
                   </table>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* SCREEN: KPI CATALOG (HRManager + Admin) */}
+          {activeTab === 'kpi-catalog' && (activeRole === 'HRManager' || activeRole === 'Admin') && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Danh muc KPI</h2>
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
+                    Quan ly thu vien KPI chuan va cac muc tieu danh gia
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    if (activeKpiCatalogSubTab === 'library') {
+                      setEditingKpiLibrary(null); setKpiLibName(''); setKpiLibUnit('%'); setKpiLibFormula('');
+                      setShowKpiLibraryModal(true);
+                    } else {
+                      setEditingObjective(null); setObjectiveName(''); setObjectiveTarget(100);
+                      setShowObjectiveModal(true);
+                    }
+                  }}
+                  className="btn-primary"
+                >
+                  + Them {activeKpiCatalogSubTab === 'library' ? 'KPI moi' : 'Muc tieu moi'}
+                </button>
+              </div>
+
+              {/* Stats bar */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                {[
+                  { label: 'Thu vien KPI', value: kpiLibrariesList.length, color: '#7c3aed', icon: '📊' },
+                  { label: 'Muc tieu', value: objectivesList.length, color: '#0ea5e9', icon: '🎯' },
+                  { label: 'KPI Targets su dung', value: kpiTargets.length, color: '#10b981', icon: '✅' },
+                ].map(stat => (
+                  <div key={stat.label} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{ fontSize: '28px' }}>{stat.icon}</div>
+                    <div>
+                      <div style={{ fontSize: '26px', fontWeight: 800, color: stat.color }}>{stat.value}</div>
+                      <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>{stat.label}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Sub-tab switcher */}
+              <div style={{ display: 'flex', gap: '0', borderBottom: '2px solid var(--color-border)' }}>
+                {(['library', 'objectives'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveKpiCatalogSubTab(tab)}
+                    style={{
+                      padding: '10px 28px', fontWeight: 600, fontSize: '14px', border: 'none',
+                      background: 'transparent', cursor: 'pointer',
+                      borderBottom: activeKpiCatalogSubTab === tab ? '3px solid var(--color-primary)' : '3px solid transparent',
+                      color: activeKpiCatalogSubTab === tab ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                      transition: 'all 0.18s', marginBottom: '-2px',
+                    }}
+                  >
+                    {tab === 'library' ? 'Thu vien KPI' : 'Muc tieu (Objectives)'}
+                  </button>
+                ))}
+              </div>
+
+              {/* ── Library sub-tab ──────────────────────────────────── */}
+              {activeKpiCatalogSubTab === 'library' && (
+                <>
+                  {kpiLibrariesList.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--color-text-secondary)', background: 'var(--color-surface)', borderRadius: '12px', border: '2px dashed var(--color-border)' }}>
+                      <div style={{ fontSize: '48px', marginBottom: '16px' }}>📊</div>
+                      <p style={{ fontWeight: 600, marginBottom: '8px' }}>Chua co KPI nao trong thu vien</p>
+                      <p style={{ fontSize: '13px', marginBottom: '20px' }}>Them KPI chuan de nhan vien lua chon khi gan chi tieu</p>
+                      <button onClick={() => { setEditingKpiLibrary(null); setKpiLibName(''); setKpiLibUnit('%'); setKpiLibFormula(''); setShowKpiLibraryModal(true); }} className="btn-primary">+ Them KPI dau tien</button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: '16px' }}>
+                      {kpiLibrariesList.map((lib: any) => (
+                        <div key={lib.cr5db_kpilibraryid} style={{
+                          background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                          borderRadius: '14px', padding: '20px', transition: 'box-shadow 0.2s, transform 0.2s',
+                          cursor: 'default',
+                        }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 20px rgba(0,0,0,0.10)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = ''; (e.currentTarget as HTMLElement).style.transform = ''; }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'linear-gradient(135deg, #ede9fe, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>📊</div>
+                              <div>
+                                <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--color-text)' }}>{lib.cr5db_kpiname}</div>
+                                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>Don vi: <strong style={{ color: 'var(--color-primary)' }}>{lib.cr5db_unit || 'N/A'}</strong></div>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                              <button
+                                onClick={() => { setEditingKpiLibrary(lib); setKpiLibName(lib.cr5db_kpiname); setKpiLibUnit(lib.cr5db_unit || '%'); setKpiLibFormula(lib.cr5db_formula || ''); setShowKpiLibraryModal(true); }}
+                                style={{ padding: '4px 10px', fontSize: '12px', border: '1px solid var(--color-border)', borderRadius: '6px', cursor: 'pointer', background: 'transparent' }}
+                              >Sua</button>
+                              <button
+                                onClick={() => handleDeleteKpiLibrary(lib.cr5db_kpilibraryid)}
+                                style={{ padding: '4px 10px', fontSize: '12px', border: '1px solid #fca5a5', borderRadius: '6px', cursor: 'pointer', background: 'transparent', color: '#dc2626' }}
+                              >Xoa</button>
+                            </div>
+                          </div>
+                          {lib.cr5db_formula && (
+                            <div style={{ marginTop: '12px', padding: '8px 12px', background: 'var(--color-background)', borderRadius: '8px', fontSize: '12px', color: 'var(--color-text-secondary)', fontFamily: 'monospace', border: '1px solid var(--color-border-light)' }}>
+                              <span style={{ fontWeight: 700, color: 'var(--color-text)', fontFamily: 'inherit' }}>Cong thuc: </span>{lib.cr5db_formula}
+                            </div>
+                          )}
+                          <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            Duoc su dung boi <strong style={{ color: 'var(--color-text)', marginLeft: '4px' }}>{kpiTargets.filter((k: any) => k._cr5db_kpicode_value === lib.cr5db_kpilibraryid).length}</strong> KPI targets
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* KPI Library Modal */}
+                  {showKpiLibraryModal && (
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                      <div style={{ background: 'var(--color-surface)', borderRadius: '16px', padding: '32px', width: '460px', maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+                        <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>{editingKpiLibrary ? 'Chinh sua KPI' : 'Them KPI moi vao thu vien'}</h3>
+                        <form onSubmit={handleSaveKpiLibrary} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          <div>
+                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Ten KPI <span style={{ color: '#dc2626' }}>*</span></label>
+                            <input value={kpiLibName} onChange={e => setKpiLibName(e.target.value)} required placeholder="Vi du: Doanh so thang, Ty le diem danh..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <div>
+                              <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Don vi do luong</label>
+                              <select value={kpiLibUnit} onChange={e => setKpiLibUnit(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px' }}>
+                                <option value="%">% (Phan tram)</option>
+                                <option value="VND">VND (Dong)</option>
+                                <option value="USD">USD (Do la)</option>
+                                <option value="Days">Days (Ngay)</option>
+                                <option value="Units">Units (Don vi)</option>
+                                <option value="Score">Score (Diem)</option>
+                                <option value="Tasks">Tasks (Nhiem vu)</option>
+                                <option value="Hours">Hours (Gio)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Don vi (tuy chinh)</label>
+                              <input value={kpiLibUnit} onChange={e => setKpiLibUnit(e.target.value)} placeholder="Vi du: km, items..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+                            </div>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Cong thuc tinh (tuy chon)</label>
+                            <input value={kpiLibFormula} onChange={e => setKpiLibFormula(e.target.value)} placeholder="Vi du: (Actual / Target) * 100" style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', fontFamily: 'monospace', boxSizing: 'border-box' }} />
+                          </div>
+                          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                            <button type="button" onClick={() => setShowKpiLibraryModal(false)} style={{ padding: '10px 20px', border: '1px solid var(--color-border)', borderRadius: '8px', cursor: 'pointer', background: 'transparent', fontWeight: 600 }}>Huy</button>
+                            <button type="submit" className="btn-primary">Luu KPI</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* ── Objectives sub-tab ────────────────────────────────── */}
+              {activeKpiCatalogSubTab === 'objectives' && (
+                <>
+                  {objectivesList.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--color-text-secondary)', background: 'var(--color-surface)', borderRadius: '12px', border: '2px dashed var(--color-border)' }}>
+                      <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎯</div>
+                      <p style={{ fontWeight: 600, marginBottom: '8px' }}>Chua co muc tieu nao</p>
+                      <p style={{ fontSize: '13px', marginBottom: '20px' }}>Them muc tieu chung de lien ket voi KPI targets cua nhan vien</p>
+                      <button onClick={() => { setEditingObjective(null); setObjectiveName(''); setObjectiveTarget(100); setShowObjectiveModal(true); }} className="btn-primary">+ Them muc tieu</button>
+                    </div>
+                  ) : (
+                    <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                        <thead>
+                          <tr style={{ background: 'var(--color-background)', borderBottom: '2px solid var(--color-border)' }}>
+                            <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)', textAlign: 'left' }}>Ten muc tieu</th>
+                            <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)', textAlign: 'right' }}>Gia tri muc tieu</th>
+                            <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)', textAlign: 'center' }}>KPI lien ket</th>
+                            <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--color-text-secondary)', textAlign: 'center' }}>Tasks lien ket</th>
+                            <th style={{ padding: '12px 16px' }}></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {objectivesList.map((obj: any) => (
+                            <tr key={obj.cr5db_objectiveid} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+                              <td style={{ padding: '14px 16px' }}>
+                                <div style={{ fontWeight: 600, color: 'var(--color-text)' }}>{obj.cr5db_objective1}</div>
+                                {obj.cr5db_periodnamename && (
+                                  <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>Ky: {obj.cr5db_periodnamename}</div>
+                                )}
+                              </td>
+                              <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 700, color: 'var(--color-primary)', fontSize: '16px' }}>
+                                {obj.cr5db_targetvalue ?? '--'}
+                              </td>
+                              <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                <span style={{ background: '#ede9fe', color: '#7c3aed', borderRadius: '12px', padding: '3px 12px', fontSize: '12px', fontWeight: 700 }}>
+                                  {kpiTargets.filter((k: any) => k._cr5db_parentobjective_value === obj.cr5db_objectiveid).length}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                <span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: '12px', padding: '3px 12px', fontSize: '12px', fontWeight: 700 }}>
+                                  {tasks.filter((t: any) => t._cr5db_objectivename_value === obj.cr5db_objectiveid).length}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 16px' }}>
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                  <button onClick={() => { setEditingObjective(obj); setObjectiveName(obj.cr5db_objective1); setObjectiveTarget(obj.cr5db_targetvalue ?? 100); setShowObjectiveModal(true); }} style={{ padding: '5px 12px', fontSize: '12px', border: '1px solid var(--color-border)', borderRadius: '6px', cursor: 'pointer', background: 'transparent', fontWeight: 600 }}>Sua</button>
+                                  <button onClick={() => handleDeleteObjective(obj.cr5db_objectiveid)} style={{ padding: '5px 12px', fontSize: '12px', border: '1px solid #fca5a5', borderRadius: '6px', cursor: 'pointer', background: 'transparent', color: '#dc2626', fontWeight: 600 }}>Xoa</button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Objective Modal */}
+                  {showObjectiveModal && (
+                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+                      <div style={{ background: 'var(--color-surface)', borderRadius: '16px', padding: '32px', width: '420px', maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+                        <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>{editingObjective ? 'Chinh sua muc tieu' : 'Them muc tieu moi'}</h3>
+                        <form onSubmit={handleSaveObjective} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          <div>
+                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Ten muc tieu <span style={{ color: '#dc2626' }}>*</span></label>
+                            <input value={objectiveName} onChange={e => setObjectiveName(e.target.value)} required placeholder="Vi du: Phai dat top 1 QLDA, Tang truong doanh so 20%..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Gia tri muc tieu</label>
+                            <input type="number" value={objectiveTarget} onChange={e => setObjectiveTarget(Number(e.target.value))} style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+                          </div>
+                          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                            <button type="button" onClick={() => setShowObjectiveModal(false)} style={{ padding: '10px 20px', border: '1px solid var(--color-border)', borderRadius: '8px', cursor: 'pointer', background: 'transparent', fontWeight: 600 }}>Huy</button>
+                            <button type="submit" className="btn-primary">Luu muc tieu</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

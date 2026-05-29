@@ -4,7 +4,7 @@ import type { User, Task, HeadcountRequest, KPITarget, Company, PositionCatalog,
 export type ActiveTab =
   | 'dashboard' | 'tasks' | 'timesheets' | 'kpi' | 'performance'
   | 'companies' | 'positions' | 'headcount' | 'requests' | 'directory'
-  | 'roles' | 'resources' | 'routes';
+  | 'roles' | 'resources' | 'routes' | 'kpi-catalog';
 
 export type ActiveRole = 'Employee' | 'ProjectManager' | 'HRManager' | 'Admin';
 
@@ -198,6 +198,22 @@ export function useAppState() {
   } | null>(null);
   const [requestReason, setRequestReason] = useState('');
   const [selectedApproverId, setSelectedApproverId] = useState('');
+
+  // ── KPI Catalog (Library + Objectives) ──────────────────────────────────
+  const [activeKpiCatalogSubTab, setActiveKpiCatalogSubTab] = useState<'library' | 'objectives'>('library');
+
+  // KPI Library item modal
+  const [showKpiLibraryModal, setShowKpiLibraryModal] = useState(false);
+  const [editingKpiLibrary, setEditingKpiLibrary] = useState<any>(null);
+  const [kpiLibName, setKpiLibName] = useState('');
+  const [kpiLibUnit, setKpiLibUnit] = useState('%');
+  const [kpiLibFormula, setKpiLibFormula] = useState('');
+
+  // Objective (period/cycle) modal
+  const [showObjectiveModal, setShowObjectiveModal] = useState(false);
+  const [editingObjective, setEditingObjective] = useState<any>(null);
+  const [objectiveName, setObjectiveName] = useState('');
+  const [objectiveTarget, setObjectiveTarget] = useState<number>(100);
 
   // ── Approval Routes Management ───────────────────────────────────────────
   const [showRouteModal, setShowRouteModal] = useState(false);
@@ -394,6 +410,18 @@ export function useAppState() {
     approvalModalData, setApprovalModalData,
     requestReason, setRequestReason,
     selectedApproverId, setSelectedApproverId,
+
+    // KPI Catalog
+    activeKpiCatalogSubTab, setActiveKpiCatalogSubTab,
+    showKpiLibraryModal, setShowKpiLibraryModal,
+    editingKpiLibrary, setEditingKpiLibrary,
+    kpiLibName, setKpiLibName,
+    kpiLibUnit, setKpiLibUnit,
+    kpiLibFormula, setKpiLibFormula,
+    showObjectiveModal, setShowObjectiveModal,
+    editingObjective, setEditingObjective,
+    objectiveName, setObjectiveName,
+    objectiveTarget, setObjectiveTarget,
 
     // Approval Routes Management
     showRouteModal, setShowRouteModal,
