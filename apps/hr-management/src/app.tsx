@@ -19,6 +19,7 @@ import { Cr5db_jobpositionsService } from './generated/services/Cr5db_jobpositio
 import { Cr5db_audittraillogsService } from './generated/services/Cr5db_audittraillogsService';
 import { Cr5db_projectphasesService } from './generated/services/Cr5db_projectphasesService';
 import { Cr5db_projectrisksService } from './generated/services/Cr5db_projectrisksService';
+import { Cr5db_resourceallocationsService } from './generated/services/Cr5db_resourceallocationsService';
 import { Cr5db_approvalroutesesService } from './generated/services/Cr5db_approvalroutesesService';
 import { Cr5db_kpilibrariesService } from './generated/services/Cr5db_kpilibrariesService';
 import { Cr5db_objectivesService } from './generated/services/Cr5db_objectivesService';
@@ -101,6 +102,13 @@ import type { User, Task } from './lib/types';
 function App() {
   // ── Hooks ────────────────────────────────────────────────────────────────
   const s = useAppState();
+
+  // Resource Allocation Modal local states
+  const [showAllocationModal, setShowAllocationModal] = React.useState(false);
+  const [allocationUser, setAllocationUser] = React.useState('');
+  const [allocationProject, setAllocationProject] = React.useState('');
+  const [allocationPercentage, setAllocationPercentage] = React.useState(100);
+  const [allocationName, setAllocationName] = React.useState('');
 
   // Destructure everything from state so the rest of the file can use names
   // identical to the old inline declarations — zero changes needed in JSX.
@@ -1414,7 +1422,7 @@ function App() {
     try {
       setIsLoading(true);
       await Cr5db_projectrisksService.create({
-        cr5db_riskname: newRiskName,
+        cr5db_projectrisk1: newRiskName,
         cr5db_impact: newRiskImpact,
         cr5db_probability: newRiskProbability,
         cr5db_mitigationplan: newRiskMitigation,
@@ -1430,6 +1438,43 @@ function App() {
     } catch (err) {
       console.error(err);
       alert("Không thể thêm rủi ro dự án.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveAllocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!allocationUser || !allocationProject) {
+      alert("Vui lòng chọn đầy đủ nhân sự và dự án.");
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const user = usersList.find(u => u.cr5db_userid === allocationUser);
+      const proj = projects.find(p => p.cr5db_projectid === allocationProject);
+      const uName = user?.cr5db_fullname || 'User';
+      const pName = proj?.cr5db_projectname || 'Project';
+      const name = allocationName || `Allocation of ${uName} to ${pName}`;
+
+      await Cr5db_resourceallocationsService.create({
+        cr5db_resourceallocation1: name,
+        cr5db_allocationpercentage: Number(allocationPercentage) || 100,
+        "cr5db_UserID@odata.bind": `/cr5db_users(${allocationUser})`,
+        "cr5db_ProjectTeamID@odata.bind": `/cr5db_projects(${allocationProject})`,
+        statecode: 0,
+        ownerid: '',
+        owneridtype: ''
+      });
+
+      setShowAllocationModal(false);
+      setAllocationName('');
+      setAllocationPercentage(100);
+      await fetchLiveValues();
+      alert("Phân bổ nhân sự thành công!");
+    } catch (err: any) {
+      console.error("Save allocation error:", err);
+      alert("Không thể gán phân bổ nhân sự: " + (err.message || err));
+    } finally {
       setIsLoading(false);
     }
   };
@@ -1485,8 +1530,6 @@ function App() {
         cr5db_targetvalue: Number(kpiTargetValue),
         cr5db_actualvalue: Number(kpiActualValue),
         cr5db_weightpercentage: Number(kpiWeight),
-        cr5db_unit: kpiUnit,
-        cr5db_period: kpiPeriod,
         "cr5db_EmployeeID@odata.bind": `/cr5db_users(${kpiEmployeeId})`,
         "cr5db_ParentObjective@odata.bind": `/cr5db_objectives(${kpiObjectiveId})`,
         "cr5db_KPICode@odata.bind": `/cr5db_kpilibraries(${kpiLibraryId})`
@@ -3265,9 +3308,25 @@ function App() {
           {/* SCREEN 10: RESOURCES */}
           {activeTab === 'resources' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div>
-                <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Resource Planning</h2>
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Allocation metrics and team planning</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Resource Planning</h2>
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Allocation metrics and team planning</p>
+                </div>
+                {activeResourcesSubTab === 'allocations' && (activeRole === 'Admin' || activeRole === 'ProjectManager') && (
+                  <button
+                    onClick={() => {
+                      setAllocationUser(usersList[0]?.cr5db_userid || '');
+                      setAllocationProject(projects[0]?.cr5db_projectid || '');
+                      setAllocationPercentage(100);
+                      setAllocationName('');
+                      setShowAllocationModal(true);
+                    }}
+                    className="btn-primary"
+                  >
+                    + Phân bổ nhân sự
+                  </button>
+                )}
               </div>
 
               <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', gap: '16px', paddingBottom: '8px' }}>
@@ -5565,6 +5624,70 @@ function App() {
                 <button type="submit" className="btn-filled-2" style={{ backgroundColor: '#742774' }}>
                   {editingKpi ? 'Cập nhật' : 'Gán chỉ tiêu'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Resource Allocation Modal */}
+      {showAllocationModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ width: '420px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>Phân bổ nhân sự vào dự án</h3>
+            <form onSubmit={handleSaveAllocation} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Nhân sự <span style={{ color: '#dc2626' }}>*</span></label>
+                <select
+                  value={allocationUser}
+                  onChange={e => setAllocationUser(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">-- Chọn nhân sự --</option>
+                  {usersList.map(u => (
+                    <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname} ({u.cr5db_email})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Dự án <span style={{ color: '#dc2626' }}>*</span></label>
+                <select
+                  value={allocationProject}
+                  onChange={e => setAllocationProject(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">-- Chọn dự án --</option>
+                  {projects.map(p => (
+                    <option key={p.cr5db_projectid} value={p.cr5db_projectid}>{p.cr5db_projectname}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Tên phân bổ</label>
+                <input
+                  value={allocationName}
+                  onChange={e => setAllocationName(e.target.value)}
+                  placeholder="Ví dụ: Phân bổ nhân viên A làm PM dự án B"
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Tỷ lệ phân bổ (%) <span style={{ color: '#dc2626' }}>*</span></label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={allocationPercentage}
+                  onChange={e => setAllocationPercentage(Number(e.target.value))}
+                  required
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button type="button" onClick={() => setShowAllocationModal(false)} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary">Giao việc</button>
               </div>
             </form>
           </div>

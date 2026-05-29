@@ -239,6 +239,11 @@ export function useLiveData(setters: LiveDataSetters) {
         const assigneeId = t._cr5db_assigneeid_value || assigneeLookup?.cr5db_userid || assigneeLookup?.id || '';
         const assignee = assigneeId ? allUsers.find((u: User) => u.cr5db_userid === assigneeId) : undefined;
         const assigneeName = t.cr5db_assigneeidname || assigneeLookup?.name || assigneeLookup?.cr5db_fullname || '';
+        
+        // Lookup Project Name via Project Phase & Project relationship
+        const phase = rawProjectPhases.find((ph: any) => ph.cr5db_projectphaseid === t._cr5db_projectphaseid_value);
+        const proj = phase ? rawProjects.find((p: any) => p.cr5db_projectid === phase._cr5db_projectid_value) : undefined;
+        
         return {
           cr5db_taskid: t.cr5db_taskid,
           cr5db_taskname: t.cr5db_taskname,
@@ -246,7 +251,7 @@ export function useLiveData(setters: LiveDataSetters) {
           cr5db_status: t.statecode === 1 ? 'Completed' : 'In Progress',
           cr5db_assignee_email: assignee?.cr5db_email || '',
           cr5db_assignee_name: assignee?.cr5db_fullname || assigneeName || 'Chưa phân công',
-          cr5db_project_name: t.cr5db_projectphaseidname || 'Không thuộc dự án',
+          cr5db_project_name: proj?.cr5db_projectname || 'Không thuộc dự án',
           cr5db_due_date: t.cr5db_duedate || '',
           _cr5db_parenttask_value: t._cr5db_parenttask_value || undefined,
           _cr5db_objectivename_value: t._cr5db_objectivename_value || undefined,
