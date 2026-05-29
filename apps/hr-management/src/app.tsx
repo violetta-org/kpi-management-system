@@ -4120,46 +4120,6 @@ function App() {
                     </div>
                   )}
 
-                  {/* KPI Library Modal */}
-                  {showKpiLibraryModal && (
-                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-                      <div style={{ background: 'var(--color-surface)', borderRadius: '16px', padding: '32px', width: '460px', maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-                        <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>{editingKpiLibrary ? 'Chinh sua KPI' : 'Them KPI moi vao thu vien'}</h3>
-                        <form onSubmit={handleSaveKpiLibrary} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                          <div>
-                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Ten KPI <span style={{ color: '#dc2626' }}>*</span></label>
-                            <input value={kpiLibName} onChange={e => setKpiLibName(e.target.value)} required placeholder="Vi du: Doanh so thang, Ty le diem danh..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-                          </div>
-                          <div>
-                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Don vi do luong</label>
-                            <input 
-                              value={kpiLibUnit} 
-                              onChange={e => setKpiLibUnit(e.target.value)} 
-                              list="kpi-unit-options"
-                              placeholder="Chon hoac nhap don vi (vd: %, VND, km...)" 
-                              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} 
-                            />
-                            <datalist id="kpi-unit-options">
-                              <option value="%">% (Phan tram)</option>
-                              <option value="VND">VND (Dong)</option>
-                              <option value="USD">USD (Do la)</option>
-                              <option value="Days">Days (Ngay)</option>
-                              <option value="Units">Units (Don vi)</option>
-                              <option value="Score">Score (Diem)</option>
-                              <option value="Tasks">Tasks (Nhiem vu)</option>
-                              <option value="Hours">Hours (Gio)</option>
-                            </datalist>
-                          </div>
-                          <div>
-                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Cong thuc tinh (tuy chon)</label>
-                            <input value={kpiLibFormula} onChange={e => setKpiLibFormula(e.target.value)} placeholder="Vi du: (Actual / Target) * 100" style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', fontFamily: 'monospace', boxSizing: 'border-box' }} />
-                          </div>
-                          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
-                            <button type="button" onClick={() => setShowKpiLibraryModal(false)} style={{ padding: '10px 20px', border: '1px solid var(--color-border)', borderRadius: '8px', cursor: 'pointer', background: 'transparent', fontWeight: 600 }}>Huy</button>
-                            <button type="submit" className="btn-primary">Luu KPI</button>
-                          </div>
-                        </form>
-                      </div>
                     </div>
                   )}
                 </>
@@ -4222,26 +4182,6 @@ function App() {
                     </div>
                   )}
 
-                  {/* Objective Modal */}
-                  {showObjectiveModal && (
-                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-                      <div style={{ background: 'var(--color-surface)', borderRadius: '16px', padding: '32px', width: '420px', maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-                        <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>{editingObjective ? 'Chinh sua muc tieu' : 'Them muc tieu moi'}</h3>
-                        <form onSubmit={handleSaveObjective} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                          <div>
-                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Ten muc tieu <span style={{ color: '#dc2626' }}>*</span></label>
-                            <input value={objectiveName} onChange={e => setObjectiveName(e.target.value)} required placeholder="Vi du: Phai dat top 1 QLDA, Tang truong doanh so 20%..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-                          </div>
-                          <div>
-                            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Gia tri muc tieu</label>
-                            <input type="number" value={objectiveTarget} onChange={e => setObjectiveTarget(Number(e.target.value))} style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-                          </div>
-                          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
-                            <button type="button" onClick={() => setShowObjectiveModal(false)} style={{ padding: '10px 20px', border: '1px solid var(--color-border)', borderRadius: '8px', cursor: 'pointer', background: 'transparent', fontWeight: 600 }}>Huy</button>
-                            <button type="submit" className="btn-primary">Luu muc tieu</button>
-                          </div>
-                        </form>
-                      </div>
                     </div>
                   )}
                 </>
@@ -4860,6 +4800,72 @@ function App() {
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
                 <button type="button" onClick={() => setShowTimesheetModal(false)} className="btn-filled-3">Hủy</button>
                 <button type="submit" className="btn-primary">Ghi nhận</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* KPI Library Modal */}
+      {showKpiLibraryModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ width: '460px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>{editingKpiLibrary ? 'Chinh sua KPI' : 'Them KPI moi vao thu vien'}</h3>
+            <form onSubmit={handleSaveKpiLibrary} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Ten KPI <span style={{ color: '#dc2626' }}>*</span></label>
+                <input value={kpiLibName} onChange={e => setKpiLibName(e.target.value)} required placeholder="Vi du: Doanh so thang, Ty le diem danh..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Don vi do luong</label>
+                <input 
+                  value={kpiLibUnit} 
+                  onChange={e => setKpiLibUnit(e.target.value)} 
+                  list="kpi-unit-options"
+                  placeholder="Chon hoac nhap don vi (vd: %, VND, km...)" 
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} 
+                />
+                <datalist id="kpi-unit-options">
+                  <option value="%">% (Phan tram)</option>
+                  <option value="VND">VND (Dong)</option>
+                  <option value="USD">USD (Do la)</option>
+                  <option value="Days">Days (Ngay)</option>
+                  <option value="Units">Units (Don vi)</option>
+                  <option value="Score">Score (Diem)</option>
+                  <option value="Tasks">Tasks (Nhiem vu)</option>
+                  <option value="Hours">Hours (Gio)</option>
+                </datalist>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Cong thuc tinh (tuy chon)</label>
+                <input value={kpiLibFormula} onChange={e => setKpiLibFormula(e.target.value)} placeholder="Vi du: (Actual / Target) * 100" style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', fontFamily: 'monospace', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button type="button" onClick={() => setShowKpiLibraryModal(false)} className="btn-filled-3">Huy</button>
+                <button type="submit" className="btn-primary">Luu KPI</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Objective Modal */}
+      {showObjectiveModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ width: '420px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>{editingObjective ? 'Chinh sua muc tieu' : 'Them muc tieu moi'}</h3>
+            <form onSubmit={handleSaveObjective} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Ten muc tieu <span style={{ color: '#dc2626' }}>*</span></label>
+                <input value={objectiveName} onChange={e => setObjectiveName(e.target.value)} required placeholder="Vi du: Phai dat top 1 QLDA, Tang truong doanh so 20%..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Gia tri muc tieu</label>
+                <input type="number" value={objectiveTarget} onChange={e => setObjectiveTarget(Number(e.target.value))} style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button type="button" onClick={() => setShowObjectiveModal(false)} className="btn-filled-3">Huy</button>
+                <button type="submit" className="btn-primary">Luu muc tieu</button>
               </div>
             </form>
           </div>
