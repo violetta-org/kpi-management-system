@@ -106,6 +106,7 @@ interface User {
   cr5db_systemrole?: string;
   cr5db_jobpositionname?: string;
   cr5db_isactive?: boolean;
+  _cr5db_jobposition_value?: string;
 }
 
 interface Task {
@@ -247,6 +248,16 @@ function App() {
   const [collapsedProjects, setCollapsedProjects] = useState<{ [key: string]: boolean }>({});
   const [activeKpiSubTab, setActiveKpiSubTab] = useState<'overview' | 'charts'>('overview');
   const [kpiTimeRange, setKpiTimeRange] = useState<'week' | 'month' | 'quarter' | 'custom'>('quarter');
+
+  // Employee sub-tab & CRUD state
+  const [activeDirectorySubTab, setActiveDirectorySubTab] = useState<'view' | 'manage'>('view');
+  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<User | null>(null);
+  const [employeeFullName, setEmployeeFullName] = useState('');
+  const [employeeEmail, setEmployeeEmail] = useState('');
+  const [employeeRole, setEmployeeRole] = useState('Employee');
+  const [employeeJobPositionId, setEmployeeJobPositionId] = useState('');
+  const [employeeIsActive, setEmployeeIsActive] = useState(true);
 
   // Filter selections
   // const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
@@ -447,9 +458,38 @@ function App() {
       }
 
       // Check User Profile
-      const userProfile = allUsers.find(u => u.cr5db_email?.toLowerCase() === authenticatedEmail.toLowerCase());
+      let userProfile = allUsers.find(u => u.cr5db_email?.toLowerCase() === authenticatedEmail.toLowerCase());
       if (!userProfile) {
-        throw new Error(`Tài khoản email '${authenticatedEmail}' chưa được khai báo trong danh mục thành viên (bảng cr5db_users).`);
+        console.log(`Email '${authenticatedEmail}' not found. Auto-registering as Employee...`);
+        try {
+          const newUserName = authenticatedName || authenticatedEmail.split('@')[0];
+          const createResult = await Cr5db_usersService.create({
+            cr5db_fullname: newUserName,
+            cr5db_email: authenticatedEmail,
+            cr5db_systemrole: 'Employee',
+            cr5db_isactive: true
+          } as any);
+
+          if (createResult.data) {
+            const newUserRecord = createResult.data;
+            allUsers.push(newUserRecord);
+            setUsersList([...allUsers]);
+            userProfile = newUserRecord;
+
+            // Add to audit trail log
+            await Cr5db_audittraillogsService.create({
+              cr5db_logname: "User Auto-Registration",
+              cr5db_actionexecuted: `Auto-registered new user ${newUserName} (${authenticatedEmail}) on first login`,
+              cr5db_changedfromvalue: "None",
+              cr5db_changedtovalue: "Role: Employee"
+            } as any);
+          } else {
+            throw new Error("Không thể tạo mới tài khoản.");
+          }
+        } catch (regErr) {
+          console.error("Auto-registration failed:", regErr);
+          throw new Error(`Tài khoản email '${authenticatedEmail}' chưa được đăng ký và tự động đăng ký thất bại.`);
+        }
       }
 
       // Role determination
@@ -996,6 +1036,119 @@ function App() {
     } catch (err) {
       console.error(err);
       alert("Không thể thu hồi vai trò.");
+      setIsLoading(false);
+    }
+  };
+
+  // Employee CRUD handlers
+  const handleSaveEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!employeeFullName.trim() || !employeeEmail.trim()) {
+      alert("Họ tên và Email không được để trống.");
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const payload: any = {
+        cr5db_fullname: employeeFullName,
+        cr5db_email: employeeEmail,
+        cr5db_systemrole: employeeRole,
+        cr5db_isactive: employeeIsActive,
+      };
+
+      if (employeeJobPositionId) {
+        payload["cr5db_JobPosition@odata.bind"] = `/cr5db_jobpositions(${employeeJobPositionId})`;
+      } else {
+        payload["cr5db_JobPosition@odata.bind"] = null;
+      }
+
+      if (editingEmployee) {
+        // Update user
+        await Cr5db_usersService.update(editingEmployee.cr5db_userid, payload);
+
+        // Add to audit trail log
+        const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+        await Cr5db_audittraillogsService.create({
+          cr5db_logname: "Employee Update",
+          cr5db_actionexecuted: `Updated employee ${editingEmployee.cr5db_fullname} (${employeeEmail})`,
+          cr5db_changedfromvalue: editingEmployee.cr5db_systemrole || "None",
+          cr5db_changedtovalue: `Updated By: ${activeUserObj?.cr5db_fullname || currentUserEmail} | Active: ${employeeIsActive} | Role: ${employeeRole}`
+        } as any);
+      } else {
+        // Create user
+        await Cr5db_usersService.create(payload);
+
+        // Add to audit trail log
+        const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+        await Cr5db_audittraillogsService.create({
+          cr5db_logname: "Employee Creation",
+          cr5db_actionexecuted: `Created new employee ${employeeFullName} (${employeeEmail})`,
+          cr5db_changedfromvalue: "None",
+          cr5db_changedtovalue: `Created By: ${activeUserObj?.cr5db_fullname || currentUserEmail} | Active: ${employeeIsActive} | Role: ${employeeRole}`
+        } as any);
+      }
+
+      setShowEmployeeModal(false);
+      setEditingEmployee(null);
+      setEmployeeFullName('');
+      setEmployeeEmail('');
+      setEmployeeRole('Employee');
+      setEmployeeJobPositionId('');
+      setEmployeeIsActive(true);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể lưu thông tin nhân viên.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleToggleEmployeeStatus = async (user: User) => {
+    try {
+      setIsLoading(true);
+      const newActiveState = !user.cr5db_isactive;
+      await Cr5db_usersService.update(user.cr5db_userid, {
+        cr5db_isactive: newActiveState
+      } as any);
+
+      // Audit Log
+      const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+      await Cr5db_audittraillogsService.create({
+        cr5db_logname: "Employee Status Toggle",
+        cr5db_actionexecuted: `Toggled employee ${user.cr5db_fullname} status to ${newActiveState ? "Active" : "Inactive"}`,
+        cr5db_changedfromvalue: user.cr5db_isactive ? "Active" : "Inactive",
+        cr5db_changedtovalue: `Toggled By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+      } as any);
+
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể chuyển đổi trạng thái hoạt động của nhân viên.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteEmployee = async (user: User) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn nhân viên ${user.cr5db_fullname} khỏi hệ thống?`)) {
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await Cr5db_usersService.delete(user.cr5db_userid);
+
+      // Audit Log
+      const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+      await Cr5db_audittraillogsService.create({
+        cr5db_logname: "Employee Deletion",
+        cr5db_actionexecuted: `Deleted employee ${user.cr5db_fullname} (${user.cr5db_email || 'No email'})`,
+        cr5db_changedfromvalue: user.cr5db_systemrole || "None",
+        cr5db_changedtovalue: `Deleted By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+      } as any);
+
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể xóa nhân viên.");
       setIsLoading(false);
     }
   };
@@ -2507,25 +2660,153 @@ function App() {
           {/* SCREEN 11: DIRECTORY */}
           {activeTab === 'directory' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div>
-                <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Employee Directory</h2>
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Find and reach out to organization members</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Employee Directory & Management</h2>
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Tìm kiếm thành viên hoặc quản lý danh sách nhân sự của tổ chức</p>
+                </div>
+                {(activeRole === 'HRManager' || activeRole === 'Admin') && (
+                  <button 
+                    onClick={() => {
+                      setEditingEmployee(null);
+                      setEmployeeFullName('');
+                      setEmployeeEmail('');
+                      setEmployeeRole('Employee');
+                      setEmployeeJobPositionId('');
+                      setEmployeeIsActive(true);
+                      setShowEmployeeModal(true);
+                    }} 
+                    className="btn-primary"
+                  >
+                    + Add Employee
+                  </button>
+                )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-                {usersList.map(u => (
-                  <div key={u.cr5db_userid} onClick={() => setSelectedDirectoryUser(u)} className="card-spec" style={{ display: 'flex', gap: '16px', alignItems: 'center', padding: '16px 20px', cursor: 'pointer' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--color-primary)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700 }}>
-                      {u.cr5db_fullname.substring(0, 2).toUpperCase()}
+              {(activeRole === 'HRManager' || activeRole === 'Admin') && (
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', gap: '16px', paddingBottom: '8px' }}>
+                  <button 
+                    onClick={() => setActiveDirectorySubTab('view')} 
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      color: activeDirectorySubTab === 'view' ? 'var(--color-text)' : 'var(--color-text-secondary)', 
+                      fontWeight: activeDirectorySubTab === 'view' ? 700 : 500, 
+                      cursor: 'pointer', 
+                      borderBottom: activeDirectorySubTab === 'view' ? '2px solid var(--color-text)' : 'none', 
+                      padding: '4px 8px' 
+                    }}
+                  >
+                    Thành viên tổ chức
+                  </button>
+                  <button 
+                    onClick={() => setActiveDirectorySubTab('manage')} 
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      color: activeDirectorySubTab === 'manage' ? 'var(--color-text)' : 'var(--color-text-secondary)', 
+                      fontWeight: activeDirectorySubTab === 'manage' ? 700 : 500, 
+                      cursor: 'pointer', 
+                      borderBottom: activeDirectorySubTab === 'manage' ? '2px solid var(--color-text)' : 'none', 
+                      padding: '4px 8px' 
+                    }}
+                  >
+                    Quản lý nhân viên
+                  </button>
+                </div>
+              )}
+
+              {activeDirectorySubTab === 'view' || !(activeRole === 'HRManager' || activeRole === 'Admin') ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+                  {usersList.map(u => (
+                    <div key={u.cr5db_userid} onClick={() => setSelectedDirectoryUser(u)} className="card-spec" style={{ display: 'flex', gap: '16px', alignItems: 'center', padding: '16px 20px', cursor: 'pointer' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: u.cr5db_isactive !== false ? 'var(--color-primary)' : 'var(--color-text-secondary)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700 }}>
+                        {u.cr5db_fullname.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {u.cr5db_fullname}
+                          {u.cr5db_isactive === false && (
+                            <span style={{ fontSize: '10px', backgroundColor: '#e1dfdd', color: '#323130', padding: '2px 6px', borderRadius: '4px', fontWeight: 500 }}>Tạm khóa</span>
+                          )}
+                        </span>
+                        <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{u.cr5db_email || 'No Email'}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>{u.cr5db_jobpositionname || 'Chưa phân công'}</span>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 700 }}>{u.cr5db_fullname}</span>
-                      <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{u.cr5db_email || 'No Email'}</span>
-                      <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>{u.cr5db_jobpositionname || 'Chưa phân công'}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '14px 20px' }}>Nhân viên</th>
+                        <th style={{ padding: '14px 20px' }}>Email</th>
+                        <th style={{ padding: '14px 20px' }}>Job Position</th>
+                        <th style={{ padding: '14px 20px' }}>Vai trò hệ thống</th>
+                        <th style={{ padding: '14px 20px' }}>Trạng thái</th>
+                        <th style={{ padding: '14px 20px', textAlign: 'right' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {usersList.map(u => (
+                        <tr key={u.cr5db_userid} style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: u.cr5db_isactive === false ? '#fcfcfc' : 'transparent' }}>
+                          <td style={{ padding: '14px 20px', fontWeight: 600 }}>{u.cr5db_fullname}</td>
+                          <td style={{ padding: '14px 20px' }}>{u.cr5db_email || 'No Email'}</td>
+                          <td style={{ padding: '14px 20px' }}>{u.cr5db_jobpositionname || 'Chưa phân công'}</td>
+                          <td style={{ padding: '14px 20px' }}>
+                            <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, backgroundColor: u.cr5db_systemrole === 'Admin' ? '#fde7e9' : u.cr5db_systemrole === 'HRManager' ? '#dff6dd' : u.cr5db_systemrole === 'ProjectManager' ? '#d9effc' : '#f3f2f1', color: u.cr5db_systemrole === 'Admin' ? '#a80000' : u.cr5db_systemrole === 'HRManager' ? '#107c41' : u.cr5db_systemrole === 'ProjectManager' ? '#005a9e' : '#323130' }}>
+                              {u.cr5db_systemrole || 'Employee'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '14px 20px' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 500, color: u.cr5db_isactive !== false ? '#107c41' : '#a80000' }}>
+                              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: u.cr5db_isactive !== false ? '#107c41' : '#a80000' }}></span>
+                              {u.cr5db_isactive !== false ? 'Đang hoạt động' : 'Tạm khóa'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                              <button 
+                                onClick={() => {
+                                  setEditingEmployee(u);
+                                  setEmployeeFullName(u.cr5db_fullname);
+                                  setEmployeeEmail(u.cr5db_email || '');
+                                  setEmployeeRole(u.cr5db_systemrole || 'Employee');
+                                  setEmployeeJobPositionId(u._cr5db_jobposition_value || '');
+                                  setEmployeeIsActive(u.cr5db_isactive !== false);
+                                  setShowEmployeeModal(true);
+                                }} 
+                                className="btn-filled-3" 
+                                style={{ padding: '4px 8px' }}
+                              >
+                                Edit
+                              </button>
+                              <button 
+                                onClick={() => handleToggleEmployeeStatus(u)} 
+                                className="btn-filled-3" 
+                                style={{ padding: '4px 8px', color: u.cr5db_isactive !== false ? '#a80000' : '#107c41' }}
+                              >
+                                {u.cr5db_isactive !== false ? 'Khóa' : 'Mở'}
+                              </button>
+                              {activeRole === 'Admin' && (
+                                <button 
+                                  onClick={() => handleDeleteEmployee(u)} 
+                                  className="btn-filled-3" 
+                                  style={{ padding: '4px 8px', color: '#a80000', borderColor: '#fde7e9' }}
+                                >
+                                  Xóa
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -3094,6 +3375,100 @@ function App() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
               <button onClick={() => setSelectedDirectoryUser(null)} className="btn-filled-3">Đóng</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Employee Modal (Add / Edit) */}
+      {showEmployeeModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '450px' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '15px', fontWeight: 700 }}>
+              {editingEmployee ? 'Chỉnh sửa hồ sơ nhân viên' : 'Thêm mới nhân viên'}
+            </h3>
+            <form onSubmit={handleSaveEmployee} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Họ và tên</label>
+                <input 
+                  type="text" 
+                  value={employeeFullName} 
+                  onChange={(e) => setEmployeeFullName(e.target.value)} 
+                  className="input-spec" 
+                  required 
+                  placeholder="Ví dụ: Nguyễn Văn A" 
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Email (Microsoft Account)</label>
+                <input 
+                  type="email" 
+                  value={employeeEmail} 
+                  onChange={(e) => setEmployeeEmail(e.target.value)} 
+                  className="input-spec" 
+                  required 
+                  placeholder="user@sv1.dut.udn.vn" 
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Vai trò hệ thống</label>
+                  <select 
+                    value={employeeRole} 
+                    onChange={(e) => setEmployeeRole(e.target.value)} 
+                    className="input-spec" 
+                    style={{ height: '38px', padding: '6px 12px' }}
+                  >
+                    <option value="Employee">Employee</option>
+                    <option value="ProjectManager">Project Manager</option>
+                    <option value="HRManager">HR Manager</option>
+                    {activeRole === 'Admin' && <option value="Admin">Super Admin</option>}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Trạng thái</label>
+                  <select 
+                    value={employeeIsActive ? 'true' : 'false'} 
+                    onChange={(e) => setEmployeeIsActive(e.target.value === 'true')} 
+                    className="input-spec" 
+                    style={{ height: '38px', padding: '6px 12px' }}
+                  >
+                    <option value="true">Đang hoạt động</option>
+                    <option value="false">Tạm khóa</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Vị trí công việc (Job Position)</label>
+                <select 
+                  value={employeeJobPositionId} 
+                  onChange={(e) => setEmployeeJobPositionId(e.target.value)} 
+                  className="input-spec" 
+                  style={{ height: '38px', padding: '6px 12px' }}
+                >
+                  <option value="">-- Chưa phân công --</option>
+                  {jobPositionsList.map(pos => (
+                    <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>
+                      {pos.cr5db_positionname}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowEmployeeModal(false);
+                    setEditingEmployee(null);
+                  }} 
+                  className="btn-filled-3"
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="btn-primary">
+                  Lưu hồ sơ
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
