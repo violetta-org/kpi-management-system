@@ -2060,7 +2060,7 @@ function App() {
           "Update",
           payload,
           editingKpi.cr5db_kpitargetid,
-          `Cập nhật thực tế KPI ${editingKpi.cr5db_kpiname || editingKpi.cr5db_kpitarget1} thành ${kpiActualValue}`,
+          `Cập nhật thực tế KPI ${editingKpi.cr5db_kpiname} thành ${kpiActualValue}`,
           editingKpi
         );
 
@@ -2068,7 +2068,7 @@ function App() {
         const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
         await Cr5db_audittraillogsService.create({
           cr5db_logname: "KPI Quick Update Request",
-          cr5db_actionexecuted: `Requested/Executed KPI ${editingKpi.cr5db_kpiname || editingKpi.cr5db_kpitarget1} actual value update to ${kpiActualValue}`,
+          cr5db_actionexecuted: `Requested/Executed KPI ${editingKpi.cr5db_kpiname} actual value update to ${kpiActualValue}`,
           cr5db_changedfromvalue: editingKpi.cr5db_actualvalue?.toString() || "0",
           cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
         } as any);
@@ -2168,7 +2168,7 @@ function App() {
         "Delete",
         null,
         id,
-        `Xóa mục tiêu KPI: ${targetKpi?.cr5db_kpiname || targetKpi?.cr5db_kpitarget1 || id}`,
+        `Xóa mục tiêu KPI: ${targetKpi?.cr5db_kpiname || id}`,
         targetKpi
       );
 
@@ -2176,8 +2176,8 @@ function App() {
       const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       await Cr5db_audittraillogsService.create({
         cr5db_logname: "KPI Deletion Request",
-        cr5db_actionexecuted: `Requested/Executed deletion for KPI: ${targetKpi?.cr5db_kpiname || targetKpi?.cr5db_kpitarget1 || id}`,
-        cr5db_changedfromvalue: targetKpi?.cr5db_kpiname || targetKpi?.cr5db_kpitarget1 || "None",
+        cr5db_actionexecuted: `Requested/Executed deletion for KPI: ${targetKpi?.cr5db_kpiname || id}`,
+        cr5db_changedfromvalue: targetKpi?.cr5db_kpiname || "None",
         cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
       } as any);
     } catch (err) {
