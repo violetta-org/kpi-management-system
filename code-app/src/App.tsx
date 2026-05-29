@@ -19,7 +19,7 @@ import { Cr5db_audittraillogsService } from './generated/services/Cr5db_audittra
 import { Cr5db_projectphasesService } from './generated/services/Cr5db_projectphasesService';
 import { Cr5db_projectrisksService } from './generated/services/Cr5db_projectrisksService';
 // import { Cr5db_evaluationperiodsService } from './generated/services/Cr5db_evaluationperiodsService';
-// import { Cr5db_kpilibrariesService } from './generated/services/Cr5db_kpilibrariesService';
+import { Cr5db_kpilibrariesService } from './generated/services/Cr5db_kpilibrariesService';
 import { Cr5db_objectivesService } from './generated/services/Cr5db_objectivesService';
 import { Cr5db_resourceallocationsService } from './generated/services/Cr5db_resourceallocationsService';
 
@@ -147,6 +147,7 @@ interface KPITarget {
   cr5db_period: string;
   _cr5db_parentobjective_value?: string;
   _cr5db_employeeid_value?: string;
+  _cr5db_kpicode_value?: string;
 }
 
 interface Company {
@@ -233,9 +234,22 @@ function App() {
   const [jobPositionsList, setJobPositionsList] = useState<JobPosition[]>([]);
   const [auditLogsList, setAuditLogsList] = useState<AuditLog[]>([]);
   // const [evaluationPeriodsList, setEvaluationPeriodsList] = useState<any[]>([]);
-  // const [kpiLibrariesList, setKpiLibrariesList] = useState<any[]>([]);
+  const [kpiLibrariesList, setKpiLibrariesList] = useState<any[]>([]);
   const [resourceAllocationsList, setResourceAllocationsList] = useState<any[]>([]);
   const [objectivesList, setObjectivesList] = useState<any[]>([]);
+
+  // KPI CRUD Management states
+  const [showKpiModal, setShowKpiModal] = useState(false);
+  const [editingKpi, setEditingKpi] = useState<any>(null);
+  const [kpiTargetName, setKpiTargetName] = useState('');
+  const [kpiTargetValue, setKpiTargetValue] = useState<number>(100);
+  const [kpiActualValue, setKpiActualValue] = useState<number>(0);
+  const [kpiWeight, setKpiWeight] = useState<number>(10);
+  const [kpiUnit, setKpiUnit] = useState('%');
+  const [kpiEmployeeId, setKpiEmployeeId] = useState('');
+  const [kpiObjectiveId, setKpiObjectiveId] = useState('');
+  const [kpiLibraryId, setKpiLibraryId] = useState('');
+  const [kpiPeriod, setKpiPeriod] = useState('Q2/2026');
 
   // Sub-tabs
   const [activeTimesheetSubTab, setActiveTimesheetSubTab] = useState<'my' | 'approvals'>('my');
@@ -281,6 +295,7 @@ function App() {
   // const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [selectedDeptCompanyId, setSelectedDeptCompanyId] = useState<string>('');
   const [selectedReportsToPositionId, setSelectedReportsToPositionId] = useState<string>('');
+  const [selectedKpiEmployeeFilter, setSelectedKpiEmployeeFilter] = useState<string>('All');
 
   // Sidebar Hide & Notification states
   const [isSidebarHidden, setIsSidebarHidden] = useState(false);
@@ -417,7 +432,8 @@ function App() {
         rawObjectives,
         rawNotifications,
         rawProjectPhases,
-        rawProjectRisks
+        rawProjectRisks,
+        rawKpiLibraries
       ] = await Promise.all([
         safeGet<User>(Cr5db_usersService.getAll),
         safeGet(Cr5db_departmentsService.getAll),
@@ -435,7 +451,8 @@ function App() {
         safeGet(Cr5db_objectivesService.getAll),
         safeGet(Cr5db_systemnotificationsService.getAll),
         safeGet(Cr5db_projectphasesService.getAll),
-        safeGet(Cr5db_projectrisksService.getAll)
+        safeGet(Cr5db_projectrisksService.getAll),
+        safeGet(Cr5db_kpilibrariesService.getAll)
       ]);
 
       // Wrap into response-shaped objects where downstream code needs them
@@ -460,6 +477,7 @@ function App() {
       setProjectPhases(rawProjectPhases);
       setProjectRisks(rawProjectRisks);
       setSystemNotifications(allNotifications);
+      setKpiLibrariesList(rawKpiLibraries);
 
       if (allDepts.length > 0) {
         setNewReqDeptId(allDepts[0].cr5db_departmentid);
@@ -567,17 +585,20 @@ function App() {
       // Map KPIs
       const mappedKpis: KPITarget[] = (kpiResponse.data || []).map(k => {
         const employee = allUsers.find(u => u.cr5db_userid === k._cr5db_employeeid_value);
+        const libraryItem = rawKpiLibraries.find((lib: any) => lib.cr5db_kpilibraryid === k._cr5db_kpicode_value);
+        const parentObjective = rawObjectives.find((obj: any) => obj.cr5db_objectiveid === k._cr5db_parentobjective_value);
         return {
           cr5db_kpitargetid: k.cr5db_kpitargetid,
-          cr5db_kpiname: k.cr5db_kpitarget1 || 'Mục tiêu KPI',
+          cr5db_kpiname: k.cr5db_kpitarget1 || libraryItem?.cr5db_kpiname || 'Mục tiêu KPI',
           cr5db_targetvalue: k.cr5db_targetvalue || 100,
           cr5db_actualvalue: k.cr5db_actualvalue || 0,
-          cr5db_unit: '%',
+          cr5db_unit: libraryItem?.cr5db_unit || '%',
           cr5db_weightpercentage: k.cr5db_weightpercentage || 0,
           cr5db_user_email: employee?.cr5db_email || '',
-          cr5db_period: k.cr5db_parentobjectivename || 'Q2/2026',
+          cr5db_period: parentObjective?.cr5db_objective1 || 'Q2/2026',
           _cr5db_parentobjective_value: k._cr5db_parentobjective_value || undefined,
-          _cr5db_employeeid_value: k._cr5db_employeeid_value || undefined
+          _cr5db_employeeid_value: k._cr5db_employeeid_value || undefined,
+          _cr5db_kpicode_value: k._cr5db_kpicode_value || undefined
         };
       });
       setKpiTargets(mappedKpis);
@@ -1314,6 +1335,124 @@ function App() {
     }
   };
 
+  // KPI Target CRUD Handlers
+  const handleSaveKpi = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (activeRole === 'Employee') {
+      if (!editingKpi) return;
+      try {
+        setIsLoading(true);
+        await Cr5db_kpitargetsService.update(editingKpi.cr5db_kpitargetid, {
+          cr5db_actualvalue: Number(kpiActualValue)
+        } as any);
+
+        // Audit Log
+        const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+        await Cr5db_audittraillogsService.create({
+          cr5db_logname: "KPI Quick Update",
+          cr5db_actionexecuted: `Updated KPI ${editingKpi.cr5db_kpiname} actual value to ${kpiActualValue}`,
+          cr5db_changedfromvalue: editingKpi.cr5db_actualvalue.toString(),
+          cr5db_changedtovalue: `Updated By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+        } as any);
+
+        setShowKpiModal(false);
+        setEditingKpi(null);
+        await fetchLiveValues();
+      } catch (err) {
+        console.error(err);
+        alert("Không thể cập nhật thực tế KPI.");
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Manager / Admin CRUD
+    if (!kpiTargetName.trim() || !kpiEmployeeId || !kpiObjectiveId || !kpiLibraryId) {
+      alert("Vui lòng nhập đầy đủ tên mục tiêu, người thực hiện, mục tiêu chung và mã KPI.");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const payload: any = {
+        cr5db_kpitarget1: kpiTargetName,
+        cr5db_targetvalue: Number(kpiTargetValue),
+        cr5db_actualvalue: Number(kpiActualValue),
+        cr5db_weightpercentage: Number(kpiWeight),
+        cr5db_unit: kpiUnit,
+        cr5db_period: kpiPeriod,
+        "cr5db_EmployeeID@odata.bind": `/cr5db_users(${kpiEmployeeId})`,
+        "cr5db_ParentObjective@odata.bind": `/cr5db_objectives(${kpiObjectiveId})`,
+        "cr5db_KPICode@odata.bind": `/cr5db_kpilibraries(${kpiLibraryId})`
+      };
+
+      if (editingKpi) {
+        await Cr5db_kpitargetsService.update(editingKpi.cr5db_kpitargetid, payload);
+        
+        // Audit log
+        const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+        await Cr5db_audittraillogsService.create({
+          cr5db_logname: "KPI Update",
+          cr5db_actionexecuted: `Updated KPI ${kpiTargetName} configuration`,
+          cr5db_changedfromvalue: editingKpi.cr5db_kpiname,
+          cr5db_changedtovalue: `Updated By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+        } as any);
+      } else {
+        await Cr5db_kpitargetsService.create(payload);
+
+        // Audit log
+        const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+        await Cr5db_audittraillogsService.create({
+          cr5db_logname: "KPI Assignment",
+          cr5db_actionexecuted: `Assigned KPI ${kpiTargetName} to ${usersList.find(u => u.cr5db_userid === kpiEmployeeId)?.cr5db_fullname || kpiEmployeeId}`,
+          cr5db_changedfromvalue: "None",
+          cr5db_changedtovalue: `Assigned By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+        } as any);
+      }
+
+      setShowKpiModal(false);
+      setEditingKpi(null);
+      setKpiTargetName('');
+      setKpiTargetValue(100);
+      setKpiActualValue(0);
+      setKpiWeight(10);
+      setKpiUnit('%');
+      setKpiEmployeeId('');
+      setKpiObjectiveId('');
+      setKpiLibraryId('');
+      setKpiPeriod('Q2/2026');
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể lưu mục tiêu KPI.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteKpi = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa vĩnh viễn KPI này khỏi hệ thống?")) return;
+    try {
+      setIsLoading(true);
+      const targetKpi = kpiTargets.find(k => k.cr5db_kpitargetid === id);
+      await Cr5db_kpitargetsService.delete(id);
+
+      // Audit Log
+      const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+      await Cr5db_audittraillogsService.create({
+        cr5db_logname: "KPI Deletion",
+        cr5db_actionexecuted: `Deleted KPI ${targetKpi?.cr5db_kpiname || id}`,
+        cr5db_changedfromvalue: targetKpi?.cr5db_kpiname || "None",
+        cr5db_changedtovalue: `Deleted By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+      } as any);
+
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể xóa KPI.");
+      setIsLoading(false);
+    }
+  };
+
   // RBAC Filters
   const filteredTasks = tasks.filter(t => {
     if (activeRole === 'Employee') {
@@ -2018,12 +2157,39 @@ function App() {
           {activeTab === 'kpi' && (
             <div className="space-y-6 p-6" style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '24px', fontFamily: 'ui-sans-serif, system-ui, sans-serif', color: '#000000', backgroundColor: '#ffffff' }}>
               {/* Header section */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ color: '#000000', display: 'flex', alignItems: 'center' }}><TargetIcon /></span>
-                <div>
-                  <h1 style={{ fontSize: '24px', fontWeight: 700, margin: 0, color: '#000000', lineHeight: 1.2 }}>My KPIs</h1>
-                  <p style={{ fontSize: '16px', color: '#000000', margin: '2px 0 0 0', fontWeight: 400 }}>View your assigned KPIs and track progress</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ color: '#000000', display: 'flex', alignItems: 'center' }}><TargetIcon /></span>
+                  <div>
+                    <h1 style={{ fontSize: '24px', fontWeight: 700, margin: 0, color: '#000000', lineHeight: 1.2 }}>
+                      {activeRole === 'Employee' ? 'My KPIs' : 'KPI Target Management'}
+                    </h1>
+                    <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', margin: '2px 0 0 0', fontWeight: 400 }}>
+                      {activeRole === 'Employee' ? 'Theo dõi mục tiêu hiệu suất cá nhân' : 'Quản lý, gán chỉ chỉ tiêu hiệu suất KPI cho nhân sự tổ chức'}
+                    </p>
+                  </div>
                 </div>
+
+                {activeRole !== 'Employee' && (
+                  <button
+                    onClick={() => {
+                      setEditingKpi(null);
+                      setKpiTargetName('');
+                      setKpiTargetValue(100);
+                      setKpiActualValue(0);
+                      setKpiWeight(10);
+                      setKpiUnit('%');
+                      setKpiPeriod('Q2/2026');
+                      setKpiEmployeeId(usersList[0]?.cr5db_userid || '');
+                      setKpiObjectiveId(objectivesList[0]?.cr5db_objectiveid || '');
+                      setKpiLibraryId(kpiLibrariesList[0]?.cr5db_kpilibraryid || '');
+                      setShowKpiModal(true);
+                    }}
+                    className="btn-primary"
+                  >
+                    + Gán KPI mới
+                  </button>
+                )}
               </div>
 
               {/* Sub navigation button tabs */}
@@ -2061,94 +2227,181 @@ function App() {
               </div>
 
               {activeKpiSubTab === 'overview' ? (
-                <>
-                  {/* Metrics grid */}
-                  <div className="metrics-grid">
-                    <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ color: 'var(--color-text)', display: 'flex', alignItems: 'center' }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M18 20V10M12 20V4M6 20v-6" /></svg>
-                        </span>
-                        <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700 }}>{kpiTargets.length}</span>
-                      </div>
-                      <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>KPI Targets</span>
-                    </div>
-                    <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ color: '#107C41', display: 'flex', alignItems: 'center' }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                        </span>
-                        <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: '#107C41' }}>
-                          {kpiTargets.filter(k => k.cr5db_actualvalue >= k.cr5db_targetvalue).length}
-                        </span>
-                      </div>
-                      <span className="metric-label" style={{ fontSize: '12px', color: '#107C41', fontWeight: 500 }}>On Track</span>
-                    </div>
-                    <div className="metric-card" style={{ gap: '16px', padding: '20px', borderColor: kpiTargets.filter(k => k.cr5db_actualvalue < k.cr5db_targetvalue && k.cr5db_actualvalue > 0).length > 0 ? '#E29E2E' : 'var(--color-border)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ color: '#E29E2E', display: 'flex', alignItems: 'center' }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
-                        </span>
-                        <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: '#E29E2E' }}>
-                          {kpiTargets.filter(k => k.cr5db_actualvalue < k.cr5db_targetvalue && k.cr5db_actualvalue > 0).length}
-                        </span>
-                      </div>
-                      <span className="metric-label" style={{ fontSize: '12px', color: '#E29E2E', fontWeight: 500 }}>At Risk</span>
-                    </div>
-                    <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center' }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6" /><polyline points="17 18 23 18 23 12" /></svg>
-                        </span>
-                        <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-text-secondary)' }}>
-                          {kpiTargets.filter(k => k.cr5db_actualvalue === 0).length}
-                        </span>
-                      </div>
-                      <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Behind</span>
-                    </div>
-                  </div>
+                (() => {
+                  // Filter logic
+                  const userKpis = activeRole === 'Employee'
+                    ? kpiTargets.filter(k => k.cr5db_user_email.toLowerCase() === currentUserEmail.toLowerCase())
+                    : selectedKpiEmployeeFilter === 'All'
+                      ? kpiTargets
+                      : kpiTargets.filter(k => {
+                          const employee = usersList.find(u => u.cr5db_userid === k._cr5db_employeeid_value);
+                          return employee?.cr5db_userid === selectedKpiEmployeeFilter;
+                        });
 
-                  {/* Main content table card */}
-                  <div className="card-spec" style={{ padding: '32px' }}>
-                    {kpiTargets.length === 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', textAlign: 'center', gap: '12px' }}>
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--color-text-secondary)' }}><path d="M18 20V10M12 20V4M6 20v-6" /></svg>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text)' }}>No KPI targets found</h4>
-                          <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>Create your first KPI target to start tracking performance</p>
+                  const totalCount = userKpis.length;
+                  const onTrackCount = userKpis.filter(k => k.cr5db_actualvalue >= k.cr5db_targetvalue).length;
+                  const atRiskCount = userKpis.filter(k => k.cr5db_actualvalue < k.cr5db_targetvalue && k.cr5db_actualvalue > 0).length;
+                  const behindCount = userKpis.filter(k => k.cr5db_actualvalue === 0).length;
+
+                  return (
+                    <>
+                      {/* Metrics grid */}
+                      <div className="metrics-grid">
+                        <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ color: 'var(--color-text)', display: 'flex', alignItems: 'center' }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M18 20V10M12 20V4M6 20v-6" /></svg>
+                            </span>
+                            <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700 }}>{totalCount}</span>
+                          </div>
+                          <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>KPI Targets</span>
+                        </div>
+                        <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ color: '#107C41', display: 'flex', alignItems: 'center' }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                            </span>
+                            <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: '#107C41' }}>
+                              {onTrackCount}
+                            </span>
+                          </div>
+                          <span className="metric-label" style={{ fontSize: '12px', color: '#107C41', fontWeight: 500 }}>On Track</span>
+                        </div>
+                        <div className="metric-card" style={{ gap: '16px', padding: '20px', borderColor: atRiskCount > 0 ? '#E29E2E' : 'var(--color-border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ color: '#E29E2E', display: 'flex', alignItems: 'center' }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                            </span>
+                            <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: '#E29E2E' }}>
+                              {atRiskCount}
+                            </span>
+                          </div>
+                          <span className="metric-label" style={{ fontSize: '12px', color: '#E29E2E', fontWeight: 500 }}>At Risk</span>
+                        </div>
+                        <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center' }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6" /><polyline points="17 18 23 18 23 12" /></svg>
+                            </span>
+                            <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-text-secondary)' }}>
+                              {behindCount}
+                            </span>
+                          </div>
+                          <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Behind</span>
                         </div>
                       </div>
-                    ) : (
-                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-                        <thead>
-                          <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
-                            <th style={{ padding: '14px 20px' }}>Mục tiêu KPI</th>
-                            <th style={{ padding: '14px 20px' }}>Tỷ trọng</th>
-                            <th style={{ padding: '14px 20px' }}>Mục tiêu</th>
-                            <th style={{ padding: '14px 20px' }}>Thực tế</th>
-                            <th style={{ padding: '14px 20px' }}>Đánh giá</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {kpiTargets.map(k => {
-                            const rate = k.cr5db_targetvalue > 0 ? Math.min(100, Math.round((k.cr5db_actualvalue / k.cr5db_targetvalue) * 100)) : 0;
-                            return (
-                              <tr key={k.cr5db_kpitargetid} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                <td style={{ padding: '14px 20px', fontWeight: 600 }}>{k.cr5db_kpiname}</td>
-                                <td style={{ padding: '14px 20px' }}>{k.cr5db_weightpercentage}%</td>
-                                <td style={{ padding: '14px 20px' }}>{k.cr5db_targetvalue} {k.cr5db_unit}</td>
-                                <td style={{ padding: '14px 20px' }}>{k.cr5db_actualvalue} {k.cr5db_unit}</td>
-                                <td style={{ padding: '14px 20px' }}>
-                                  <span style={{ fontWeight: 700, color: rate >= 80 ? '#107C41' : 'var(--color-primary)' }}>{rate}%</span>
-                                </td>
+
+                      {/* Admin Filter panel */}
+                      {activeRole !== 'Employee' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 600 }}>Lọc theo nhân sự:</span>
+                          <select
+                            value={selectedKpiEmployeeFilter}
+                            onChange={(e) => setSelectedKpiEmployeeFilter(e.target.value)}
+                            className="input-spec"
+                            style={{ width: '220px', height: '36px', padding: '4px 10px', fontSize: '13px' }}
+                          >
+                            <option value="All">Tất cả nhân viên</option>
+                            {usersList.map(u => (
+                              <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Main content table card */}
+                      <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
+                        {userKpis.length === 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', textAlign: 'center', gap: '12px' }}>
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--color-text-secondary)' }}><path d="M18 20V10M12 20V4M6 20v-6" /></svg>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text)' }}>No KPI targets found</h4>
+                              <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>Không tìm thấy mục tiêu hiệu suất nào phù hợp bộ lọc.</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                            <thead>
+                              <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                                <th style={{ padding: '14px 20px' }}>Mục tiêu KPI</th>
+                                {activeRole !== 'Employee' && <th style={{ padding: '14px 20px' }}>Nhân sự</th>}
+                                <th style={{ padding: '14px 20px' }}>Tỷ trọng</th>
+                                <th style={{ padding: '14px 20px' }}>Mục tiêu</th>
+                                <th style={{ padding: '14px 20px' }}>Thực tế</th>
+                                <th style={{ padding: '14px 20px' }}>Đánh giá</th>
+                                <th style={{ padding: '14px 20px', textAlign: 'right' }}>Thao tác</th>
                               </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                </>
+                            </thead>
+                            <tbody>
+                              {userKpis.map(k => {
+                                const rate = k.cr5db_targetvalue > 0 ? Math.min(100, Math.round((k.cr5db_actualvalue / k.cr5db_targetvalue) * 100)) : 0;
+                                const employeeName = usersList.find(u => u.cr5db_userid === k._cr5db_employeeid_value)?.cr5db_fullname || k.cr5db_user_email.split('@')[0];
+                                return (
+                                  <tr key={k.cr5db_kpitargetid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                    <td style={{ padding: '14px 20px', fontWeight: 600 }}>{k.cr5db_kpiname}</td>
+                                    {activeRole !== 'Employee' && <td style={{ padding: '14px 20px' }}>{employeeName}</td>}
+                                    <td style={{ padding: '14px 20px' }}>{k.cr5db_weightpercentage}%</td>
+                                    <td style={{ padding: '14px 20px' }}>{k.cr5db_targetvalue} {k.cr5db_unit}</td>
+                                    <td style={{ padding: '14px 20px', fontWeight: 600 }}>{k.cr5db_actualvalue} {k.cr5db_unit}</td>
+                                    <td style={{ padding: '14px 20px' }}>
+                                      <span style={{ fontWeight: 700, color: rate >= 80 ? '#107C41' : 'var(--color-primary)' }}>{rate}%</span>
+                                    </td>
+                                    <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                                        {activeRole === 'Employee' ? (
+                                          <button
+                                            onClick={() => {
+                                              setEditingKpi(k);
+                                              setKpiActualValue(k.cr5db_actualvalue);
+                                              setShowKpiModal(true);
+                                            }}
+                                            className="btn-filled-3"
+                                            style={{ padding: '4px 8px', fontSize: '12px' }}
+                                          >
+                                            Cập nhật thực tế
+                                          </button>
+                                        ) : (
+                                          <>
+                                            <button
+                                              onClick={() => {
+                                                setEditingKpi(k);
+                                                setKpiTargetName(k.cr5db_kpiname);
+                                                setKpiTargetValue(k.cr5db_targetvalue);
+                                                setKpiActualValue(k.cr5db_actualvalue);
+                                                setKpiWeight(k.cr5db_weightpercentage);
+                                                setKpiUnit(k.cr5db_unit);
+                                                setKpiPeriod(k.cr5db_period);
+                                                setKpiEmployeeId(k._cr5db_employeeid_value || '');
+                                                setKpiObjectiveId(k._cr5db_parentobjective_value || '');
+                                                setKpiLibraryId(k._cr5db_kpicode_value || '');
+                                                setShowKpiModal(true);
+                                              }}
+                                              className="btn-filled-3"
+                                              style={{ padding: '4px 8px', fontSize: '12px' }}
+                                            >
+                                              Sửa
+                                            </button>
+                                            <button
+                                              onClick={() => handleDeleteKpi(k.cr5db_kpitargetid)}
+                                              className="btn-filled-3"
+                                              style={{ padding: '4px 8px', fontSize: '12px', color: '#a80000', borderColor: '#fde7e9' }}
+                                            >
+                                              Xóa
+                                            </button>
+                                          </>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()
               ) : (
                 <>
                   {/* Time Range Selection */}
@@ -4148,6 +4401,191 @@ function App() {
                 </button>
                 <button type="submit" className="btn-filled-2" style={{ backgroundColor: '#742774' }}>
                   Lưu rủi ro
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* KPI Modal */}
+      {showKpiModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: activeRole === 'Employee' ? '400px' : '500px' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '15px', fontWeight: 700 }}>
+              {activeRole === 'Employee' 
+                ? 'Cập nhật tiến độ thực tế KPI' 
+                : editingKpi ? 'Chỉnh sửa mục tiêu KPI' : 'Gán chỉ tiêu KPI mới'}
+            </h3>
+            
+            <form onSubmit={handleSaveKpi} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {activeRole === 'Employee' ? (
+                // Employee Simplified Form
+                <>
+                  <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: '#FAF9F9', padding: '12px', borderRadius: '6px', border: '1px solid var(--color-border-light)' }}>
+                    <div><strong>KPI:</strong> {editingKpi?.cr5db_kpiname}</div>
+                    <div><strong>Mục tiêu chỉ tiêu:</strong> {editingKpi?.cr5db_targetvalue} {editingKpi?.cr5db_unit}</div>
+                    <div><strong>Tỷ trọng:</strong> {editingKpi?.cr5db_weightpercentage}%</div>
+                    <div><strong>Giai đoạn:</strong> {editingKpi?.cr5db_period}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Giá trị thực tế đạt được ({editingKpi?.cr5db_unit})</label>
+                    <input 
+                      type="number" 
+                      step="any"
+                      value={kpiActualValue} 
+                      onChange={(e) => setKpiActualValue(Number(e.target.value))} 
+                      className="input-spec" 
+                      required 
+                    />
+                  </div>
+                </>
+              ) : (
+                // Manager / Admin Complete Form
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Nhân viên thực hiện</label>
+                      <select 
+                        value={kpiEmployeeId} 
+                        onChange={(e) => setKpiEmployeeId(e.target.value)} 
+                        className="input-spec"
+                        style={{ height: '38px', padding: '6px 12px' }}
+                        required
+                      >
+                        {usersList.map(u => (
+                          <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Mã KPI danh mục (Library)</label>
+                      <select 
+                        value={kpiLibraryId} 
+                        onChange={(e) => {
+                          const lib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === e.target.value);
+                          setKpiLibraryId(e.target.value);
+                          if (lib) {
+                            setKpiTargetName(lib.cr5db_kpiname);
+                            setKpiUnit(lib.cr5db_unit || '%');
+                          }
+                        }} 
+                        className="input-spec"
+                        style={{ height: '38px', padding: '6px 12px' }}
+                        required
+                      >
+                        {kpiLibrariesList.map(lib => (
+                          <option key={lib.cr5db_kpilibraryid} value={lib.cr5db_kpilibraryid}>
+                            {lib.cr5db_kpiname} ({lib.cr5db_unit || '%'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Tên mục tiêu KPI hiển thị</label>
+                    <input 
+                      type="text" 
+                      value={kpiTargetName} 
+                      onChange={(e) => setKpiTargetName(e.target.value)} 
+                      className="input-spec" 
+                      required 
+                      placeholder="Ví dụ: Tăng trưởng doanh số Q2" 
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Liên kết mục tiêu chung (Objective)</label>
+                      <select 
+                        value={kpiObjectiveId} 
+                        onChange={(e) => setKpiObjectiveId(e.target.value)} 
+                        className="input-spec"
+                        style={{ height: '38px', padding: '6px 12px' }}
+                        required
+                      >
+                        {objectivesList.map(o => (
+                          <option key={o.cr5db_objectiveid} value={o.cr5db_objectiveid}>{o.cr5db_objective1}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Chu kỳ đánh giá (Period)</label>
+                      <input 
+                        type="text" 
+                        value={kpiPeriod} 
+                        onChange={(e) => setKpiPeriod(e.target.value)} 
+                        className="input-spec" 
+                        required 
+                        placeholder="Ví dụ: Q2/2026" 
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Mục tiêu chỉ tiêu</label>
+                      <input 
+                        type="number" 
+                        step="any"
+                        value={kpiTargetValue} 
+                        onChange={(e) => setKpiTargetValue(Number(e.target.value))} 
+                        className="input-spec" 
+                        required 
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Thực tế hiện tại</label>
+                      <input 
+                        type="number" 
+                        step="any"
+                        value={kpiActualValue} 
+                        onChange={(e) => setKpiActualValue(Number(e.target.value))} 
+                        className="input-spec" 
+                        required 
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Đơn vị đo lường</label>
+                      <input 
+                        type="text" 
+                        value={kpiUnit} 
+                        onChange={(e) => setKpiUnit(e.target.value)} 
+                        className="input-spec" 
+                        required 
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Tỷ trọng (%) trong tổng KPI</label>
+                    <input 
+                      type="number" 
+                      min={0}
+                      max={100}
+                      value={kpiWeight} 
+                      onChange={(e) => setKpiWeight(Number(e.target.value))} 
+                      className="input-spec" 
+                      required 
+                    />
+                  </div>
+                </>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowKpiModal(false);
+                    setEditingKpi(null);
+                  }} 
+                  className="btn-filled-3"
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="btn-filled-2" style={{ backgroundColor: '#742774' }}>
+                  {editingKpi ? 'Cập nhật' : 'Gán chỉ tiêu'}
                 </button>
               </div>
             </form>
