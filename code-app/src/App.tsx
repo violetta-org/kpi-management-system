@@ -1796,6 +1796,31 @@ function App() {
     return true;
   });
 
+  const parseDateOnly = (value?: string) => {
+    if (!value) return null;
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  };
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const isTaskOverdue = (task: Task) => {
+    if (task.cr5db_status === 'Completed' || !task.cr5db_due_date) return false;
+    const dueDate = parseDateOnly(task.cr5db_due_date);
+    return !!dueDate && dueDate < today;
+  };
+
+  const isTaskDueToday = (task: Task) => {
+    if (task.cr5db_status === 'Completed' || !task.cr5db_due_date) return false;
+    const dueDate = parseDateOnly(task.cr5db_due_date);
+    return !!dueDate && dueDate.getTime() === today.getTime();
+  };
+
+  const hasOverdueTasks = filteredTasks.some(isTaskOverdue);
+  const dueTodayTasksCount = filteredTasks.filter(isTaskDueToday).length;
+
   const myTimesheets = timesheets.filter(ts => ts.cr5db_useremail.toLowerCase() === currentUserEmail.toLowerCase());
   const totalHoursThisWeek = myTimesheets.reduce((acc, curr) => acc + curr.cr5db_actualhoursworked, 0);
   const totalEntries = myTimesheets.length;
@@ -2068,7 +2093,7 @@ function App() {
                   </div>
 
                   {/* Overdue Task Banner */}
-                  {filteredTasks.some(t => t.cr5db_status !== 'Completed' && t.cr5db_due_date && new Date(t.cr5db_due_date) < new Date()) && (
+                  {hasOverdueTasks && (
                     <div style={{ padding: '16px 20px', backgroundColor: '#FDF3F3', border: '1px solid var(--color-primary)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-primary)' }}>Bạn đang có các công việc trễ hạn! Vui lòng hoàn thành sớm.</span>
                       <button onClick={() => setActiveTab('tasks')} className="btn-filled-2" style={{ padding: '6px 12px' }}>Xem công việc</button>
@@ -2079,7 +2104,7 @@ function App() {
                     <div className="metric-card" style={{ gap: '8px', padding: '20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ color: 'var(--color-text)', display: 'flex', alignItems: 'center' }}><TaskIcon /></span>
-                        <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700 }}>{filteredTasks.filter(t => t.cr5db_status !== 'Completed').length}</span>
+                        <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700 }}>{dueTodayTasksCount}</span>
                       </div>
                       <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Tasks Due Today</span>
                     </div>
@@ -5054,7 +5079,7 @@ function App() {
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto' }}>
               {/* Overdue alert */}
-              {filteredTasks.some(t => t.cr5db_status !== 'Completed' && t.cr5db_due_date && new Date(t.cr5db_due_date) < new Date()) && (
+              {hasOverdueTasks && (
                 <div style={{ padding: '10px 12px', border: '1px solid var(--color-primary)', borderRadius: '6px', fontSize: '13px', backgroundColor: '#FDF3F3' }}>
                   <strong style={{ color: 'var(--color-primary)' }}>Trễ hạn:</strong> Bạn đang có công việc cần hoàn thành gấp.
                 </div>
