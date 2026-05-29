@@ -644,7 +644,7 @@ function App() {
           cr5db_timesheetlog1: ts.cr5db_timesheetlog1,
           cr5db_actualhoursworked: ts.cr5db_actualhoursworked || 0,
           cr5db_logdate: ts.cr5db_logdate || '',
-          cr5db_taskname: ts.cr5db_taskidname || 'Nhiệm vụ chung',
+          cr5db_taskname: ts.cr5db_taskidname || 'Không thuộc dự án',
           cr5db_username: ts.cr5db_useridname || user?.cr5db_fullname || 'Thành viên',
           cr5db_useremail: user?.cr5db_email || '',
           statecode: ts.statecode
@@ -2287,7 +2287,7 @@ function App() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <span style={{ fontWeight: 700, fontSize: '16px', color: '#000000' }}>{t.cr5db_taskname}</span>
                             <span style={{ fontSize: '12px', fontWeight: 500, padding: '2px 8px', border: '1px solid #000000', borderRadius: '6px', color: '#000000', backgroundColor: '#ffffff' }}>
-                              {t.cr5db_project_name || 'No Project'}
+                              {t.cr5db_project_name || 'Không thuộc dự án'}
                             </span>
                           </div>
                           <p style={{ fontSize: '14px', fontWeight: 400, color: 'rgba(0, 0, 0, 0.7)', margin: 0 }}>{t.cr5db_description}</p>
@@ -3293,7 +3293,7 @@ function App() {
                   // 1. Group allocations by project team name
                   const groups: { [key: string]: typeof resourceAllocationsList } = {};
                   resourceAllocationsList.forEach(a => {
-                    const groupName = a.cr5db_projectteamidname || 'Dự án khác / Chung';
+                    const groupName = a.cr5db_projectteamidname || 'Dự án khác / Không thuộc dự án';
                     if (!groups[groupName]) {
                       groups[groupName] = [];
                     }
