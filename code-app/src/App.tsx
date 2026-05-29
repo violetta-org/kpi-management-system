@@ -119,6 +119,7 @@ interface Task {
   _cr5db_parenttask_value?: string;
   _cr5db_objectivename_value?: string;
   _cr5db_projectphaseid_value?: string;
+  _cr5db_assigneeid_value?: string;
   createdbyname?: string;
   _createdby_value?: string;
 }
@@ -322,6 +323,8 @@ function App() {
   const [newTaskParentId, setNewTaskParentId] = useState('');
   const [newTaskProjectId, setNewTaskProjectId] = useState('');
   const [newTaskPhaseId, setNewTaskPhaseId] = useState('');
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [newTaskStatus, setNewTaskStatus] = useState<'Not Started' | 'In Progress' | 'Completed'>('In Progress');
 
   const [showTimesheetModal, setShowTimesheetModal] = useState(false);
   const [newTimesheetHours, setNewTimesheetHours] = useState(8);
@@ -571,11 +574,12 @@ function App() {
           cr5db_status: t.statecode === 1 ? 'Completed' : 'In Progress',
           cr5db_assignee_email: assignee?.cr5db_email || '',
           cr5db_assignee_name: t.cr5db_assigneeidname || 'Chưa phân công',
-          cr5db_project_name: t.cr5db_projectphaseidname || 'Dự án chung',
+          cr5db_project_name: t.cr5db_projectphaseidname || 'Không thuộc dự án',
           cr5db_due_date: t.cr5db_duedate || '',
           _cr5db_parenttask_value: t._cr5db_parenttask_value || undefined,
           _cr5db_objectivename_value: t._cr5db_objectivename_value || undefined,
           _cr5db_projectphaseid_value: t._cr5db_projectphaseid_value || undefined,
+          _cr5db_assigneeid_value: t._cr5db_assigneeid_value || undefined,
           createdbyname: t.createdbyname || '',
           _createdby_value: t._createdby_value || ''
         };
@@ -673,33 +677,119 @@ function App() {
 
   // CRUD API Calls
 
-  // Tasks
-  const handleAddTask = async (e: React.FormEvent) => {
+  // Tasks CRUD
+  const handleSaveTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskName.trim()) return;
     try {
       setIsLoading(true);
-      const currentUserRecord = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
-      const assigneeId = currentUserRecord?.cr5db_userid || newTaskAssigneeId;
-      const record = {
+      const payload: any = {
         cr5db_taskname: newTaskName,
         cr5db_description: newTaskDesc,
         cr5db_duedate: newTaskDueDate || new Date().toISOString().split('T')[0],
-        "cr5db_AssigneeID@odata.bind": assigneeId ? `/cr5db_users(${assigneeId})` : undefined,
-        "cr5db_ObjectiveName@odata.bind": newTaskObjectiveId ? `/cr5db_objectives(${newTaskObjectiveId})` : undefined,
-        "cr5db_ParentTask@odata.bind": newTaskParentId ? `/cr5db_tasks(${newTaskParentId})` : undefined,
-        "cr5db_ProjectPhaseID@odata.bind": newTaskPhaseId ? `/cr5db_projectphases(${newTaskPhaseId})` : undefined
       };
-      await Cr5db_tasksService.create(record as any);
+
+      if (editingTask) {
+        if (newTaskAssigneeId) {
+          payload["cr5db_AssigneeID@odata.bind"] = `/cr5db_users(${newTaskAssigneeId})`;
+        } else {
+          payload.cr5db_assigneeid = null;
+        }
+
+        if (newTaskObjectiveId) {
+          payload["cr5db_ObjectiveName@odata.bind"] = `/cr5db_objectives(${newTaskObjectiveId})`;
+        } else {
+          payload.cr5db_objectivename = null;
+        }
+
+        if (newTaskParentId) {
+          payload["cr5db_ParentTask@odata.bind"] = `/cr5db_tasks(${newTaskParentId})`;
+        } else {
+          payload.cr5db_parenttask = null;
+        }
+
+        if (newTaskPhaseId) {
+          payload["cr5db_ProjectPhaseID@odata.bind"] = `/cr5db_projectphases(${newTaskPhaseId})`;
+        } else {
+          payload.cr5db_projectphaseid = null;
+        }
+
+        payload.statecode = newTaskStatus === 'Completed' ? 1 : 0;
+        payload.statuscode = newTaskStatus === 'Completed' ? 2 : 1;
+
+        await Cr5db_tasksService.update(editingTask.cr5db_taskid, payload);
+
+        const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+        await Cr5db_audittraillogsService.create({
+          cr5db_logname: "Task Update",
+          cr5db_actionexecuted: `Updated task ${newTaskName}`,
+          cr5db_changedfromvalue: editingTask.cr5db_status,
+          cr5db_changedtovalue: `Updated By: ${activeUserObj?.cr5db_fullname || currentUserEmail} | Status: ${newTaskStatus}`
+        } as any);
+      } else {
+        const currentUserRecord = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+        const assigneeId = newTaskAssigneeId || currentUserRecord?.cr5db_userid;
+        
+        if (assigneeId) {
+          payload["cr5db_AssigneeID@odata.bind"] = `/cr5db_users(${assigneeId})`;
+        }
+        if (newTaskObjectiveId) {
+          payload["cr5db_ObjectiveName@odata.bind"] = `/cr5db_objectives(${newTaskObjectiveId})`;
+        }
+        if (newTaskParentId) {
+          payload["cr5db_ParentTask@odata.bind"] = `/cr5db_tasks(${newTaskParentId})`;
+        }
+        if (newTaskPhaseId) {
+          payload["cr5db_ProjectPhaseID@odata.bind"] = `/cr5db_projectphases(${newTaskPhaseId})`;
+        }
+
+        await Cr5db_tasksService.create(payload);
+
+        const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+        await Cr5db_audittraillogsService.create({
+          cr5db_logname: "Task Creation",
+          cr5db_actionexecuted: `Created task ${newTaskName}`,
+          cr5db_changedfromvalue: "None",
+          cr5db_changedtovalue: `Created By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+        } as any);
+      }
+
       setShowTaskModal(false);
+      setEditingTask(null);
       setNewTaskName('');
       setNewTaskDesc('');
       setNewTaskProjectId('');
       setNewTaskPhaseId('');
+      setNewTaskObjectiveId('');
+      setNewTaskParentId('');
+      setNewTaskAssigneeId('');
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
-      alert("Không thể lưu công việc mới.");
+      alert("Không thể lưu công việc.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    const confirmDelete = window.confirm("Bạn có chắc chắn muốn xóa công việc này không?");
+    if (!confirmDelete) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_tasksService.delete(taskId);
+      
+      const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+      await Cr5db_audittraillogsService.create({
+        cr5db_logname: "Task Deletion",
+        cr5db_actionexecuted: `Deleted task ID ${taskId}`,
+        cr5db_changedfromvalue: "Active/Completed",
+        cr5db_changedtovalue: `Deleted By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+      } as any);
+
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể xóa công việc.");
       setIsLoading(false);
     }
   };
@@ -2074,6 +2164,36 @@ function App() {
                             >
                               Hoàn tất
                             </button>
+                          )}
+                          
+                          {(activeRole === 'Admin' || activeRole === 'ProjectManager') && (
+                            <div style={{ display: 'inline-flex', gap: '8px' }}>
+                              <button
+                                onClick={() => {
+                                  const phase = projectPhases.find(p => p.cr5db_projectphaseid === t._cr5db_projectphaseid_value);
+                                  setEditingTask(t);
+                                  setNewTaskName(t.cr5db_taskname);
+                                  setNewTaskDesc(t.cr5db_description);
+                                  setNewTaskProjectId(phase?._cr5db_projectid_value || '');
+                                  setNewTaskPhaseId(t._cr5db_projectphaseid_value || '');
+                                  setNewTaskObjectiveId(t._cr5db_objectivename_value || '');
+                                  setNewTaskParentId(t._cr5db_parenttask_value || '');
+                                  setNewTaskAssigneeId(t._cr5db_assigneeid_value || '');
+                                  setNewTaskDueDate(t.cr5db_due_date ? new Date(t.cr5db_due_date).toISOString().split('T')[0] : '');
+                                  setNewTaskStatus(t.cr5db_status);
+                                  setShowTaskModal(true);
+                                }}
+                                style={{ height: '36px', borderRadius: '6px', border: '1px solid #742774', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: 'transparent', color: '#742774', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTask(t.cr5db_taskid)}
+                                style={{ height: '36px', borderRadius: '6px', border: '1px solid #a80000', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: 'transparent', color: '#a80000', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                Delete
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -3715,7 +3835,17 @@ function App() {
             {/* Close Button */}
             <button
               type="button"
-              onClick={() => setShowTaskModal(false)}
+              onClick={() => {
+                setShowTaskModal(false);
+                setEditingTask(null);
+                setNewTaskName('');
+                setNewTaskDesc('');
+                setNewTaskProjectId('');
+                setNewTaskPhaseId('');
+                setNewTaskObjectiveId('');
+                setNewTaskParentId('');
+                setNewTaskAssigneeId('');
+              }}
               style={{ position: 'absolute', top: '16px', right: '16px', width: '16px', height: '16px', opacity: 0.7, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
               title="Close"
             >
@@ -3726,11 +3856,11 @@ function App() {
 
             {/* Header */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'center' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 600, lineHeight: '28px', color: '#000000', margin: 0 }}>Create New Task</h3>
+              <h3 style={{ fontSize: '18px', fontWeight: 600, lineHeight: '28px', color: '#000000', margin: 0 }}>{editingTask ? 'Edit Task' : 'Create New Task'}</h3>
             </div>
 
             {/* Form */}
-            <form onSubmit={handleAddTask} style={{ display: 'grid', gap: '16px', margin: 0 }}>
+            <form onSubmit={handleSaveTask} style={{ display: 'grid', gap: '16px', margin: 0 }}>
               {/* Task Name */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '14px', fontWeight: 500, lineHeight: '14px', color: '#000000' }}>Task Name</label>
@@ -3825,7 +3955,22 @@ function App() {
                 </div>
               </div>
 
-              {/* Due Date & Assignee Card Row */}
+              {/* Status field (only in Edit mode) */}
+              {editingTask && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '14px', fontWeight: 500, lineHeight: '14px', color: '#000000' }}>Status</label>
+                  <select
+                    value={newTaskStatus}
+                    onChange={(e) => setNewTaskStatus(e.target.value as any)}
+                    style={{ height: '36px', padding: '8px 12px', border: '1px solid #000000', borderRadius: '6px', fontSize: '14px', fontWeight: 400, color: '#000000', backgroundColor: '#ffffff', cursor: 'pointer', boxSizing: 'border-box' }}
+                  >
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Due Date & Assignee Selection */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', width: '100%', alignItems: 'end' }}>
                 {/* Due Date */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -3838,26 +3983,19 @@ function App() {
                   />
                 </div>
 
-                {/* Assignee Card */}
+                {/* Assignee Dropdown */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '14px', fontWeight: 500, lineHeight: '14px', color: '#000000' }}>Assignee</label>
-                  {(() => {
-                    const currentUserRecord = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
-                    const name = currentUserRecord?.cr5db_fullname || currentUserName || 'User';
-                    const initials = name.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase() || 'U';
-                    
-                    return (
-                      <div style={{ border: '1px solid #000000', borderRadius: '6px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px', boxSizing: 'border-box', height: '56px' }}>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: '1px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 600, color: '#000000', backgroundColor: '#ffffff' }}>
-                          {initials}
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span style={{ fontSize: '14px', fontWeight: 500, color: '#000000', lineHeight: '1.2' }}>{name}</span>
-                          <span style={{ fontSize: '12px', color: 'rgba(0, 0, 0, 0.7)', lineHeight: '1.2' }}>Assigned to you</span>
-                        </div>
-                      </div>
-                    );
-                  })()}
+                  <select
+                    value={newTaskAssigneeId}
+                    onChange={(e) => setNewTaskAssigneeId(e.target.value)}
+                    style={{ height: '36px', padding: '8px 12px', border: '1px solid #000000', borderRadius: '6px', fontSize: '14px', fontWeight: 400, color: '#000000', backgroundColor: '#ffffff', cursor: 'pointer', boxSizing: 'border-box', width: '100%' }}
+                  >
+                    <option value="">Chưa phân công</option>
+                    {usersList.map(u => (
+                      <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname} ({u.cr5db_email})</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -3867,11 +4005,21 @@ function App() {
                   type="submit" 
                   style={{ border: 'none', borderRadius: '6px', padding: '8px 16px', height: '36px', width: '485px', fontWeight: 500, fontSize: '14px', backgroundColor: '#000000', color: '#ffffff', cursor: 'pointer', boxSizing: 'border-box' }}
                 >
-                  Create Task
+                  {editingTask ? 'Save Changes' : 'Create Task'}
                 </button>
                 <button 
                   type="button" 
-                  onClick={() => setShowTaskModal(false)} 
+                  onClick={() => {
+                    setShowTaskModal(false);
+                    setEditingTask(null);
+                    setNewTaskName('');
+                    setNewTaskDesc('');
+                    setNewTaskProjectId('');
+                    setNewTaskPhaseId('');
+                    setNewTaskObjectiveId('');
+                    setNewTaskParentId('');
+                    setNewTaskAssigneeId('');
+                  }} 
                   style={{ border: '1px solid #000000', borderRadius: '6px', padding: '8px 16px', height: '36px', width: '485px', fontWeight: 500, fontSize: '14px', backgroundColor: 'transparent', color: '#000000', cursor: 'pointer', boxSizing: 'border-box' }}
                 >
                   Cancel
