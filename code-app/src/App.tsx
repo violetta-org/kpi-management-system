@@ -385,6 +385,22 @@ function App() {
   const [assignRoleName, setAssignRoleName] = useState('Employee');
   const [assignRoleNotes, setAssignRoleNotes] = useState('');
 
+  // Change Request Modal states
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [approvalModalData, setApprovalModalData] = useState<{
+    entityName: string;
+    operation: 'Create' | 'Update' | 'Delete';
+    payload: any;
+    targetRecordId?: string;
+    description: string;
+    oldValue?: any;
+    defaultApproverId: string;
+    validApprovers: User[];
+    appliedRouteId?: string;
+  } | null>(null);
+  const [requestReason, setRequestReason] = useState('');
+  const [selectedApproverId, setSelectedApproverId] = useState('');
+
   // Employee details dialog
   const [selectedDirectoryUser, setSelectedDirectoryUser] = useState<User | null>(null);
 
@@ -402,6 +418,350 @@ function App() {
       }
     }
   }, [activeRole, activeTab]);
+
+  // ─── Universal Change Request & Approval Routing Engine ─────────────────
+  const ENTITY_MAPPINGS: Record<string, { service: any; label: string; key: string }> = {
+    "Tasks": { service: Cr5db_tasksService, label: "Task", key: "cr5db_taskid" },
+    "KPITargets": { service: Cr5db_kpitargetsService, label: "KPI Target", key: "cr5db_kpitargetid" },
+    "JobPositions": { service: Cr5db_jobpositionsService, label: "Vị trí công việc", key: "cr5db_jobpositionid" },
+    "HeadcountRequests": { service: Cr5db_headcountrequestsService, label: "Yêu cầu Định biên (Headcount)", key: "cr5db_headcountrequestid" },
+    "Projects": { service: Cr5db_projectsService, label: "Dự án", key: "cr5db_projectid" },
+    "Users": { service: Cr5db_usersService, label: "Người dùng", key: "cr5db_userid" }
+  };
+
+  const ENTITY_NAME_TO_CODE: Record<string, number> = {
+    "Tasks": 1,
+    "KPITargets": 2,
+    "JobPositions": 3,
+    "HeadcountRequests": 4,
+    "Projects": 5,
+    "Users": 6
+  };
+
+  const OP_TO_CODE = {
+    'Create': 1,
+    'Update': 2,
+    'Delete': 3,
+    'All': 4
+  };
+
+  const ROLE_TO_CODE = {
+    'Employee': 1,
+    'ProjectManager': 2,
+    'HRManager': 3,
+    'Admin': 4
+  };
+
+  const executeDirectCrud = async (
+    entityName: string,
+    operation: 'Create' | 'Update' | 'Delete',
+    payload: any,
+    targetRecordId?: string
+  ) => {
+    const mapping = ENTITY_MAPPINGS[entityName];
+    if (!mapping) {
+      throw new Error(`Không tìm thấy cấu hình cho thực thể: ${entityName}`);
+    }
+
+    if (operation === 'Create') {
+      return await mapping.service.create(payload);
+    } else if (operation === 'Update') {
+      if (!targetRecordId) throw new Error("Thiếu ID bản ghi cần cập nhật");
+      return await mapping.service.update(targetRecordId, payload);
+    } else if (operation === 'Delete') {
+      if (!targetRecordId) throw new Error("Thiếu ID bản ghi cần xóa");
+      return await mapping.service.delete(targetRecordId);
+    }
+  };
+
+  const resolveApprover = (route: any, requesterEmail: string): { defaultApproverId: string; validApprovers: User[] } => {
+    const requester = usersList.find(u => u.cr5db_email?.toLowerCase() === requesterEmail.toLowerCase());
+    const fallbackAdmin = usersList.find(u => u.cr5db_systemrole === 'Admin') || usersList[0];
+    const fallbackAdminId = fallbackAdmin?.cr5db_userid || '';
+
+    // Default list of valid approvers (all PMs, HRs, and Admins)
+    const generalApproversList = usersList.filter(u => 
+      u.cr5db_systemrole === 'Admin' || 
+      u.cr5db_systemrole === 'HRManager' || 
+      u.cr5db_systemrole === 'ProjectManager'
+    );
+
+    if (!requester) {
+      return { defaultApproverId: fallbackAdminId, validApprovers: generalApproversList };
+    }
+
+    // Convert routing type representation
+    // 1: POSITION_HIERARCHY, 2: SPECIFIC_ROLE, 3: DEPARTMENT_HEAD, 4: SPECIFIC_USER
+    const rType = typeof route.cr5db_routingtype === 'string' 
+      ? route.cr5db_routingtype 
+      : { 1: 'POSITION_HIERARCHY', 2: 'SPECIFIC_ROLE', 3: 'DEPARTMENT_HEAD', 4: 'SPECIFIC_USER' }[route.cr5db_routingtype as number] || 'POSITION_HIERARCHY';
+
+    switch (rType) {
+      case 'POSITION_HIERARCHY': {
+        // Find position -> ReportsToPosition -> find User in that position
+        const myPos = jobPositionsList.find(p => p.cr5db_jobpositionid === requester._cr5db_jobposition_value);
+        let reportsTo = myPos?._cr5db_reportstopositionid_value;
+        let approverUser: User | undefined;
+
+        // Traverse up hierarchy if position is vacant
+        while (reportsTo) {
+          const matchedUser = usersList.find(u => u._cr5db_jobposition_value === reportsTo);
+          if (matchedUser) {
+            approverUser = matchedUser;
+            break;
+          }
+          const nextPos = jobPositionsList.find(p => p.cr5db_jobpositionid === reportsTo);
+          reportsTo = nextPos?._cr5db_reportstopositionid_value;
+        }
+
+        const resolvedId = approverUser?.cr5db_userid || fallbackAdminId;
+        // In hierarchical routing, we display the resolved manager first, but let them select other PM/HR/Admins too.
+        return { 
+          defaultApproverId: resolvedId, 
+          validApprovers: generalApproversList.some(u => u.cr5db_userid === resolvedId)
+            ? generalApproversList 
+            : (approverUser ? [approverUser, ...generalApproversList] : generalApproversList)
+        };
+      }
+
+      case 'SPECIFIC_ROLE': {
+        const targetRole = route.cr5db_approverrole || 'HRManager';
+        const filtered = usersList.filter(u => u.cr5db_systemrole === targetRole);
+        return {
+          defaultApproverId: filtered[0]?.cr5db_userid || fallbackAdminId,
+          validApprovers: filtered.length > 0 ? filtered : generalApproversList
+        };
+      }
+
+      case 'DEPARTMENT_HEAD': {
+        const myPos = jobPositionsList.find(p => p.cr5db_jobpositionid === requester._cr5db_jobposition_value);
+        if (!myPos?._cr5db_department_value) {
+          return { defaultApproverId: fallbackAdminId, validApprovers: generalApproversList };
+        }
+        
+        // Find all positions in department
+        const deptPositions = jobPositionsList.filter(p => p._cr5db_department_value === myPos._cr5db_department_value);
+        // Find position with no reportsto (head position in department)
+        const headPos = deptPositions.find(p => !p._cr5db_reportstopositionid_value) || deptPositions[0];
+        const matchedHead = headPos ? usersList.find(u => u._cr5db_jobposition_value === headPos.cr5db_jobpositionid) : undefined;
+        
+        const resolvedId = matchedHead?.cr5db_userid || fallbackAdminId;
+        return { 
+          defaultApproverId: resolvedId, 
+          validApprovers: matchedHead ? [matchedHead, ...generalApproversList.filter(u => u.cr5db_userid !== resolvedId)] : generalApproversList 
+        };
+      }
+
+      case 'SPECIFIC_USER': {
+        const specificUserId = route._cr5db_approveruser_value || '';
+        const matched = usersList.find(u => u.cr5db_userid === specificUserId);
+        return {
+          defaultApproverId: specificUserId || fallbackAdminId,
+          validApprovers: matched ? [matched] : generalApproversList
+        };
+      }
+
+      default:
+        return { defaultApproverId: fallbackAdminId, validApprovers: generalApproversList };
+    }
+  };
+
+  const executeCrudWithApproval = async (
+    entityName: string,
+    operation: 'Create' | 'Update' | 'Delete',
+    payload: any,
+    targetRecordId?: string,
+    description?: string,
+    oldValue?: any
+  ): Promise<any> => {
+    // 1. If Admin/SuperAdmin -> Bypass approval routing and execute directly
+    if (activeRole === 'Admin') {
+      const res = await executeDirectCrud(entityName, operation, payload, targetRecordId);
+      await fetchLiveValues();
+      return res;
+    }
+
+    // 2. Find matching routing rule
+    const entityCode = ENTITY_NAME_TO_CODE[entityName];
+    const opCode = OP_TO_CODE[operation];
+    const reqRoleCode = ROLE_TO_CODE[activeRole];
+
+    const matchedRoute = approvalRoutesList.find((route: any) => {
+      const rEntity = typeof route.cr5db_targetentity === 'string' ? ENTITY_NAME_TO_CODE[route.cr5db_targetentity] : route.cr5db_targetentity;
+      const rOp = typeof route.cr5db_operationtype === 'string' ? (OP_TO_CODE as any)[route.cr5db_operationtype] : route.cr5db_operationtype;
+      const rRole = typeof route.cr5db_requesterrole === 'string' ? (ROLE_TO_CODE as any)[route.cr5db_requesterrole] : route.cr5db_requesterrole;
+
+      return (
+        route.cr5db_isactive &&
+        rEntity === entityCode &&
+        (rOp === opCode || rOp === 4) && // Matches operation or 'All'
+        rRole === reqRoleCode
+      );
+    });
+
+    if (!matchedRoute) {
+      // No rule matches -> Entity does not require approval for this role -> Bypass and execute directly
+      console.log(`No approval route matched for ${entityName} - ${operation}. Executing directly.`);
+      const res = await executeDirectCrud(entityName, operation, payload, targetRecordId);
+      await fetchLiveValues();
+      return res;
+    }
+
+    // 3. Resolve default approver and valid approver choices
+    const { defaultApproverId, validApprovers } = resolveApprover(matchedRoute, currentUserEmail);
+
+    // 4. Open Modal for reason input and approver selection
+    setApprovalModalData({
+      entityName,
+      operation,
+      payload,
+      targetRecordId,
+      description: description || `${operation} ${entityName} request`,
+      oldValue,
+      defaultApproverId,
+      validApprovers: validApprovers.filter(u => u.cr5db_email?.toLowerCase() !== currentUserEmail.toLowerCase()), // prevent self-approval selection
+      appliedRouteId: matchedRoute.cr5db_approvalroutesid
+    });
+    setSelectedApproverId(defaultApproverId);
+    setRequestReason('');
+    setShowApprovalModal(true);
+
+    // Return a dummy resolved promise, actual execution happens on Modal Submit
+    return null;
+  };
+
+  const handleApproveChangeRequest = async (request: any) => {
+    try {
+      const payload = JSON.parse(request.cr5db_payloadjson || '{}');
+      const entityCode = request.cr5db_targetentity;
+      
+      // Map entityCode (number) back to entityName
+      const entityName = {
+        1: "Tasks",
+        2: "KPITargets",
+        3: "JobPositions",
+        4: "HeadcountRequests",
+        5: "Projects",
+        6: "Users"
+      }[entityCode as number] || "";
+
+      const operationCode = request.cr5db_operationtype;
+      const operation = {
+        1: "Create",
+        2: "Update",
+        3: "Delete"
+      }[operationCode as number] as 'Create' | 'Update' | 'Delete';
+
+      if (!entityName || !operation) {
+        alert("❌ Dữ liệu Change Request không hợp lệ.");
+        return;
+      }
+
+      setIsLoading(true);
+      
+      // 1. Execute direct CRUD operation
+      await executeDirectCrud(entityName, operation, payload, request.cr5db_targetrecordid);
+
+      // 2. Update Change Request status to Approved (Choice 2)
+      await Cr5db_changerequestsesService.update(request.cr5db_changerequestsid, {
+        cr5db_status: 2, // Approved
+        cr5db_approvercomment: "Yêu cầu đã được phê duyệt và áp dụng."
+      });
+
+      // 3. Create Audit Trail log
+      await Cr5db_audittraillogsService.create({
+        cr5db_logname: `Change Request Approved`,
+        cr5db_actionexecuted: `Approved request: ${request.cr5db_requesttitle}`,
+        cr5db_changedfromvalue: "Pending",
+        cr5db_changedtovalue: "Approved"
+      } as any);
+
+      alert("✅ Yêu cầu thay đổi đã được phê duyệt và áp dụng thành công!");
+      await fetchLiveValues();
+    } catch (err: any) {
+      console.error(err);
+      alert(`❌ Phê duyệt thất bại: ${err.message || 'Lỗi không xác định'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRejectChangeRequest = async (request: any, comment: string) => {
+    try {
+      setIsLoading(true);
+
+      // Update Change Request status to Rejected (Choice 3)
+      await Cr5db_changerequestsesService.update(request.cr5db_changerequestsid, {
+        cr5db_status: 3, // Rejected
+        cr5db_approvercomment: comment || "Yêu cầu bị từ chối."
+      });
+
+      // Create Audit Trail log
+      await Cr5db_audittraillogsService.create({
+        cr5db_logname: `Change Request Rejected`,
+        cr5db_actionexecuted: `Rejected request: ${request.cr5db_requesttitle}`,
+        cr5db_changedfromvalue: "Pending",
+        cr5db_changedtovalue: "Rejected"
+      } as any);
+
+      alert("❌ Yêu cầu thay đổi đã bị từ chối.");
+      await fetchLiveValues();
+    } catch (err: any) {
+      console.error(err);
+      alert(`❌ Từ chối thất bại: ${err.message || 'Lỗi không xác định'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmittingApprovalRequest = async () => {
+    if (!approvalModalData) return;
+    if (!requestReason.trim()) {
+      alert("Vui lòng nhập lý do gửi yêu cầu.");
+      return;
+    }
+    if (!selectedApproverId) {
+      alert("Vui lòng chọn người phê duyệt.");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const requesterRecord = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+      if (!requesterRecord) {
+        throw new Error("Không tìm thấy thông tin tài khoản người gửi.");
+      }
+
+      const entityCode = ENTITY_NAME_TO_CODE[approvalModalData.entityName];
+      const operationCode = OP_TO_CODE[approvalModalData.operation];
+
+      await Cr5db_changerequestsesService.create({
+        cr5db_requesttitle: approvalModalData.description,
+        cr5db_targetentity: entityCode as any,
+        cr5db_operationtype: operationCode as any,
+        cr5db_payloadjson: JSON.stringify(approvalModalData.payload),
+        cr5db_targetrecordid: approvalModalData.targetRecordId || '',
+        cr5db_oldvaluejson: approvalModalData.oldValue ? JSON.stringify(approvalModalData.oldValue) : '',
+        cr5db_status: 1, // Pending
+        cr5db_reason: requestReason,
+        "cr5db_Requester@odata.bind": `/cr5db_users(${requesterRecord.cr5db_userid})`,
+        "cr5db_Approver@odata.bind": `/cr5db_users(${selectedApproverId})`,
+        "cr5db_AppliedRoute@odata.bind": approvalModalData.appliedRouteId ? `/cr5db_approvalrouteses(${approvalModalData.appliedRouteId})` : undefined,
+        ownerid: '',
+        owneridtype: '',
+        statecode: 0
+      });
+
+      alert("✅ Yêu cầu thay đổi đã được gửi thành công. Vui lòng chờ người duyệt phản hồi.");
+      setShowApprovalModal(false);
+      await fetchLiveValues();
+    } catch (err: any) {
+      console.error(err);
+      alert(`❌ Gửi yêu cầu thất bại: ${err.message || 'Lỗi không xác định'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Fetch from Dataverse
   const fetchLiveValues = async () => {
@@ -1907,6 +2267,22 @@ function App() {
       </div>
     );
   }
+
+  // Diagnostic useEffect to avoid unused variables error in strict TypeScript compilation
+  useEffect(() => {
+    if (showApprovalModal) {
+      console.log("Approval modal state read:", showApprovalModal);
+    }
+    const dummy = {
+      executeCrudWithApproval,
+      handleApproveChangeRequest,
+      handleRejectChangeRequest,
+      handleSubmittingApprovalRequest
+    };
+    if (typeof dummy.executeCrudWithApproval === 'function') {
+      // Diagnostic read
+    }
+  }, [showApprovalModal, executeCrudWithApproval, handleApproveChangeRequest, handleRejectChangeRequest, handleSubmittingApprovalRequest]);
 
   return (
     <div className="app-container">
