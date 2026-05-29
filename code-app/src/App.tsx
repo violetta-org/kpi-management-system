@@ -22,8 +22,8 @@ import { Cr5db_projectrisksService } from './generated/services/Cr5db_projectris
 import { Cr5db_kpilibrariesService } from './generated/services/Cr5db_kpilibrariesService';
 import { Cr5db_objectivesService } from './generated/services/Cr5db_objectivesService';
 import { Cr5db_resourceallocationsService } from './generated/services/Cr5db_resourceallocationsService';
-import { Cr5db_projectteamsService } from './generated/services/Cr5db_projectteamsService';
-import { Cr5db_projectobjectivealignmentsService } from './generated/services/Cr5db_projectobjectivealignmentsService';
+// import { Cr5db_projectteamsService } from './generated/services/Cr5db_projectteamsService';
+// import { Cr5db_projectobjectivealignmentsService } from './generated/services/Cr5db_projectobjectivealignmentsService';
 import { Cr5db_approvalroutesesService } from './generated/services/Cr5db_approvalroutesesService';
 import { Cr5db_changerequestsesService } from './generated/services/Cr5db_changerequestsesService';
 
@@ -1898,8 +1898,7 @@ function App() {
       setIsLoading(false);
     }
   };
-
-  const handleDeleteEmployee = async (user: User) => {
+      const handleDeleteEmployee = async (user: User) => {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn nhân viên ${user.cr5db_fullname} khỏi hệ thống?`)) {
       return;
     }
@@ -1947,26 +1946,39 @@ function App() {
       };
 
       if (editingProject) {
-        await Cr5db_projectsService.update(editingProject.cr5db_projectid, payload);
+        await executeCrudWithApproval(
+          "Projects",
+          "Update",
+          payload,
+          editingProject.cr5db_projectid,
+          `Cập nhật dự án: ${projectName}`,
+          editingProject
+        );
         
         // Audit log
         const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
         await Cr5db_audittraillogsService.create({
-          cr5db_logname: "Project Update",
-          cr5db_actionexecuted: `Updated project ${projectName}`,
+          cr5db_logname: "Project Update Request",
+          cr5db_actionexecuted: `Requested/Executed project update: ${projectName}`,
           cr5db_changedfromvalue: editingProject.cr5db_projectname,
-          cr5db_changedtovalue: `Updated By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+          cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
         } as any);
       } else {
-        await Cr5db_projectsService.create(payload);
+        await executeCrudWithApproval(
+          "Projects",
+          "Create",
+          payload,
+          undefined,
+          `Tạo mới dự án: ${projectName}`
+        );
 
         // Audit log
         const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
         await Cr5db_audittraillogsService.create({
-          cr5db_logname: "Project Creation",
-          cr5db_actionexecuted: `Created new project ${projectName}`,
+          cr5db_logname: "Project Creation Request",
+          cr5db_actionexecuted: `Requested/Executed new project creation: ${projectName}`,
           cr5db_changedfromvalue: "None",
-          cr5db_changedtovalue: `Created By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+          cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
         } as any);
       }
 
@@ -1977,7 +1989,6 @@ function App() {
       setProjectStartDate('');
       setProjectEndDate('');
       setProjectStatus('Not Started');
-      await fetchLiveValues();
     } catch (err) {
       console.error(err);
       alert("Không thể lưu dự án.");
@@ -1990,62 +2001,26 @@ function App() {
     try {
       setIsLoading(true);
       const targetProj = projects.find(p => p.cr5db_projectid === id);
-
-      // 1. Delete Project Objective Alignments
-      const alignmentsResponse = await Cr5db_projectobjectivealignmentsService.getAll();
-      const allAlignments = alignmentsResponse.data || [];
-      const alignmentsToDelete = allAlignments.filter((a: any) => a._cr5db_project_value === id || a._cr5db_projectid_value === id);
-      for (const align of alignmentsToDelete) {
-        await Cr5db_projectobjectivealignmentsService.delete(align.cr5db_projectobjectivealignmentid);
-      }
-
-      // 2. Clear project phase references on tasks & delete Project Phases
-      const phasesToDelete = projectPhases.filter(ph => ph._cr5db_projectid_value === id);
-      for (const ph of phasesToDelete) {
-        const linkedTasks = tasks.filter(t => t._cr5db_projectphaseid_value === ph.cr5db_projectphaseid);
-        for (const t of linkedTasks) {
-          // Clear association
-          await Cr5db_tasksService.update(t.cr5db_taskid, {
-            "cr5db_ProjectPhaseID@odata.bind": null
-          } as any);
-        }
-        await Cr5db_projectphasesService.delete(ph.cr5db_projectphaseid);
-      }
-
-      // 3. Delete Project Risks
-      const risksToDelete = projectRisks.filter(risk => risk._cr5db_projectid_value === id || risk._cr5db_project_value === id);
-      for (const r of risksToDelete) {
-        await Cr5db_projectrisksService.delete(r.cr5db_projectriskid);
-      }
-
-      // 4. Delete Resource Allocations & Project Teams
-      const teamsResponse = await Cr5db_projectteamsService.getAll();
-      const allTeams = teamsResponse.data || [];
-      const teamsToDelete = allTeams.filter((t: any) => t._cr5db_projectid_value === id);
-      for (const team of teamsToDelete) {
-        const allocsToDelete = resourceAllocationsList.filter(alloc => alloc._cr5db_projectteamid_value === team.cr5db_projectteamid);
-        for (const alloc of allocsToDelete) {
-          await Cr5db_resourceallocationsService.delete(alloc.cr5db_resourceallocationid);
-        }
-        await Cr5db_projectteamsService.delete(team.cr5db_projectteamid);
-      }
-
-      // 5. Delete the Project itself
-      await Cr5db_projectsService.delete(id);
+      await executeCrudWithApproval(
+        "Projects",
+        "Delete",
+        null,
+        id,
+        `Xóa dự án: ${targetProj?.cr5db_projectname || id}`,
+        targetProj
+      );
 
       // Audit Log
       const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       await Cr5db_audittraillogsService.create({
-        cr5db_logname: "Project Deletion",
-        cr5db_actionexecuted: `Deleted project ${targetProj?.cr5db_projectname || id} along with linked records`,
+        cr5db_logname: "Project Deletion Request",
+        cr5db_actionexecuted: `Requested/Executed deletion for project: ${targetProj?.cr5db_projectname || id}`,
         cr5db_changedfromvalue: targetProj?.cr5db_projectname || "None",
-        cr5db_changedtovalue: `Deleted By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+        cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
       } as any);
-
-      await fetchLiveValues();
     } catch (err) {
       console.error(err);
-      alert("Không thể xóa dự án. Vui lòng kiểm tra lại quyền hạn hoặc thử lại.");
+      alert("Không thể xóa dự án.");
       setIsLoading(false);
     }
   };
