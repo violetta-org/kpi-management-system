@@ -1153,7 +1153,7 @@ function App() {
 
       if (editingHeadcountRequest) {
         let isTransitioningToApproved = false;
-        if (activeRole === 'Admin' || activeRole === 'HRManager') {
+        if (activeRole === 'Admin') {
           let statusVal = 122650000;
           if (newReqStatus === 'Approved') {
             statusVal = 122650001;
@@ -1930,6 +1930,9 @@ function App() {
               <span className="nav-icon"><PerformanceIcon /></span>Performance
             </button>
           )}
+          <button onClick={() => setActiveTab('requests')} className={`nav-item ${activeTab === 'requests' ? 'active' : ''}`}>
+            <span className="nav-icon"><BellIcon /></span>Requests
+          </button>
 
           {(activeRole === 'ProjectManager' || activeRole === 'HRManager' || activeRole === 'Admin') && (
             <>
@@ -1952,9 +1955,6 @@ function App() {
               </button>
               <button onClick={() => setActiveTab('headcount')} className={`nav-item ${activeTab === 'headcount' ? 'active' : ''}`}>
                 <span className="nav-icon"><ShieldIcon /></span>Headcount
-              </button>
-              <button onClick={() => setActiveTab('requests')} className={`nav-item ${activeTab === 'requests' ? 'active' : ''}`}>
-                <span className="nav-icon"><BellIcon /></span>Requests
               </button>
             </>
           )}
@@ -3229,7 +3229,7 @@ function App() {
                             </>
                           )}
                           
-                          {(activeRole === 'Admin' || activeRole === 'HRManager') && (
+                          {activeRole === 'Admin' && (
                             <>
                               <button
                                 onClick={() => {
@@ -4254,7 +4254,7 @@ function App() {
                 <textarea value={newReqReason} onChange={(e) => setNewReqReason(e.target.value)} className="input-spec" style={{ height: '70px', fontFamily: 'inherit' }} placeholder="Lý do..." />
               </div>
               
-              {editingHeadcountRequest && (activeRole === 'Admin' || activeRole === 'HRManager') && (
+              {editingHeadcountRequest && activeRole === 'Admin' && (
                 <div>
                   <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Trạng thái phê duyệt</label>
                   <select value={newReqStatus} onChange={(e) => setNewReqStatus(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
