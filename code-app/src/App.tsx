@@ -568,14 +568,17 @@ function App() {
 
       // Map Tasks
       const mappedTasks: Task[] = (tasksResponse.data || []).map(t => {
-        const assignee = allUsers.find(u => u.cr5db_userid === t._cr5db_assigneeid_value);
+        const assigneeLookup = t.cr5db_assigneeid as any;
+        const assigneeId = t._cr5db_assigneeid_value || assigneeLookup?.cr5db_userid || assigneeLookup?.id || '';
+        const assignee = assigneeId ? allUsers.find(u => u.cr5db_userid === assigneeId) : undefined;
+        const assigneeName = t.cr5db_assigneeidname || assigneeLookup?.name || assigneeLookup?.cr5db_fullname || '';
         return {
           cr5db_taskid: t.cr5db_taskid,
           cr5db_taskname: t.cr5db_taskname,
           cr5db_description: t.cr5db_description || '',
           cr5db_status: t.statecode === 1 ? 'Completed' : 'In Progress',
           cr5db_assignee_email: assignee?.cr5db_email || '',
-          cr5db_assignee_name: t.cr5db_assigneeidname || 'Chưa phân công',
+          cr5db_assignee_name: assignee?.cr5db_fullname || assigneeName || 'Chưa phân công',
           cr5db_project_name: t.cr5db_projectphaseidname || 'Không thuộc dự án',
           cr5db_due_date: t.cr5db_duedate || '',
           _cr5db_parenttask_value: t._cr5db_parenttask_value || undefined,
