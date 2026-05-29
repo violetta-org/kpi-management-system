@@ -1817,27 +1817,40 @@ function App() {
 
       if (editingEmployee) {
         // Update user
-        await Cr5db_usersService.update(editingEmployee.cr5db_userid, payload);
+        await executeCrudWithApproval(
+          "Users",
+          "Update",
+          payload,
+          editingEmployee.cr5db_userid,
+          `Cập nhật nhân viên: ${employeeFullName}`,
+          editingEmployee
+        );
 
         // Add to audit trail log
         const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
         await Cr5db_audittraillogsService.create({
-          cr5db_logname: "Employee Update",
-          cr5db_actionexecuted: `Updated employee ${editingEmployee.cr5db_fullname} (${employeeEmail})`,
+          cr5db_logname: "Employee Update Request",
+          cr5db_actionexecuted: `Requested/Executed employee update: ${editingEmployee.cr5db_fullname} (${employeeEmail})`,
           cr5db_changedfromvalue: editingEmployee.cr5db_systemrole || "None",
-          cr5db_changedtovalue: `Updated By: ${activeUserObj?.cr5db_fullname || currentUserEmail} | Active: ${employeeIsActive} | Role: ${employeeRole}`
+          cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
         } as any);
       } else {
         // Create user
-        await Cr5db_usersService.create(payload);
+        await executeCrudWithApproval(
+          "Users",
+          "Create",
+          payload,
+          undefined,
+          `Tạo mới nhân viên: ${employeeFullName}`
+        );
 
         // Add to audit trail log
         const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
         await Cr5db_audittraillogsService.create({
-          cr5db_logname: "Employee Creation",
-          cr5db_actionexecuted: `Created new employee ${employeeFullName} (${employeeEmail})`,
+          cr5db_logname: "Employee Creation Request",
+          cr5db_actionexecuted: `Requested/Executed employee creation: ${employeeFullName} (${employeeEmail})`,
           cr5db_changedfromvalue: "None",
-          cr5db_changedtovalue: `Created By: ${activeUserObj?.cr5db_fullname || currentUserEmail} | Active: ${employeeIsActive} | Role: ${employeeRole}`
+          cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
         } as any);
       }
 
@@ -1848,7 +1861,6 @@ function App() {
       setEmployeeRole('Employee');
       setEmployeeJobPositionId('');
       setEmployeeIsActive(true);
-      await fetchLiveValues();
     } catch (err) {
       console.error(err);
       alert("Không thể lưu thông tin nhân viên.");
@@ -1860,20 +1872,26 @@ function App() {
     try {
       setIsLoading(true);
       const newActiveState = !user.cr5db_isactive;
-      await Cr5db_usersService.update(user.cr5db_userid, {
+      const payload = {
         cr5db_isactive: newActiveState
-      } as any);
+      };
+      await executeCrudWithApproval(
+        "Users",
+        "Update",
+        payload,
+        user.cr5db_userid,
+        `Chuyển trạng thái hoạt động nhân viên ${user.cr5db_fullname} sang ${newActiveState ? "Hoạt động" : "Ngừng hoạt động"}`,
+        user
+      );
 
       // Audit Log
       const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       await Cr5db_audittraillogsService.create({
-        cr5db_logname: "Employee Status Toggle",
-        cr5db_actionexecuted: `Toggled employee ${user.cr5db_fullname} status to ${newActiveState ? "Active" : "Inactive"}`,
+        cr5db_logname: "Employee Status Toggle Request",
+        cr5db_actionexecuted: `Requested/Executed toggle for employee ${user.cr5db_fullname} status to ${newActiveState ? "Active" : "Inactive"}`,
         cr5db_changedfromvalue: user.cr5db_isactive ? "Active" : "Inactive",
-        cr5db_changedtovalue: `Toggled By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+        cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
       } as any);
-
-      await fetchLiveValues();
     } catch (err) {
       console.error(err);
       alert("Không thể chuyển đổi trạng thái hoạt động của nhân viên.");
@@ -1887,18 +1905,23 @@ function App() {
     }
     try {
       setIsLoading(true);
-      await Cr5db_usersService.delete(user.cr5db_userid);
+      await executeCrudWithApproval(
+        "Users",
+        "Delete",
+        null,
+        user.cr5db_userid,
+        `Xóa nhân viên: ${user.cr5db_fullname}`,
+        user
+      );
 
       // Audit Log
       const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       await Cr5db_audittraillogsService.create({
-        cr5db_logname: "Employee Deletion",
-        cr5db_actionexecuted: `Deleted employee ${user.cr5db_fullname} (${user.cr5db_email || 'No email'})`,
+        cr5db_logname: "Employee Deletion Request",
+        cr5db_actionexecuted: `Requested/Executed employee deletion: ${user.cr5db_fullname} (${user.cr5db_email || 'No email'})`,
         cr5db_changedfromvalue: user.cr5db_systemrole || "None",
-        cr5db_changedtovalue: `Deleted By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+        cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
       } as any);
-
-      await fetchLiveValues();
     } catch (err) {
       console.error(err);
       alert("Không thể xóa nhân viên.");
