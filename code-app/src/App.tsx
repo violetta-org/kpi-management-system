@@ -936,6 +936,10 @@ function App() {
   const handleAssignRole = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assignRoleUserId) return;
+    if (activeRole !== 'Admin' && assignRoleName === 'Admin') {
+      alert("Bạn không có quyền gán vai trò Super Admin.");
+      return;
+    }
     try {
       setIsLoading(true);
       
@@ -968,6 +972,12 @@ function App() {
     try {
       setIsLoading(true);
       const targetUserObj = usersList.find(u => u.cr5db_userid === userId);
+      
+      if (activeRole !== 'Admin' && targetUserObj?.cr5db_systemrole === 'Admin') {
+        alert("Bạn không có quyền thu hồi vai trò Super Admin.");
+        setIsLoading(false);
+        return;
+      }
       
       // Update in user table
       await Cr5db_usersService.update(userId, {
@@ -2559,7 +2569,7 @@ function App() {
                           <td style={{ padding: '14px 20px' }}>{u.cr5db_systemrole || 'None'}</td>
                           <td style={{ padding: '14px 20px' }}>{getDerivedRole(u.cr5db_jobpositionname)}</td>
                           <td style={{ padding: '14px 20px' }}>
-                            {u.cr5db_systemrole && (
+                            {u.cr5db_systemrole && (u.cr5db_systemrole !== 'Admin' || activeRole === 'Admin') && (
                               <button onClick={() => handleRevokeRole(u.cr5db_userid)} className="btn-filled-3" style={{ padding: '4px 8px', color: '#a80000' }}>Revoke</button>
                             )}
                           </td>
@@ -3053,7 +3063,7 @@ function App() {
                   <option value="Employee">Employee</option>
                   <option value="ProjectManager">Project Manager</option>
                   <option value="HRManager">HR Manager</option>
-                  <option value="Admin">Super Admin</option>
+                  {activeRole === 'Admin' && <option value="Admin">Super Admin</option>}
                 </select>
               </div>
               <div>
