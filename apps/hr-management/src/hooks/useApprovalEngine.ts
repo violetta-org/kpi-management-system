@@ -302,8 +302,9 @@ export function buildApprovalEngine(ctx: ApprovalEngineContext) {
       await Cr5db_audittraillogsService.create({ cr5db_logname: 'Change Request Approved', cr5db_actionexecuted: `Approved request: ${request.cr5db_requesttitle}`, cr5db_changedfromvalue: 'Pending', cr5db_changedtovalue: 'Approved' } as any);
 
       const requesterUser = ctx.usersList.find(u => u.cr5db_userid === request._cr5db_requester_value);
-      if (requesterUser?.ownerid) {
-        await Cr5db_systemnotificationsService.create({ cr5db_systemnotification1: 'Yêu cầu được phê duyệt', cr5db_content: `Yêu cầu thay đổi "${request.cr5db_requesttitle}" của bạn đã được phê duyệt và áp dụng thành công.`, cr5db_deeplinkurl: '#requests', cr5db_isread: false, ownerid: requesterUser.ownerid, owneridtype: requesterUser.owneridtype || 'systemusers', statecode: 0 }).catch(e => console.error('Notification error:', e));
+      const requesterOwnerId = requesterUser?.ownerid || (requesterUser as any)?._ownerid_value;
+      if (requesterOwnerId) {
+        await Cr5db_systemnotificationsService.create({ cr5db_systemnotification1: 'Yêu cầu được phê duyệt', cr5db_content: `Yêu cầu thay đổi "${request.cr5db_requesttitle}" của bạn đã được phê duyệt và áp dụng thành công.`, cr5db_deeplinkurl: '#requests', cr5db_isread: false, ownerid: requesterOwnerId, owneridtype: requesterUser?.owneridtype || 'systemusers', statecode: 0 }).catch(e => console.error('Notification error:', e));
       }
 
       alert('✅ Yêu cầu thay đổi đã được phê duyệt và áp dụng thành công!');
@@ -323,8 +324,9 @@ export function buildApprovalEngine(ctx: ApprovalEngineContext) {
       await Cr5db_audittraillogsService.create({ cr5db_logname: 'Change Request Rejected', cr5db_actionexecuted: `Rejected request: ${request.cr5db_requesttitle}`, cr5db_changedfromvalue: 'Pending', cr5db_changedtovalue: 'Rejected' } as any);
 
       const requesterUser = ctx.usersList.find(u => u.cr5db_userid === request._cr5db_requester_value);
-      if (requesterUser?.ownerid) {
-        await Cr5db_systemnotificationsService.create({ cr5db_systemnotification1: 'Yêu cầu bị từ chối', cr5db_content: `Yêu cầu thay đổi "${request.cr5db_requesttitle}" của bạn đã bị từ chối. Lý do: ${comment || 'Không có bình luận.'}`, cr5db_deeplinkurl: '#requests', cr5db_isread: false, ownerid: requesterUser.ownerid, owneridtype: requesterUser.owneridtype || 'systemusers', statecode: 0 }).catch(e => console.error('Notification error:', e));
+      const requesterOwnerId = requesterUser?.ownerid || (requesterUser as any)?._ownerid_value;
+      if (requesterOwnerId) {
+        await Cr5db_systemnotificationsService.create({ cr5db_systemnotification1: 'Yêu cầu bị từ chối', cr5db_content: `Yêu cầu thay đổi "${request.cr5db_requesttitle}" của bạn đã bị từ chối. Lý do: ${comment || 'Không có bình luận.'}`, cr5db_deeplinkurl: '#requests', cr5db_isread: false, ownerid: requesterOwnerId, owneridtype: requesterUser?.owneridtype || 'systemusers', statecode: 0 }).catch(e => console.error('Notification error:', e));
       }
 
       alert('❌ Yêu cầu thay đổi đã bị từ chối.');
@@ -370,8 +372,9 @@ export function buildApprovalEngine(ctx: ApprovalEngineContext) {
       }
 
       const approverUser = ctx.usersList.find(u => u.cr5db_userid === ctx.selectedApproverId);
-      if (approverUser?.ownerid) {
-        await Cr5db_systemnotificationsService.create({ cr5db_systemnotification1: 'Yêu cầu phê duyệt mới', cr5db_content: `${requesterRecord.cr5db_fullname} đã gửi yêu cầu thay đổi: ${ctx.approvalModalData.description}. Vui lòng phê duyệt hoặc từ chối.`, cr5db_deeplinkurl: '#requests', cr5db_isread: false, ownerid: approverUser.ownerid, owneridtype: approverUser.owneridtype || 'systemusers', statecode: 0 }).catch(e => console.error('Notification error:', e));
+      const approverOwnerId = approverUser?.ownerid || (approverUser as any)?._ownerid_value;
+      if (approverOwnerId) {
+        await Cr5db_systemnotificationsService.create({ cr5db_systemnotification1: 'Yêu cầu phê duyệt mới', cr5db_content: `${requesterRecord.cr5db_fullname} đã gửi yêu cầu thay đổi: ${ctx.approvalModalData.description}. Vui lòng phê duyệt hoặc từ chối.`, cr5db_deeplinkurl: '#requests', cr5db_isread: false, ownerid: approverOwnerId, owneridtype: approverUser?.owneridtype || 'systemusers', statecode: 0 }).catch(e => console.error('Notification error:', e));
       }
 
       alert('✅ Yêu cầu thay đổi đã được gửi thành công. Vui lòng chờ người duyệt phản hồi.');
