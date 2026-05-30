@@ -27,7 +27,13 @@ import {
   Cr5db_systemnotificationsService,
   Cr5db_systemparametersService,
   Cr5db_systempolicyrulesService,
-  Cr5db_approvalroutesesService
+  Cr5db_approvalroutesesService,
+  Cr5db_taskdependenciesService,
+  Cr5db_tasklabelassignmentsService,
+  Cr5db_projectissuesService,
+  Cr5db_approvaldelegationsService,
+  Cr5db_audittraillogsService,
+  Cr5db_changerequestsesService
 } from '../generated';
 
 export async function runWebSeeding(progressCallback: (status: string) => void): Promise<void> {
@@ -512,4 +518,79 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
   });
 
   progressCallback("Hoàn tất Seeding thành công!");
+}
+
+export async function runWebCleanup(progressCallback: (status: string) => void): Promise<void> {
+  const tryDeleteAll = async (tableName: string, service: any) => {
+    try {
+      progressCallback(`Đang dọn dẹp bảng ${tableName}...`);
+      const res = await service.getAll();
+      const records = res?.data || [];
+      if (records.length === 0) return;
+      
+      const idField = `${tableName}id`;
+      for (const rec of records) {
+        const id = rec[idField];
+        if (id) {
+          await service.delete(id);
+        }
+      }
+    } catch (error) {
+      console.warn(`[Cleanup Warning] Failed during clean up of "${tableName}":`, error);
+    }
+  };
+
+  // Import services needed for deletion (already available via scope)
+  await tryDeleteAll("cr5db_appraisalkpidetails", Cr5db_appraisalkpidetailsService);
+  await tryDeleteAll("cr5db_performanceappraisals", Cr5db_performanceappraisalsService);
+  await tryDeleteAll("cr5db_kpiactuallogs", Cr5db_kpiactuallogsService);
+  await tryDeleteAll("cr5db_kpitargets", Cr5db_kpitargetsService);
+  await tryDeleteAll("cr5db_timesheetlogs", Cr5db_timesheetlogsService);
+  await tryDeleteAll("cr5db_taskcomments", Cr5db_taskcommentsService);
+  await tryDeleteAll("cr5db_taskdependencies", Cr5db_taskdependenciesService);
+  await tryDeleteAll("cr5db_tasklabelassignments", Cr5db_tasklabelassignmentsService);
+  await tryDeleteAll("cr5db_projectlabelassignments", Cr5db_projectlabelassignmentsService);
+  await tryDeleteAll("cr5db_projectobjectivealignments", Cr5db_projectobjectivealignmentsService);
+  await tryDeleteAll("cr5db_projectissues", Cr5db_projectissuesService);
+  await tryDeleteAll("cr5db_projectrisks", Cr5db_projectrisksService);
+  await tryDeleteAll("cr5db_tasks", Cr5db_tasksService);
+  await tryDeleteAll("cr5db_userprojectroles", Cr5db_userprojectrolesService);
+  await tryDeleteAll("cr5db_resourceallocations", Cr5db_resourceallocationsService);
+  await tryDeleteAll("cr5db_projectteams", Cr5db_projectteamsService);
+  await tryDeleteAll("cr5db_projectphases", Cr5db_projectphasesService);
+  await tryDeleteAll("cr5db_projects", Cr5db_projectsService);
+  await tryDeleteAll("cr5db_objectives", Cr5db_objectivesService);
+  await tryDeleteAll("cr5db_kpilibraries", Cr5db_kpilibrariesService);
+  await tryDeleteAll("cr5db_evaluationperiods", Cr5db_evaluationperiodsService);
+  await tryDeleteAll("cr5db_users", Cr5db_usersService);
+  await tryDeleteAll("cr5db_jobpositions", Cr5db_jobpositionsService);
+  await tryDeleteAll("cr5db_positioncatalogs", Cr5db_positioncatalogsService);
+  await tryDeleteAll("cr5db_departments", Cr5db_departmentsService);
+  await tryDeleteAll("cr5db_companies", Cr5db_companiesService);
+  await tryDeleteAll("cr5db_systemlabels", Cr5db_systemlabelsService);
+  await tryDeleteAll("cr5db_systemnotifications", Cr5db_systemnotificationsService);
+
+  // Clean System Parameters (only those starting with pg_ or MaxTimesheetHoursPerDay or DefaultPermissionGroups)
+  try {
+    progressCallback("Đang dọn dẹp các Cấu hình & Nhóm quyền...");
+    const res = await Cr5db_systemparametersService.getAll();
+    const params = res?.data || [];
+    for (const p of params) {
+      const name = p.cr5db_systemparameter1 || '';
+      if (name.startsWith('pg_') || name === 'DefaultPermissionGroups' || name === 'MaxTimesheetHoursPerDay') {
+        if (p.cr5db_systemparameterid) {
+          await Cr5db_systemparametersService.delete(p.cr5db_systemparameterid);
+        }
+      }
+    }
+  } catch (err) {}
+
+  await tryDeleteAll("cr5db_systempolicyrules", Cr5db_systempolicyrulesService);
+  await tryDeleteAll("cr5db_headcountrequests", Cr5db_headcountrequestsService);
+  await tryDeleteAll("cr5db_approvaldelegations", Cr5db_approvaldelegationsService);
+  await tryDeleteAll("cr5db_audittraillogs", Cr5db_audittraillogsService);
+  await tryDeleteAll("cr5db_approvalrouteses", Cr5db_approvalroutesesService);
+  await tryDeleteAll("cr5db_changerequestses", Cr5db_changerequestsesService);
+
+  progressCallback("Dọn dẹp hoàn tất thành công!");
 }

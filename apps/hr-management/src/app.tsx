@@ -4935,32 +4935,61 @@ function App() {
                   </div>
                 )}
 
-                <button 
-                  onClick={async () => {
-                    if (!window.confirm("Bạn có chắc chắn muốn chạy tiến trình seeding dữ liệu vào Dataverse?")) return;
-                    setSeedingStatus("Đang khởi tạo tiến trình seeding...");
-                    setIsLoading(true);
-                    try {
-                      const { runWebSeeding } = await import('./lib/seed_data_web');
-                      await runWebSeeding((msg) => {
-                        setSeedingStatus(prev => prev + "\n" + msg);
-                      });
-                      alert("Gieo dữ liệu thành công!");
-                      await fetchLiveValues();
-                    } catch (err: any) {
-                      console.error(err);
-                      setSeedingStatus(prev => prev + "\n❌ Lỗi: " + (err.message || err));
-                      alert("Gieo dữ liệu thất bại: " + (err.message || err));
-                    } finally {
-                      setIsLoading(false);
-                    }
-                  }}
-                  className="btn-primary"
-                  style={{ padding: '10px 24px', fontSize: '14px', fontWeight: 600, borderRadius: '6px' }}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Đang Seeding...' : 'Seed System Data'}
-                </button>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <button 
+                    onClick={async () => {
+                      if (!window.confirm("Bạn có chắc chắn muốn chạy tiến trình seeding dữ liệu vào Dataverse?")) return;
+                      setSeedingStatus("Đang khởi tạo tiến trình seeding...");
+                      setIsLoading(true);
+                      try {
+                        const { runWebSeeding } = await import('./lib/seed_data_web');
+                        await runWebSeeding((msg) => {
+                          setSeedingStatus(prev => prev + "\n" + msg);
+                        });
+                        alert("Gieo dữ liệu thành công!");
+                        await fetchLiveValues();
+                      } catch (err: any) {
+                        console.error(err);
+                        setSeedingStatus(prev => prev + "\n❌ Lỗi: " + (err.message || err));
+                        alert("Gieo dữ liệu thất bại: " + (err.message || err));
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    }}
+                    className="btn-primary"
+                    style={{ padding: '10px 24px', fontSize: '14px', fontWeight: 600, borderRadius: '6px' }}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Đang Seeding...' : 'Seed System Data'}
+                  </button>
+
+                  <button 
+                    onClick={async () => {
+                      if (!window.confirm("Bạn có chắc chắn muốn XÓA TOÀN BỘ dữ liệu demo trong Dataverse?")) return;
+                      setSeedingStatus("Đang bắt đầu dọn dẹp dữ liệu...");
+                      setIsLoading(true);
+                      try {
+                        const { runWebCleanup } = await import('./lib/seed_data_web');
+                        await runWebCleanup((msg) => {
+                          setSeedingStatus(prev => prev + "\n" + msg);
+                        });
+                        alert("Dọn dẹp hệ thống thành công!");
+                        await fetchLiveValues();
+                      } catch (err: any) {
+                        console.error(err);
+                        setSeedingStatus(prev => prev + "\n❌ Lỗi dọn dẹp: " + (err.message || err));
+                        alert("Dọn dẹp thất bại: " + (err.message || err));
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    }}
+                    className="btn-primary"
+                    style={{ padding: '10px 24px', fontSize: '14px', fontWeight: 600, borderRadius: '6px', backgroundColor: '#a80000', borderColor: '#a80000', color: '#ffffff' }}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? 'Đang dọn dẹp...' : 'Clean System Data'}
+                  </button>
+                </div>
               </div>
             </div>
           )}
