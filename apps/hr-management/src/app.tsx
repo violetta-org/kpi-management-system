@@ -3124,7 +3124,21 @@ function App() {
                     const filteredChangeRequests = changeRequestsList.filter((cr: any) => {
                       if (activeRole === 'Admin') return true;
                       if (!activeUser) return false;
-                      return cr._cr5db_requester_value === activeUser.cr5db_userid || cr._cr5db_approver_value === activeUser.cr5db_userid;
+                      
+                      // 1. Direct assignment check (assigned to or requested by the logged-in user)
+                      if (cr._cr5db_requester_value === activeUser.cr5db_userid || cr._cr5db_approver_value === activeUser.cr5db_userid) {
+                        return true;
+                      }
+
+                      // 2. Role-based matching (for developer role switching during testing)
+                      const approverUser = usersList.find(u => u.cr5db_userid === cr._cr5db_approver_value);
+                      if (approverUser) {
+                        const approverRole = approverUser.cr5db_systemrole;
+                        if (activeRole === 'HRManager' && approverRole === 'HRManager') return true;
+                        if (activeRole === 'ProjectManager' && approverRole === 'ProjectManager') return true;
+                      }
+
+                      return false;
                     });
 
                     if (filteredChangeRequests.length === 0) {
