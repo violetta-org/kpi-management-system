@@ -350,7 +350,7 @@ export function buildApprovalEngine(ctx: ApprovalEngineContext) {
       const entityCode = ENTITY_NAME_TO_CODE[ctx.approvalModalData.entityName as string];
       const operationCode = (OP_TO_CODE as Record<string, number>)[ctx.approvalModalData.operation as string];
 
-      await Cr5db_changerequestsesService.create({
+      const createRes = await Cr5db_changerequestsesService.create({
         cr5db_requesttitle: ctx.approvalModalData.description,
         cr5db_targetentity: entityCode as any,
         cr5db_operationtype: operationCode as any,
@@ -366,6 +366,10 @@ export function buildApprovalEngine(ctx: ApprovalEngineContext) {
         owneridtype: '',
         statecode: 0
       });
+
+      if (createRes.error) {
+        throw new Error(createRes.error.message || "Lỗi lưu trữ yêu cầu thay đổi vào Dataverse.");
+      }
 
       const approverUser = ctx.usersList.find(u => u.cr5db_userid === ctx.selectedApproverId);
       if (approverUser?.ownerid) {
