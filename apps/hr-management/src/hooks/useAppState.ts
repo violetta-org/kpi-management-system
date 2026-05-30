@@ -151,6 +151,7 @@ export function useAppState() {
   const [newReqReason, setNewReqReason] = useState('');
   const [editingHeadcountRequest, setEditingHeadcountRequest] = useState<HeadcountRequest | null>(null);
   const [newReqStatus, setNewReqStatus] = useState<string>('Pending');
+  const [newReqReportsToId, setNewReqReportsToId] = useState<string>('');
 
   // ── Company & Department Modals ──────────────────────────────────────────
   const [showCompanyModal, setShowCompanyModal] = useState(false);
@@ -372,6 +373,7 @@ export function useAppState() {
     newReqReason, setNewReqReason,
     editingHeadcountRequest, setEditingHeadcountRequest,
     newReqStatus, setNewReqStatus,
+    newReqReportsToId, setNewReqReportsToId,
 
     // Company & Department Modals
     showCompanyModal, setShowCompanyModal,

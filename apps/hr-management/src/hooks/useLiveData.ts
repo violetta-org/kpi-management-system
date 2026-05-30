@@ -282,6 +282,7 @@ export function useLiveData(setters: LiveDataSetters) {
           cr5db_createddate: r.cr5db_createddate || '',
           _cr5db_department_value: r._cr5db_department_value || undefined,
           _cr5db_positioncatalog_value: r._cr5db_positioncatalog_value || undefined,
+          _cr5db_approverposition_value: r._cr5db_approverposition_value || undefined,
           raw_requesttype: r.cr5db_requesttype,
           raw_approvalstatus: r.cr5db_approvalstatus
         };

@@ -218,6 +218,7 @@ function App() {
     newReqReason, setNewReqReason,
     editingHeadcountRequest, setEditingHeadcountRequest,
     newReqStatus, setNewReqStatus,
+    newReqReportsToId, setNewReqReportsToId,
     showCompanyModal, setShowCompanyModal,
     newCompanyCode, setNewCompanyCode,
     newCompanyName, setNewCompanyName,
@@ -916,6 +917,12 @@ function App() {
         payload.cr5db_PositionCatalog = null;
       }
 
+      if (newReqReportsToId) {
+        payload["cr5db_ApproverPosition@odata.bind"] = `/cr5db_jobpositions(${newReqReportsToId})`;
+      } else if (editingHeadcountRequest) {
+        payload.cr5db_ApproverPosition = null;
+      }
+
       if (editingHeadcountRequest) {
         let isTransitioningToApproved = false;
         if (activeRole === 'Admin') {
@@ -945,7 +952,8 @@ function App() {
             cr5db_requestedquantity: Number(newReqQty),
             cr5db_requesttype: newRequestType,
             _cr5db_department_value: newReqDeptId || undefined,
-            _cr5db_positioncatalog_value: newReqCatalogId || undefined
+            _cr5db_positioncatalog_value: newReqCatalogId || undefined,
+            _cr5db_approverposition_value: newReqReportsToId || undefined
           };
           await updateJobPositionQuotaForRequest(tempReq);
         }
@@ -982,6 +990,7 @@ function App() {
       setEditingHeadcountRequest(null);
       setNewRequestName('');
       setNewReqReason('');
+      setNewReqReportsToId('');
     } catch (err) {
       console.error(err);
       alert("Lỗi khi lưu đề xuất headcount.");
@@ -1056,6 +1065,9 @@ function App() {
         }
         if (r._cr5db_positioncatalog_value) {
           payload["cr5db_PositionCatalogTitle@odata.bind"] = `/cr5db_positioncatalogs(${r._cr5db_positioncatalog_value})`;
+        }
+        if (r._cr5db_approverposition_value) {
+          payload["cr5db_ReportsToPositionID@odata.bind"] = `/cr5db_jobpositions(${r._cr5db_approverposition_value})`;
         }
 
         const res = await Cr5db_jobpositionsService.create(payload);
@@ -3296,6 +3308,7 @@ function App() {
                                       setNewReqQty(r.cr5db_requestedquantity);
                                       setNewReqReason(r.cr5db_reason);
                                       setNewReqStatus(r.cr5db_approvalstatus);
+                                      setNewReqReportsToId(r._cr5db_approverposition_value || '');
                                       setShowHeadcountRequestModal(true);
                                     }}
                                     className="btn-filled-3"
@@ -4636,6 +4649,15 @@ function App() {
                 </div>
               </div>
               <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Quản lý trực tiếp (Reports To)</label>
+                <select value={newReqReportsToId} onChange={(e) => setNewReqReportsToId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
+                  <option value="">Không có / Vị trí cấp cao nhất</option>
+                  {jobPositionsList.map(pos => (
+                    <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>{pos.cr5db_positionname}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Lý do đề xuất</label>
                 <textarea value={newReqReason} onChange={(e) => setNewReqReason(e.target.value)} className="input-spec" style={{ height: '70px', fontFamily: 'inherit' }} placeholder="Lý do..." />
               </div>
@@ -4657,6 +4679,7 @@ function App() {
                   setEditingHeadcountRequest(null);
                   setNewRequestName('');
                   setNewReqReason('');
+                  setNewReqReportsToId('');
                 }} className="btn-filled-3">Hủy</button>
                 <button type="submit" className="btn-primary">{editingHeadcountRequest ? 'Lưu thay đổi' : 'Gửi đề xuất'}</button>
               </div>

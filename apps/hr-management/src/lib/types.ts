@@ -39,6 +39,7 @@ export interface HeadcountRequest {
   cr5db_createddate: string;
   _cr5db_department_value?: string;
   _cr5db_positioncatalog_value?: string;
+  _cr5db_approverposition_value?: string;
   raw_requesttype?: number;
   raw_approvalstatus?: number;
 }
