@@ -91,20 +91,51 @@ export interface AuditLog {
   createdbyname?: string;
 }
 
-export function normalizeRole(roleStr: string | undefined): 'Employee' | 'ProjectManager' | 'HRManager' | 'Admin' {
-  if (!roleStr) return 'Employee';
-  const norm = roleStr.toLowerCase().replace(/[^a-z]/g, '');
-  if (norm.includes('superadmin') || norm === 'admin' || norm.includes('hradmin')) return 'Admin';
-  if (norm.includes('hrmanager') || norm.includes('hr')) return 'HRManager';
-  if (norm.includes('projectmanager') || norm.includes('pm') || norm.includes('manager')) return 'ProjectManager';
-  return 'Employee';
+export const FEATURE_TABS = [
+  { id: 'dashboard', labelVi: 'Bảng điều khiển', labelEn: 'Dashboard' },
+  { id: 'tasks', labelVi: 'Công việc', labelEn: 'Tasks' },
+  { id: 'timesheets', labelVi: 'Bảng chấm công', labelEn: 'Timesheets' },
+  { id: 'kpi', labelVi: 'KPI của tôi', labelEn: 'My KPIs' },
+  { id: 'performance', labelVi: 'Đánh giá hiệu suất', labelEn: 'Performance' },
+  { id: 'companies', labelVi: 'Công ty', labelEn: 'Companies' },
+  { id: 'positions', labelVi: 'Danh mục chức danh', labelEn: 'Catalog' },
+  { id: 'headcount', labelVi: 'Định biên nhân sự', labelEn: 'Headcount' },
+  { id: 'requests', labelVi: 'Yêu cầu phê duyệt', labelEn: 'Requests' },
+  { id: 'directory', labelVi: 'Danh bạ nhân viên', labelEn: 'Directory' },
+  { id: 'resources', labelVi: 'Quản lý dự án', labelEn: 'Resources' },
+  { id: 'routes', labelVi: 'Quy trình phê duyệt', labelEn: 'Approval Routes' },
+  { id: 'kpi-catalog', labelVi: 'Danh mục KPI', labelEn: 'KPI Catalog' },
+] as const;
+
+export interface PermissionGroup {
+  id: string; // pg_<slug>
+  name: string;
+  tabs: string[];
+  dbId?: string;
 }
 
-export function getDerivedRole(positionTitle: string | undefined): 'Employee' | 'ProjectManager' | 'HRManager' | 'Admin' {
-  if (!positionTitle) return 'Employee';
-  const title = positionTitle.toLowerCase();
-  if (title.includes('admin') || title.includes('administrator')) return 'Admin';
-  if (title.includes('hr') || title.includes('human resource') || title.includes('recruiter')) return 'HRManager';
-  if (title.includes('project lead') || title.includes('project manager') || title.includes('pm')) return 'ProjectManager';
-  return 'Employee';
+export const BASELINE_TABS = ['dashboard', 'tasks', 'timesheets', 'kpi', 'requests'];
+
+export function hasTabPermission(
+  user: User | undefined,
+  tabId: string,
+  permissionGroups: PermissionGroup[]
+): boolean {
+  if (!user) return false;
+  if (user.cr5db_systemrole === 'Admin') return true;
+
+  // Baseline tabs are accessible to all registered employees
+  if (BASELINE_TABS.includes(tabId)) return true;
+
+  const roleStr = user.cr5db_systemrole || '';
+  if (roleStr.startsWith('Employee:')) {
+    const assignedGroupIds = roleStr.substring(9).split(',');
+    // Check if any assigned group has permission for this tab
+    return permissionGroups.some(group => 
+      assignedGroupIds.includes(group.id) && group.tabs.includes(tabId)
+    );
+  }
+
+  return false;
 }
+

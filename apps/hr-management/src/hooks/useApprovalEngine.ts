@@ -27,7 +27,7 @@ export const ENTITY_NAME_TO_CODE: Record<string, number> = {
 };
 
 export const OP_TO_CODE = { Create: 1, Update: 2, Delete: 3, All: 4 } as const;
-export const ROLE_TO_CODE = { Employee: 1, ProjectManager: 2, HRManager: 3, Admin: 4 } as const;
+export const ROLE_TO_CODE = { Employee: 1, Admin: 4 } as const;
 
 // ── Context the engine needs from shared state ────────────────────────────────
 
@@ -173,8 +173,7 @@ export function resolveApprover(
   const fallbackAdminId = fallbackAdmin?.cr5db_userid || '';
   const generalApproversList = usersList.filter(u =>
     u.cr5db_systemrole === 'Admin' ||
-    u.cr5db_systemrole === 'HRManager' ||
-    u.cr5db_systemrole === 'ProjectManager'
+    (u.cr5db_systemrole && u.cr5db_systemrole.startsWith('Employee:'))
   );
 
   if (!requester) return { defaultApproverId: fallbackAdminId, validApprovers: generalApproversList };
@@ -203,8 +202,16 @@ export function resolveApprover(
       };
     }
     case 'SPECIFIC_ROLE': {
-      const targetRole = route.cr5db_approverrole || 'HRManager';
-      const filtered = usersList.filter(u => u.cr5db_systemrole === targetRole);
+      const targetGroupId = route.cr5db_approverrole || '';
+      const filtered = usersList.filter(u => {
+        if (u.cr5db_systemrole === 'Admin') return true;
+        const roleStr = u.cr5db_systemrole || '';
+        if (roleStr.startsWith('Employee:')) {
+          const assignedGroups = roleStr.substring(9).split(',');
+          return assignedGroups.includes(targetGroupId);
+        }
+        return false;
+      });
       return {
         defaultApproverId: filtered[0]?.cr5db_userid || fallbackAdminId,
         validApprovers: filtered.length > 0 ? filtered : generalApproversList
@@ -250,6 +257,9 @@ export function buildApprovalEngine(ctx: ApprovalEngineContext) {
     // Admin bypasses all approval routing
     if (ctx.activeRole === 'Admin') {
       const res = await executeDirectCrud(entityName, operation, payload, targetRecordId);
+      if (res && res.error) {
+        throw new Error(res.error.message || `Lỗi khi thực hiện ${operation} trên ${entityName}`);
+      }
       await ctx.fetchLiveValues();
       return res;
     }
@@ -258,7 +268,10 @@ export function buildApprovalEngine(ctx: ApprovalEngineContext) {
     const opCode = OP_TO_CODE[operation];
     const reqRoleCode = ROLE_TO_CODE[ctx.activeRole];
 
-    const matchedRoute = ctx.approvalRoutesList.find((route: any) => {
+    // Sort routes by priority descending (highest priority first)
+    const sortedRoutes = [...ctx.approvalRoutesList].sort((a, b) => (b.cr5db_priority || 0) - (a.cr5db_priority || 0));
+
+    const matchedRoute = sortedRoutes.find((route: any) => {
       const rEntity = typeof route.cr5db_targetentity === 'string' ? ENTITY_NAME_TO_CODE[route.cr5db_targetentity] : route.cr5db_targetentity;
       const rOp = typeof route.cr5db_operationtype === 'string' ? (OP_TO_CODE as any)[route.cr5db_operationtype] : route.cr5db_operationtype;
       const rRole = typeof route.cr5db_requesterrole === 'string' ? (ROLE_TO_CODE as any)[route.cr5db_requesterrole] : route.cr5db_requesterrole;
@@ -296,8 +309,10 @@ export function buildApprovalEngine(ctx: ApprovalEngineContext) {
 
       if (!entityName || !operation) { alert('❌ Dữ liệu Change Request không hợp lệ.'); return; }
 
-      ctx.setIsLoading(true);
-      await executeDirectCrud(entityName, operation, payload, request.cr5db_targetrecordid);
+      const res = await executeDirectCrud(entityName, operation, payload, request.cr5db_targetrecordid);
+      if (res && res.error) {
+        throw new Error(res.error.message || "Lỗi khi áp dụng thay đổi vào cơ sở dữ liệu.");
+      }
       await Cr5db_changerequestsesService.update(request.cr5db_changerequestsid, { cr5db_status: 2, cr5db_approvercomment: 'Yêu cầu đã được phê duyệt và áp dụng.' });
       await Cr5db_audittraillogsService.create({ cr5db_logname: 'Change Request Approved', cr5db_actionexecuted: `Approved request: ${request.cr5db_requesttitle}`, cr5db_changedfromvalue: 'Pending', cr5db_changedtovalue: 'Approved' } as any);
 

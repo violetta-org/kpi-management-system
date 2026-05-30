@@ -20,8 +20,8 @@ import { Cr5db_resourceallocationsService } from '../generated/services/Cr5db_re
 import { Cr5db_systemnotificationsService } from '../generated/services/Cr5db_systemnotificationsService';
 import { Cr5db_approvalroutesesService } from '../generated/services/Cr5db_approvalroutesesService';
 import { Cr5db_changerequestsesService } from '../generated/services/Cr5db_changerequestsesService';
-import { normalizeRole, getDerivedRole } from '../lib/types';
-import type { User, Task, HeadcountRequest, KPITarget } from '../lib/types';
+import { Cr5db_systemparametersService } from '../generated/services/Cr5db_systemparametersService';
+import type { User, Task, HeadcountRequest, KPITarget, PermissionGroup } from '../lib/types';
 
 /** All setters useLiveData needs to push fetched data into shared state */
 export interface LiveDataSetters {
@@ -50,6 +50,9 @@ export interface LiveDataSetters {
   setKpiTargets: (v: KPITarget[]) => void;
   setTimesheets: (v: any[]) => void;
   setAppraisals: (v: any[]) => void;
+  setPermissionGroups: (v: PermissionGroup[]) => void;
+  setDefaultGroups: (v: string) => void;
+  setDefaultGroupsDbId: (v: string) => void;
   // Default select setters populated on first load
   setNewReqDeptId: (v: string) => void;
   setNewJobPosDeptId: (v: string) => void;
@@ -117,7 +120,8 @@ export function useLiveData(setters: LiveDataSetters) {
         rawProjectRisks,
         rawKpiLibraries,
         rawRoutes,
-        rawRequests
+        rawRequests,
+        rawParams
       ] = await Promise.all([
         safeGet<User>(Cr5db_usersService.getAll),
         safeGet(Cr5db_departmentsService.getAll),
@@ -138,8 +142,52 @@ export function useLiveData(setters: LiveDataSetters) {
         safeGet(Cr5db_projectrisksService.getAll),
         safeGet(Cr5db_kpilibrariesService.getAll),
         safeGet(Cr5db_approvalroutesesService.getAll),
-        safeGet(Cr5db_changerequestsesService.getAll)
+        safeGet(Cr5db_changerequestsesService.getAll),
+        safeGet(Cr5db_systemparametersService.getAll)
       ]);
+
+      const parsedGroups: PermissionGroup[] = [];
+      let defaultGroupsStr = '';
+
+      rawParams.forEach((param: any) => {
+        const paramName = param.cr5db_systemparameter1 || '';
+        if (paramName.startsWith('pg_')) {
+          const val = param.cr5db_paramvalue || '';
+          let name = paramName;
+          let tabs: string[] = [];
+          if (val.includes('|')) {
+            const idx = val.indexOf('|');
+            name = val.substring(0, idx);
+            const codes = val.substring(idx + 1);
+            const REVERSE_MAP: Record<string, string> = {
+              a: 'dashboard', b: 'tasks', c: 'timesheets', d: 'kpi', f: 'performance',
+              g: 'companies', h: 'positions', i: 'headcount', e: 'requests',
+              j: 'directory', k: 'resources', l: 'routes', m: 'kpi-catalog'
+            };
+            tabs = codes.split('').map((c: string) => REVERSE_MAP[c]).filter(Boolean);
+          } else {
+            try {
+              const parsed = JSON.parse(val || '{}');
+              name = parsed.name || paramName;
+              tabs = parsed.tabs || [];
+            } catch (e) {
+              name = val || paramName;
+            }
+          }
+          parsedGroups.push({
+            id: paramName,
+            name,
+            tabs,
+            dbId: param.cr5db_systemparameterid
+          });
+        } else if (paramName === 'DefaultPermissionGroups') {
+          defaultGroupsStr = param.cr5db_paramvalue || '';
+          setters.setDefaultGroupsDbId(param.cr5db_systemparameterid);
+        }
+      });
+
+      setters.setPermissionGroups(parsedGroups);
+      setters.setDefaultGroups(defaultGroupsStr);
 
       // Map job position names onto user records
       allUsers.forEach((u: any) => {
@@ -192,13 +240,14 @@ export function useLiveData(setters: LiveDataSetters) {
       // Auto-register user if not found
       let userProfile = allUsers.find((u: User) => u.cr5db_email?.toLowerCase() === authenticatedEmail.toLowerCase());
       if (!userProfile) {
-        console.log(`Email '${authenticatedEmail}' not found. Auto-registering as Employee...`);
+        console.log(`Email '${authenticatedEmail}' not found. Auto-registering...`);
         try {
           const newUserName = authenticatedName || authenticatedEmail.split('@')[0];
+          const systemRoleToAssign = defaultGroupsStr ? `Employee:${defaultGroupsStr}` : 'Employee';
           const createResult = await Cr5db_usersService.create({
             cr5db_fullname: newUserName,
             cr5db_email: authenticatedEmail,
-            cr5db_systemrole: 'Employee',
+            cr5db_systemrole: systemRoleToAssign,
             cr5db_isactive: true
           } as any);
 
@@ -212,7 +261,7 @@ export function useLiveData(setters: LiveDataSetters) {
               cr5db_logname: 'User Auto-Registration',
               cr5db_actionexecuted: `Auto-registered new user ${newUserName} (${authenticatedEmail}) on first login`,
               cr5db_changedfromvalue: 'None',
-              cr5db_changedtovalue: 'Role: Employee'
+              cr5db_changedtovalue: `Role: ${systemRoleToAssign}`
             } as any);
           } else {
             throw new Error('Không thể tạo mới tài khoản.');
@@ -225,10 +274,7 @@ export function useLiveData(setters: LiveDataSetters) {
 
       // Role determination
       const systemRole = userProfile.cr5db_systemrole || '';
-      const positionTitle = userProfile.cr5db_jobpositionname || '';
-      const derived = getDerivedRole(positionTitle);
-      const manual = systemRole ? normalizeRole(systemRole) : null;
-      const effectiveRole = manual || derived || 'Employee';
+      const effectiveRole = systemRole.startsWith('Admin') ? 'Admin' : 'Employee';
 
       const devOverride = sessionStorage.getItem('devRoleOverride');
       setters.setActiveRole(devOverride ? devOverride : effectiveRole);

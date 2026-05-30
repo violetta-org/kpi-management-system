@@ -23,6 +23,7 @@ import { Cr5db_resourceallocationsService } from './generated/services/Cr5db_res
 import { Cr5db_approvalroutesesService } from './generated/services/Cr5db_approvalroutesesService';
 import { Cr5db_kpilibrariesService } from './generated/services/Cr5db_kpilibrariesService';
 import { Cr5db_objectivesService } from './generated/services/Cr5db_objectivesService';
+import { Cr5db_systemparametersService } from './generated/services/Cr5db_systemparametersService';
 
 // SVG Icons
 const DashboardIcon = () => (
@@ -95,9 +96,8 @@ const BellIcon = () => (
 //   </svg>
 // );
 
-// Types are now in lib/types.ts — imported from hooks automatically.
-// Only User and Task are referenced directly in JSX handlers below:
-import type { User, Task } from './lib/types';
+import { FEATURE_TABS, hasTabPermission } from './lib/types';
+import type { User, Task, PermissionGroup } from './lib/types';
 
 function App() {
   // ── Hooks ────────────────────────────────────────────────────────────────
@@ -109,6 +109,17 @@ function App() {
   const [allocationProject, setAllocationProject] = React.useState('');
   const [allocationPercentage, setAllocationPercentage] = React.useState(100);
   const [allocationName, setAllocationName] = React.useState('');
+
+  // KPI custom date filter states
+  const [kpiCustomStartDate, setKpiCustomStartDate] = React.useState('2026-05-01');
+  const [kpiCustomEndDate, setKpiCustomEndDate] = React.useState('2026-05-30');
+
+  // Permission Group local states
+  const [showGroupModal, setShowGroupModal] = React.useState(false);
+  const [editingGroup, setEditingGroup] = React.useState<PermissionGroup | null>(null);
+  const [newGroupName, setNewGroupName] = React.useState('');
+  const [newGroupTabs, setNewGroupTabs] = React.useState<string[]>([]);
+  const [employeeSelectedGroups, setEmployeeSelectedGroups] = React.useState<string[]>([]);
 
   // Destructure everything from state so the rest of the file can use names
   // identical to the old inline declarations — zero changes needed in JSX.
@@ -176,6 +187,8 @@ function App() {
     showPhaseModal, setShowPhaseModal,
     newPhaseName, setNewPhaseName,
     newPhaseStatus, setNewPhaseStatus,
+    newPhaseStartDate, setNewPhaseStartDate,
+    newPhaseEndDate, setNewPhaseEndDate,
     showRiskModal, setShowRiskModal,
     newRiskName, setNewRiskName,
     newRiskImpact, setNewRiskImpact,
@@ -266,6 +279,9 @@ function App() {
     editingObjective, setEditingObjective,
     objectiveName, setObjectiveName,
     objectiveTarget, setObjectiveTarget,
+    permissionGroups, setPermissionGroups,
+    defaultGroups, setDefaultGroups,
+    defaultGroupsDbId, setDefaultGroupsDbId,
   } = s;
 
   // ── Live Data ─────────────────────────────────────────────────────────────
@@ -284,6 +300,8 @@ function App() {
     setNewTaskAssigneeId, setAssignRoleUserId,
     setNewReqCatalogId, setNewJobPosCatalogId,
     setSelectedDeptCompanyId, setNewTimesheetTaskId,
+    setPermissionGroups, setDefaultGroups,
+    setDefaultGroupsDbId,
   });
 
   // ── Approval Engine ───────────────────────────────────────────────────────
@@ -300,6 +318,12 @@ function App() {
     approvalModalData, requestReason, selectedApproverId,
     fetchLiveValues,
   });
+
+  const currentUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+  const checkPermission = (tabId: string) => {
+    if (activeRole === 'Admin') return true;
+    return hasTabPermission(currentUserObj, tabId, permissionGroups);
+  };
 
   // ── CRUD API Calls ───────────────────────────────────────────────────────
 
@@ -582,9 +606,9 @@ function App() {
       // Finally delete the company
       await Cr5db_companiesService.delete(id);
       await fetchLiveValues();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Không thể xóa công ty hoặc các phòng ban trực thuộc.");
+      alert("Không thể xóa công ty: " + (err.message || err));
       setIsLoading(false);
     }
   };
@@ -625,9 +649,9 @@ function App() {
       setIsLoading(true);
       await Cr5db_departmentsService.delete(id);
       await fetchLiveValues();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Không thể xóa phòng ban.");
+      alert("Không thể xóa phòng ban: " + (err.message || err));
       setIsLoading(false);
     }
   };
@@ -667,9 +691,9 @@ function App() {
       setIsLoading(true);
       await Cr5db_positioncatalogsService.delete(id);
       await fetchLiveValues();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Không thể xóa chức danh.");
+      alert("Không thể xóa chức danh: " + (err.message || err));
       setIsLoading(false);
     }
   };
@@ -794,6 +818,123 @@ function App() {
     } catch (err) {
       console.error(err);
       alert("Không thể xóa quy tắc phê duyệt.");
+      setIsLoading(false);
+    }
+  };
+
+  // Permission Groups CRUD Handlers
+  const handleSavePermissionGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGroupName.trim()) {
+      alert("Tên nhóm quyền không được để trống.");
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const TAB_MAP: Record<string, string> = {
+        dashboard: 'a', tasks: 'b', timesheets: 'c', kpi: 'd', performance: 'f',
+        companies: 'g', positions: 'h', headcount: 'i', requests: 'e',
+        directory: 'j', resources: 'k', routes: 'l', 'kpi-catalog': 'm'
+      };
+      const codes = newGroupTabs.map(t => TAB_MAP[t] || '').join('');
+      const payloadVal = `${newGroupName}|${codes}`;
+
+      if (editingGroup) {
+        if (!editingGroup.dbId) throw new Error("Thiếu ID cơ sở dữ liệu của nhóm quyền.");
+        const res = await Cr5db_systemparametersService.update(editingGroup.dbId, {
+          cr5db_paramvalue: payloadVal
+        });
+        if (res.error) throw new Error(res.error.message);
+      } else {
+        const slug = `pg_${Math.random().toString(36).substring(2, 8)}`;
+        const res = await Cr5db_systemparametersService.create({
+          cr5db_systemparameter1: slug,
+          cr5db_paramvalue: payloadVal,
+          cr5db_valuetype: 'PermissionGroup',
+          statecode: 0
+        } as any);
+        if (res.error) throw new Error(res.error.message);
+      }
+
+      await Cr5db_audittraillogsService.create({
+        cr5db_logname: editingGroup ? "Permission Group Update" : "Permission Group Creation",
+        cr5db_actionexecuted: `${editingGroup ? "Cập nhật" : "Tạo mới"} nhóm quyền: ${newGroupName}`,
+        cr5db_changedfromvalue: editingGroup ? JSON.stringify(editingGroup.tabs) : "None",
+        cr5db_changedtovalue: JSON.stringify(newGroupTabs)
+      } as any);
+
+      setShowGroupModal(false);
+      setEditingGroup(null);
+      setNewGroupName('');
+      setNewGroupTabs([]);
+      await fetchLiveValues();
+      alert("Lưu nhóm quyền thành công!");
+    } catch (err: any) {
+      console.error(err);
+      alert(`Lỗi khi lưu nhóm quyền: ${err.message || err}`);
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeletePermissionGroup = async (group: PermissionGroup) => {
+    if (!group.dbId) return;
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa nhóm quyền "${group.name}"? Tất cả người dùng trong nhóm sẽ mất quyền liên quan.`)) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_systemparametersService.delete(group.dbId);
+
+      await Cr5db_audittraillogsService.create({
+        cr5db_logname: "Permission Group Deletion",
+        cr5db_actionexecuted: `Xóa nhóm quyền: ${group.name} (${group.id})`,
+        cr5db_changedfromvalue: JSON.stringify(group.tabs),
+        cr5db_changedtovalue: "Deleted"
+      } as any);
+
+      // Clean up user assignments for this deleted group
+      for (const u of usersList) {
+        const roleStr = u.cr5db_systemrole || '';
+        if (roleStr.startsWith('Employee:')) {
+          const groups = roleStr.substring(9).split(',');
+          if (groups.includes(group.id)) {
+            const filtered = groups.filter(g => g !== group.id);
+            const newRoleStr = filtered.length > 0 ? `Employee:${filtered.join(',')}` : 'Employee';
+            await Cr5db_usersService.update(u.cr5db_userid, { cr5db_systemrole: newRoleStr });
+          }
+        }
+      }
+
+      await fetchLiveValues();
+      alert("Xóa nhóm quyền thành công!");
+    } catch (err: any) {
+      console.error(err);
+      alert(`Lỗi khi xóa nhóm quyền: ${err.message || err}`);
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveDefaultGroups = async (groupIds: string[]) => {
+    try {
+      setIsLoading(true);
+      const val = groupIds.join(',');
+      if (defaultGroupsDbId) {
+        const res = await Cr5db_systemparametersService.update(defaultGroupsDbId, {
+          cr5db_paramvalue: val
+        });
+        if (res.error) throw new Error(res.error.message);
+      } else {
+        const res = await Cr5db_systemparametersService.create({
+          cr5db_systemparameter1: 'DefaultPermissionGroups',
+          cr5db_paramvalue: val,
+          cr5db_valuetype: 'DefaultPermissionGroups',
+          statecode: 0
+        } as any);
+        if (res.error) throw new Error(res.error.message);
+      }
+      await fetchLiveValues();
+      alert("Cập nhật nhóm mặc định thành công!");
+    } catch (err: any) {
+      console.error(err);
+      alert(`Lỗi khi cập nhật nhóm mặc định: ${err.message || err}`);
       setIsLoading(false);
     }
   };
@@ -1181,11 +1322,16 @@ function App() {
       return;
     }
     try {
-      setIsLoading(true);
+      const serializedRole = employeeRole === 'Admin' 
+        ? 'Admin' 
+        : employeeSelectedGroups.length > 0 
+          ? `Employee:${employeeSelectedGroups.join(',')}` 
+          : 'Employee';
+
       const payload: any = {
         cr5db_fullname: employeeFullName,
         cr5db_email: employeeEmail,
-        cr5db_systemrole: employeeRole,
+        cr5db_systemrole: serializedRole,
         cr5db_isactive: employeeIsActive,
       };
 
@@ -1241,6 +1387,7 @@ function App() {
       setEmployeeRole('Employee');
       setEmployeeJobPositionId('');
       setEmployeeIsActive(true);
+      setEmployeeSelectedGroups([]);
     } catch (err) {
       console.error(err);
       alert("Không thể lưu thông tin nhân viên.");
@@ -1414,12 +1561,16 @@ function App() {
       await Cr5db_projectphasesService.create({
         cr5db_phasename: newPhaseName,
         new_status: statusVal as any,
+        cr5db_startdate: newPhaseStartDate || undefined,
+        cr5db_enddate: newPhaseEndDate || undefined,
         "cr5db_ProjectID@odata.bind": `/cr5db_projects(${activeProjectDetails.cr5db_projectid})`
       } as any);
 
       setShowPhaseModal(false);
       setNewPhaseName('');
       setNewPhaseStatus('Not Started');
+      setNewPhaseStartDate('');
+      setNewPhaseEndDate('');
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
@@ -1775,7 +1926,12 @@ function App() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
               <span style={{ fontSize: '14px', fontWeight: 700 }}>Task & KPI</span>
               <span className="brand-badge" style={{ fontSize: '10px', padding: '1px 8px', border: '1px solid var(--color-border)', borderRadius: '12px' }}>
-                {activeRole === 'Admin' ? 'Super Admin' : activeRole === 'HRManager' ? 'HR Manager' : activeRole === 'ProjectManager' ? 'Project Manager' : 'Employee'}
+                {activeRole === 'Admin' 
+                  ? 'Super Admin' 
+                  : `Employee${currentUserObj?.cr5db_systemrole?.startsWith('Employee:') 
+                      ? ` (${currentUserObj.cr5db_systemrole.substring(9).split(',').map(gid => permissionGroups.find(g => g.id === gid)?.name || gid).join(', ')})` 
+                      : ''}`
+                }
               </span>
             </div>
           </div>
@@ -1805,7 +1961,7 @@ function App() {
           <button onClick={() => setActiveTab('kpi')} className={`nav-item ${activeTab === 'kpi' ? 'active' : ''}`}>
             <span className="nav-icon"><TargetIcon /></span>My KPIs
           </button>
-          {activeRole !== 'Employee' && (
+          {checkPermission('performance') && (
             <button onClick={() => setActiveTab('performance')} className={`nav-item ${activeTab === 'performance' ? 'active' : ''}`}>
               <span className="nav-icon"><PerformanceIcon /></span>Performance
             </button>
@@ -1814,48 +1970,57 @@ function App() {
             <span className="nav-icon"><BellIcon /></span>Requests
           </button>
 
-          {(activeRole === 'ProjectManager' || activeRole === 'HRManager' || activeRole === 'Admin') && (
-            <>
-              <button onClick={() => setActiveTab('resources')} className={`nav-item ${activeTab === 'resources' ? 'active' : ''}`}>
-                <span className="nav-icon"><ResourceIcon /></span>Resources
-              </button>
-              <button onClick={() => setActiveTab('directory')} className={`nav-item ${activeTab === 'directory' ? 'active' : ''}`}>
-                <span className="nav-icon"><DirectoryIcon /></span>Directory
-              </button>
-            </>
+          {checkPermission('resources') && (
+            <button onClick={() => setActiveTab('resources')} className={`nav-item ${activeTab === 'resources' ? 'active' : ''}`}>
+              <span className="nav-icon"><ResourceIcon /></span>Resources
+            </button>
           )}
 
-          {(activeRole === 'HRManager' || activeRole === 'Admin') && (
-            <>
-              <button onClick={() => setActiveTab('companies')} className={`nav-item ${activeTab === 'companies' ? 'active' : ''}`}>
-                <span className="nav-icon"><ShieldCheckIcon /></span>Companies
-              </button>
-              <button onClick={() => setActiveTab('positions')} className={`nav-item ${activeTab === 'positions' ? 'active' : ''}`}>
-                <span className="nav-icon"><RequestIcon /></span>Catalog
-              </button>
-              <button onClick={() => setActiveTab('kpi-catalog')} className={`nav-item ${activeTab === 'kpi-catalog' ? 'active' : ''}`}>
-                <span className="nav-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 19V6l12-3v13" /><circle cx="6" cy="19" r="3" /><circle cx="18" cy="16" r="3" />
-                  </svg>
-                </span>
-                Danh mục KPI
-              </button>
-              <button onClick={() => setActiveTab('headcount')} className={`nav-item ${activeTab === 'headcount' ? 'active' : ''}`}>
-                <span className="nav-icon"><ShieldIcon /></span>Headcount
-              </button>
-              {activeRole === 'Admin' && (
-                <button onClick={() => setActiveTab('routes')} className={`nav-item ${activeTab === 'routes' ? 'active' : ''}`}>
-                  <span className="nav-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                      <polyline points="22 4 12 14.01 9 11.01" />
-                    </svg>
-                  </span>
-                  Approval Routes
-                </button>
-              )}
-            </>
+          {checkPermission('directory') && (
+            <button onClick={() => setActiveTab('directory')} className={`nav-item ${activeTab === 'directory' ? 'active' : ''}`}>
+              <span className="nav-icon"><DirectoryIcon /></span>Directory
+            </button>
+          )}
+
+          {checkPermission('companies') && (
+            <button onClick={() => setActiveTab('companies')} className={`nav-item ${activeTab === 'companies' ? 'active' : ''}`}>
+              <span className="nav-icon"><ShieldCheckIcon /></span>Companies
+            </button>
+          )}
+
+          {checkPermission('positions') && (
+            <button onClick={() => setActiveTab('positions')} className={`nav-item ${activeTab === 'positions' ? 'active' : ''}`}>
+              <span className="nav-icon"><RequestIcon /></span>Catalog
+            </button>
+          )}
+
+          {checkPermission('kpi-catalog') && (
+            <button onClick={() => setActiveTab('kpi-catalog')} className={`nav-item ${activeTab === 'kpi-catalog' ? 'active' : ''}`}>
+              <span className="nav-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 19V6l12-3v13" /><circle cx="6" cy="19" r="3" /><circle cx="18" cy="16" r="3" />
+                </svg>
+              </span>
+              Danh mục KPI
+            </button>
+          )}
+
+          {checkPermission('headcount') && (
+            <button onClick={() => setActiveTab('headcount')} className={`nav-item ${activeTab === 'headcount' ? 'active' : ''}`}>
+              <span className="nav-icon"><ShieldIcon /></span>Headcount
+            </button>
+          )}
+
+          {checkPermission('routes') && (
+            <button onClick={() => setActiveTab('routes')} className={`nav-item ${activeTab === 'routes' ? 'active' : ''}`}>
+              <span className="nav-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </span>
+              Approval Routes
+            </button>
           )}
         </nav>
       </aside>
@@ -1872,7 +2037,7 @@ function App() {
           {/* SCREEN 1: DASHBOARD */}
           {activeTab === 'dashboard' && (
             <>
-              {(activeRole === 'HRManager' || activeRole === 'Admin') ? (
+              {checkPermission('headcount') ? (
                 // HR / Admin Dashboard
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                   <div>
@@ -2007,7 +2172,7 @@ function App() {
                           <BellIcon />
                         </span>
                         <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: '#E29E2E' }}>
-                          {activeRole === 'ProjectManager' ? pendingApprovalsTimesheets.length : pendingCount}
+                          {(activeRole === 'Admin' || checkPermission('resources')) ? pendingApprovalsTimesheets.length : pendingCount}
                         </span>
                       </div>
                       <span className="metric-label" style={{ fontSize: '12px', color: '#E29E2E', fontWeight: 500 }}>Pending Approvals</span>
@@ -2099,7 +2264,12 @@ function App() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 400, color: 'rgba(0, 0, 0, 0.7)' }}>
                       <span>Welcome, {currentUserName || 'User'}</span>
                       <span style={{ fontSize: '12px', fontWeight: 500, padding: '2px 8px', border: '1px solid #000000', borderRadius: '6px', color: '#000000', textTransform: 'capitalize' }}>
-                        {activeRole === 'ProjectManager' ? 'Project Manager' : activeRole === 'HRManager' ? 'HR Manager' : activeRole === 'Admin' ? 'Super Admin' : 'Employee'}
+                        {activeRole === 'Admin' 
+                          ? 'Super Admin' 
+                          : `Employee${currentUserObj?.cr5db_systemrole?.startsWith('Employee:') 
+                              ? ` (${currentUserObj.cr5db_systemrole.substring(9).split(',').map(gid => permissionGroups.find(g => g.id === gid)?.name || gid).join(', ')})` 
+                              : ''}`
+                        }
                       </span>
                     </div>
                   </div>
@@ -2206,7 +2376,7 @@ function App() {
                             </button>
                           )}
                           
-                          {(activeRole === 'Admin' || activeRole === 'ProjectManager') && (
+                          {(activeRole === 'Admin' || checkPermission('resources')) && (
                             <div style={{ display: 'inline-flex', gap: '8px' }}>
                               <button
                                 onClick={() => {
@@ -2314,7 +2484,7 @@ function App() {
                 >
                   My Timesheets
                 </button>
-                {activeRole !== 'Employee' && (
+                {(activeRole === 'Admin' || checkPermission('resources')) && (
                   <button
                     onClick={() => setActiveTimesheetSubTab('approvals')}
                     style={{
@@ -2675,53 +2845,75 @@ function App() {
               ) : (
                 <>
                   {/* Time Range Selection */}
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    {['week', 'month', 'quarter'].map((preset) => (
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      {['week', 'month', 'quarter'].map((preset) => (
+                        <button
+                          key={preset}
+                          onClick={() => setKpiTimeRange(preset as any)}
+                          style={{
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '6px 12px',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                            backgroundColor: kpiTimeRange === preset ? '#000000' : 'transparent',
+                            color: kpiTimeRange === preset ? '#ffffff' : '#000000',
+                            textTransform: 'capitalize'
+                          }}
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                      
+                      {/* Custom Button */}
                       <button
-                        key={preset}
-                        onClick={() => setKpiTimeRange(preset as any)}
+                        onClick={() => setKpiTimeRange('custom')}
                         style={{
-                          border: 'none',
+                          border: '1px solid #000000',
                           borderRadius: '6px',
                           padding: '6px 12px',
                           fontSize: '14px',
                           fontWeight: 500,
                           cursor: 'pointer',
-                          backgroundColor: kpiTimeRange === preset ? '#000000' : 'transparent',
-                          color: kpiTimeRange === preset ? '#ffffff' : '#000000',
-                          textTransform: 'capitalize'
+                          backgroundColor: kpiTimeRange === 'custom' ? '#000000' : '#ffffff',
+                          color: kpiTimeRange === 'custom' ? '#ffffff' : '#000000',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          boxSizing: 'border-box'
                         }}
                       >
-                        {preset}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                          <line x1="16" y1="2" x2="16" y2="6" />
+                          <line x1="8" y1="2" x2="8" y2="6" />
+                          <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                        Custom
                       </button>
-                    ))}
-                    
-                    {/* Custom Button */}
-                    <button
-                      onClick={() => setKpiTimeRange('custom')}
-                      style={{
-                        border: '1px solid #000000',
-                        borderRadius: '6px',
-                        padding: '6px 12px',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        cursor: 'pointer',
-                        backgroundColor: kpiTimeRange === 'custom' ? '#000000' : '#ffffff',
-                        color: kpiTimeRange === 'custom' ? '#ffffff' : '#000000',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        boxSizing: 'border-box'
-                      }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                        <line x1="16" y1="2" x2="16" y2="6" />
-                        <line x1="8" y1="2" x2="8" y2="6" />
-                        <line x1="3" y1="10" x2="21" y2="10" />
-                      </svg>
-                      Custom
-                    </button>
+                    </div>
+
+                    {kpiTimeRange === 'custom' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '12px' }}>
+                        <input
+                          type="date"
+                          value={kpiCustomStartDate}
+                          onChange={(e) => setKpiCustomStartDate(e.target.value)}
+                          className="input-spec"
+                          style={{ height: '32px', padding: '4px 8px', fontSize: '13px' }}
+                        />
+                        <span style={{ fontSize: '13px' }}>đến</span>
+                        <input
+                          type="date"
+                          value={kpiCustomEndDate}
+                          onChange={(e) => setKpiCustomEndDate(e.target.value)}
+                          className="input-spec"
+                          style={{ height: '32px', padding: '4px 8px', fontSize: '13px' }}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Date Range Indicator */}
@@ -2732,7 +2924,36 @@ function App() {
                       <line x1="8" y1="2" x2="8" y2="6" />
                       <line x1="3" y1="10" x2="21" y2="10" />
                     </svg>
-                    <span>Showing progress from May 1, 2026 to May 29, 2026</span>
+                    <span>
+                      {(() => {
+                        const formatDate = (dateStr: string) => {
+                          try {
+                            const d = new Date(dateStr);
+                            if (isNaN(d.getTime())) return dateStr;
+                            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                          } catch {
+                            return dateStr;
+                          }
+                        };
+
+                        if (kpiTimeRange === 'custom') {
+                          return `Showing progress from ${formatDate(kpiCustomStartDate)} to ${formatDate(kpiCustomEndDate)}`;
+                        }
+                        
+                        // Otherwise calculate for presets
+                        const today = new Date();
+                        let start = new Date();
+                        if (kpiTimeRange === 'week') {
+                          start.setDate(today.getDate() - 7);
+                        } else if (kpiTimeRange === 'month') {
+                          start.setMonth(today.getMonth() - 1);
+                        } else {
+                          // quarter
+                          start.setMonth(today.getMonth() - 3);
+                        }
+                        return `Showing progress from ${formatDate(start.toISOString())} to ${formatDate(today.toISOString())}`;
+                      })()}
+                    </span>
                   </div>
 
                   {/* Chart Placeholder Card */}
@@ -3146,13 +3367,7 @@ function App() {
                         return true;
                       }
 
-                      // 2. Role-based matching (for developer role switching during testing)
-                      const approverUser = usersList.find(u => u.cr5db_userid === cr._cr5db_approver_value);
-                      if (approverUser) {
-                        const approverRole = approverUser.cr5db_systemrole;
-                        if (activeRole === 'HRManager' && approverRole === 'HRManager') return true;
-                        if (activeRole === 'ProjectManager' && approverRole === 'ProjectManager') return true;
-                      }
+                      // 2. Role-based matching (removed HRManager / ProjectManager system roles)
 
                       return false;
                     });
@@ -3289,7 +3504,7 @@ function App() {
                               {r.cr5db_approvalstatus}
                             </span>
                             <div style={{ display: 'flex', gap: '8px' }}>
-                              {r.cr5db_approvalstatus === 'Pending' && (activeRole === 'Admin' || activeRole === 'HRManager') && (
+                              {r.cr5db_approvalstatus === 'Pending' && (activeRole === 'Admin' || checkPermission('headcount')) && (
                                 <>
                                   <button onClick={() => handleApproveHeadcountRequest(r.cr5db_headcountrequestid, 'Approved')} className="btn-filled-2" style={{ padding: '6px 12px', fontSize: '12px' }}>Duyệt</button>
                                   <button onClick={() => handleApproveHeadcountRequest(r.cr5db_headcountrequestid, 'Rejected')} className="btn-filled-3" style={{ padding: '6px 12px', fontSize: '12px' }}>Từ chối</button>
@@ -3344,7 +3559,7 @@ function App() {
                   <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Resource Planning</h2>
                   <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Allocation metrics and team planning</p>
                 </div>
-                {activeResourcesSubTab === 'allocations' && (activeRole === 'Admin' || activeRole === 'ProjectManager') && (
+                {activeResourcesSubTab === 'allocations' && (activeRole === 'Admin' || checkPermission('resources')) && (
                   <button
                     onClick={() => {
                       setAllocationUser(usersList[0]?.cr5db_userid || '');
@@ -3533,7 +3748,7 @@ function App() {
                 })()
               ) : (
                 (() => {
-                  const canManageProject = activeRole === 'Admin' || activeRole === 'HRManager' || activeRole === 'ProjectManager';
+                  const canManageProject = activeRole === 'Admin' || checkPermission('resources');
                   const canDeleteProject = activeRole === 'Admin';
                   
                   // Get active project team allocations (matched by project name or team name containing project name)
@@ -3753,6 +3968,8 @@ function App() {
                                     onClick={() => {
                                       setNewPhaseName('');
                                       setNewPhaseStatus('Not Started');
+                                      setNewPhaseStartDate('');
+                                      setNewPhaseEndDate('');
                                       setShowPhaseModal(true);
                                     }}
                                     className="btn-filled-3" 
@@ -3775,7 +3992,15 @@ function App() {
                                       const phStyle = getProjectStatusStyle(phStatus);
                                       return (
                                         <div key={ph.cr5db_projectphaseid} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', border: '1px solid var(--color-border-light)', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                                          <span style={{ fontSize: '13px', fontWeight: 600 }}>{ph.cr5db_phasename}</span>
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            <span style={{ fontSize: '13px', fontWeight: 600 }}>{ph.cr5db_phasename}</span>
+                                            {(ph.cr5db_startdate || ph.cr5db_enddate) && (
+                                              <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', display: 'flex', gap: '10px' }}>
+                                                {ph.cr5db_startdate && <span>📅 Bắt đầu: {new Date(ph.cr5db_startdate).toLocaleDateString('vi-VN')}</span>}
+                                                {ph.cr5db_enddate && <span>🏁 Kết thúc: {new Date(ph.cr5db_enddate).toLocaleDateString('vi-VN')}</span>}
+                                              </span>
+                                            )}
+                                          </div>
                                           <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, ...phStyle }}>{phStatus}</span>
                                         </div>
                                       );
@@ -3893,7 +4118,7 @@ function App() {
                   <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Employee Directory & Management</h2>
                   <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Tìm kiếm thành viên hoặc quản lý danh sách nhân sự của tổ chức</p>
                 </div>
-                {(activeRole === 'HRManager' || activeRole === 'Admin') && (
+                {(activeRole === 'Admin' || checkPermission('directory')) && (
                   <button 
                     onClick={() => {
                       setEditingEmployee(null);
@@ -3911,7 +4136,7 @@ function App() {
                 )}
               </div>
 
-              {(activeRole === 'HRManager' || activeRole === 'Admin') && (
+              {(activeRole === 'Admin' || checkPermission('directory')) && (
                 <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', gap: '16px', paddingBottom: '8px' }}>
                   <button 
                     onClick={() => setActiveDirectorySubTab('view')} 
@@ -3955,10 +4180,26 @@ function App() {
                   >
                     Lịch sử phân quyền
                   </button>
+                  {activeRole === 'Admin' && (
+                    <button 
+                      onClick={() => setActiveDirectorySubTab('groups')} 
+                      style={{ 
+                        background: 'none', 
+                        border: 'none', 
+                        color: activeDirectorySubTab === 'groups' ? 'var(--color-text)' : 'var(--color-text-secondary)', 
+                        fontWeight: activeDirectorySubTab === 'groups' ? 700 : 500, 
+                        cursor: 'pointer', 
+                        borderBottom: activeDirectorySubTab === 'groups' ? '2px solid var(--color-text)' : 'none', 
+                        padding: '4px 8px' 
+                      }}
+                    >
+                      Nhóm quyền (Groups)
+                    </button>
+                  )}
                 </div>
               )}
 
-              {activeDirectorySubTab === 'view' || !(activeRole === 'HRManager' || activeRole === 'Admin') ? (
+              {activeDirectorySubTab === 'view' || !(activeRole === 'Admin' || checkPermission('directory')) ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
                   {usersList.map(u => (
                     <div key={u.cr5db_userid} onClick={() => setSelectedDirectoryUser(u)} className="card-spec" style={{ display: 'flex', gap: '16px', alignItems: 'center', padding: '16px 20px', cursor: 'pointer' }}>
@@ -3998,9 +4239,34 @@ function App() {
                           <td style={{ padding: '14px 20px' }}>{u.cr5db_email || 'No Email'}</td>
                           <td style={{ padding: '14px 20px' }}>{u.cr5db_jobpositionname || 'Chưa phân công'}</td>
                           <td style={{ padding: '14px 20px' }}>
-                            <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, backgroundColor: u.cr5db_systemrole === 'Admin' ? '#fde7e9' : u.cr5db_systemrole === 'HRManager' ? '#dff6dd' : u.cr5db_systemrole === 'ProjectManager' ? '#d9effc' : '#f3f2f1', color: u.cr5db_systemrole === 'Admin' ? '#a80000' : u.cr5db_systemrole === 'HRManager' ? '#107c41' : u.cr5db_systemrole === 'ProjectManager' ? '#005a9e' : '#323130' }}>
-                              {u.cr5db_systemrole || 'Employee'}
-                            </span>
+                            {(() => {
+                              const roleStr = u.cr5db_systemrole || '';
+                              if (roleStr === 'Admin') {
+                                return (
+                                  <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, backgroundColor: '#fde7e9', color: '#a80000' }}>
+                                    Super Admin
+                                  </span>
+                                );
+                              }
+                              if (roleStr.startsWith('Employee:')) {
+                                const groupIds = roleStr.substring(9).split(',');
+                                const groupNames = groupIds.map(gid => permissionGroups.find(g => g.id === gid)?.name || gid);
+                                return (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                    {groupNames.map((name, idx) => (
+                                      <span key={idx} style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, backgroundColor: '#dff6dd', color: '#107c41' }}>
+                                        {name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                );
+                              }
+                              return (
+                                <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, backgroundColor: '#f3f2f1', color: '#323130' }}>
+                                  Employee
+                                </span>
+                              );
+                            })()}
                           </td>
                           <td style={{ padding: '14px 20px' }}>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 500, color: u.cr5db_isactive !== false ? '#107c41' : '#a80000' }}>
@@ -4015,7 +4281,17 @@ function App() {
                                   setEditingEmployee(u);
                                   setEmployeeFullName(u.cr5db_fullname);
                                   setEmployeeEmail(u.cr5db_email || '');
-                                  setEmployeeRole(u.cr5db_systemrole || 'Employee');
+                                  const rawRole = u.cr5db_systemrole || 'Employee';
+                                  if (rawRole === 'Admin') {
+                                    setEmployeeRole('Admin');
+                                    setEmployeeSelectedGroups([]);
+                                  } else if (rawRole.startsWith('Employee:')) {
+                                    setEmployeeRole('Employee');
+                                    setEmployeeSelectedGroups(rawRole.substring(9).split(','));
+                                  } else {
+                                    setEmployeeRole('Employee');
+                                    setEmployeeSelectedGroups([]);
+                                  }
                                   setEmployeeJobPositionId(u._cr5db_jobposition_value || '');
                                   setEmployeeIsActive(u.cr5db_isactive !== false);
                                   setShowEmployeeModal(true);
@@ -4058,6 +4334,120 @@ function App() {
                     </tbody>
                   </table>
                 </div>
+              ) : activeDirectorySubTab === 'groups' ? (
+                // --- Permission Groups Sub-tab ---
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '15px', fontWeight: 600 }}>Cấu hình nhóm quyền người dùng</div>
+                    <button 
+                      onClick={() => {
+                        setEditingGroup(null);
+                        setNewGroupName('');
+                        setNewGroupTabs([]);
+                        setShowGroupModal(true);
+                      }}
+                      className="btn-primary"
+                      style={{ padding: '6px 12px', fontSize: '13px' }}
+                    >
+                      + Thêm nhóm quyền
+                    </button>
+                  </div>
+
+                  {/* Config Default Group for New Users */}
+                  <div className="card-spec" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700 }}>Nhóm quyền mặc định cho thành viên mới (Auto-Registration Default):</div>
+                    <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: 0 }}>
+                      Khi tài khoản mới đăng nhập lần đầu, họ sẽ tự động được liên kết với các nhóm quyền mặc định được chọn dưới đây (vẫn có thể vào ứng dụng với các quyền cơ bản ngay cả khi không chọn nhóm mặc định nào).
+                    </p>
+                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '4px' }}>
+                      {permissionGroups.map(group => {
+                        const defaultIds = defaultGroups ? defaultGroups.split(',') : [];
+                        const isChecked = defaultIds.includes(group.id);
+                        return (
+                          <label key={group.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', cursor: 'pointer' }}>
+                            <input 
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                let newIds = [...defaultIds];
+                                if (e.target.checked) {
+                                  newIds.push(group.id);
+                                } else {
+                                  newIds = newIds.filter(id => id !== group.id);
+                                }
+                                handleSaveDefaultGroups(newIds);
+                              }}
+                            />
+                            <span>{group.name}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Groups List Table */}
+                  <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '14px 20px', width: '25%' }}>Tên nhóm</th>
+                          <th style={{ padding: '14px 20px', width: '55%' }}>Quyền truy cập (Tabs)</th>
+                          <th style={{ padding: '14px 20px', textAlign: 'right', width: '20%' }}>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {permissionGroups.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                              Chưa cấu hình nhóm quyền nào. Vui lòng thêm mới.
+                            </td>
+                          </tr>
+                        ) : (
+                          permissionGroups.map(group => (
+                            <tr key={group.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                              <td style={{ padding: '14px 20px', fontWeight: 600 }}>{group.name}</td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                  {group.tabs.map(tabId => {
+                                    const match = FEATURE_TABS.find(t => t.id === tabId);
+                                    return (
+                                      <span key={tabId} style={{ padding: '2px 8px', backgroundColor: '#f3f2f1', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>
+                                        {match ? match.labelVi : tabId}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </td>
+                              <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                                  <button 
+                                    onClick={() => {
+                                      setEditingGroup(group);
+                                      setNewGroupName(group.name);
+                                      setNewGroupTabs(group.tabs);
+                                      setShowGroupModal(true);
+                                    }}
+                                    className="btn-filled-3"
+                                    style={{ padding: '4px 8px' }}
+                                  >
+                                    Sửa
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeletePermissionGroup(group)}
+                                    className="btn-filled-3"
+                                    style={{ padding: '4px 8px', color: '#a80000', borderColor: '#fde7e9' }}
+                                  >
+                                    Xóa
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               ) : (
                 <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
@@ -4086,7 +4476,7 @@ function App() {
           )}
 
           {/* SCREEN: KPI CATALOG (HRManager + Admin) */}
-          {activeTab === 'kpi-catalog' && (activeRole === 'HRManager' || activeRole === 'Admin') && (
+          {activeTab === 'kpi-catalog' && (activeRole === 'Admin' || checkPermission('kpi-catalog')) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
               {/* Header */}
@@ -4338,7 +4728,7 @@ function App() {
 
                       const routingTypeLabel = {
                         1: "Cấp trên quản lý (POSITION_HIERARCHY)",
-                        2: "Theo vai trò (SPECIFIC_ROLE)",
+                        2: "Theo nhóm quyền (SPECIFIC_GROUP)",
                         3: "Trưởng phòng ban (DEPARTMENT_HEAD)",
                         4: "Chỉ định tài khoản (SPECIFIC_USER)"
                       }[route.cr5db_routingtype as number] || route.cr5db_routingtype;
@@ -4354,7 +4744,7 @@ function App() {
                             {route.cr5db_routingtype === 4 && matchedUser ? (
                               <span>👤 {matchedUser.cr5db_fullname}</span>
                             ) : route.cr5db_routingtype === 2 ? (
-                              <span>💼 Vai trò: {route.cr5db_approverrole}</span>
+                              <span>👥 Nhóm: {permissionGroups.find(g => g.id === route.cr5db_approverrole)?.name || route.cr5db_approverrole}</span>
                             ) : (
                               <span style={{ color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>Tự động phân giải</span>
                             )}
@@ -4751,8 +5141,6 @@ function App() {
                     style={{ padding: '6px 12px', height: '38px' }}
                   >
                     <option value={1}>Nhân viên (Employee)</option>
-                    <option value={2}>Trưởng dự án (ProjectManager)</option>
-                    <option value={3}>Quản lý nhân sự (HRManager)</option>
                     <option value={4}>Quản trị viên (Admin)</option>
                   </select>
                 </div>
@@ -4768,7 +5156,7 @@ function App() {
                 </div>
               </div>
 
-              <div>
+               <div>
                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Loại định tuyến phê duyệt</label>
                 <select
                   value={routeRoutingType}
@@ -4777,7 +5165,7 @@ function App() {
                   style={{ padding: '6px 12px', height: '38px' }}
                 >
                   <option value={1}>Quản lý trực tiếp (POSITION_HIERARCHY)</option>
-                  <option value={2}>Chức danh/Vai trò duyệt (SPECIFIC_ROLE)</option>
+                  <option value={2}>Theo nhóm quyền (SPECIFIC_GROUP)</option>
                   <option value={3}>Trưởng bộ phận (DEPARTMENT_HEAD)</option>
                   <option value={4}>Người duyệt chỉ định (SPECIFIC_USER)</option>
                 </select>
@@ -4785,7 +5173,7 @@ function App() {
 
               {routeRoutingType === 2 && (
                 <div>
-                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Vai trò duyệt chỉ định</label>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Nhóm quyền duyệt chỉ định</label>
                   <select
                     value={routeApproverRole}
                     onChange={(e) => setRouteApproverRole(e.target.value)}
@@ -4793,10 +5181,10 @@ function App() {
                     style={{ padding: '6px 12px', height: '38px' }}
                     required
                   >
-                    <option value="">-- Chọn vai trò duyệt --</option>
-                    <option value="Admin">Admin (Quản trị viên)</option>
-                    <option value="HRManager">HR Manager (HR)</option>
-                    <option value="ProjectManager">Project Manager (PM)</option>
+                    <option value="">-- Chọn nhóm quyền duyệt --</option>
+                    {permissionGroups.map(group => (
+                      <option key={group.id} value={group.id}>{group.name}</option>
+                    ))}
                   </select>
                 </div>
               )}
@@ -5133,8 +5521,6 @@ function App() {
                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Chọn vai trò</label>
                 <select value={assignRoleName} onChange={(e) => setAssignRoleName(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
                   <option value="Employee">Employee</option>
-                  <option value="ProjectManager">Project Manager</option>
-                  <option value="HRManager">HR Manager</option>
                   {activeRole === 'Admin' && <option value="Admin">Super Admin</option>}
                 </select>
               </div>
@@ -5210,8 +5596,6 @@ function App() {
                     style={{ height: '38px', padding: '6px 12px' }}
                   >
                     <option value="Employee">Employee</option>
-                    <option value="ProjectManager">Project Manager</option>
-                    <option value="HRManager">HR Manager</option>
                     {activeRole === 'Admin' && <option value="Admin">Super Admin</option>}
                   </select>
                 </div>
@@ -5244,6 +5628,38 @@ function App() {
                   ))}
                 </select>
               </div>
+
+              {employeeRole === 'Employee' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600 }}>Nhóm quyền tham gia (Permission Groups):</label>
+                  {permissionGroups.length === 0 ? (
+                    <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>Chưa có nhóm quyền nào được tạo.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '10px' }}>
+                      {permissionGroups.map(group => {
+                        const isChecked = employeeSelectedGroups.includes(group.id);
+                        return (
+                          <label key={group.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={isChecked} 
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setEmployeeSelectedGroups([...employeeSelectedGroups, group.id]);
+                                } else {
+                                  setEmployeeSelectedGroups(employeeSelectedGroups.filter(id => id !== group.id));
+                                }
+                              }}
+                            />
+                            <span>{group.name}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
                 <button 
                   type="button" 
@@ -5257,6 +5673,73 @@ function App() {
                 </button>
                 <button type="submit" className="btn-primary">
                   Lưu hồ sơ
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Permission Group Modal */}
+      {showGroupModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
+            <h3 style={{ marginBottom: '16px', fontSize: '15px', fontWeight: 700 }}>
+              {editingGroup ? 'Chỉnh sửa nhóm quyền' : 'Thêm nhóm quyền mới'}
+            </h3>
+            <form onSubmit={handleSavePermissionGroup} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Tên nhóm quyền</label>
+                <input 
+                  type="text" 
+                  value={newGroupName} 
+                  onChange={(e) => setNewGroupName(e.target.value)} 
+                  className="input-spec" 
+                  required 
+                  placeholder="Ví dụ: Nhóm Nhân Sự, Nhóm Trưởng Dự Án..." 
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Chọn quyền truy cập (Các Tab hiển thị):</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '12px' }}>
+                  {FEATURE_TABS.map(tab => {
+                    const isChecked = newGroupTabs.includes(tab.id);
+                    return (
+                      <label key={tab.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                        <input 
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewGroupTabs([...newGroupTabs, tab.id]);
+                            } else {
+                              setNewGroupTabs(newGroupTabs.filter(id => id !== tab.id));
+                            }
+                          }}
+                        />
+                        <span>{tab.labelVi} ({tab.labelEn})</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowGroupModal(false);
+                    setEditingGroup(null);
+                    setNewGroupName('');
+                    setNewGroupTabs([]);
+                  }} 
+                  className="btn-filled-3"
+                >
+                  Hủy
+                </button>
+                <button type="submit" className="btn-primary">
+                  Lưu nhóm
                 </button>
               </div>
             </form>
@@ -5371,6 +5854,26 @@ function App() {
                   placeholder="Ví dụ: Phân tích yêu cầu" 
                 />
               </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Ngày bắt đầu</label>
+                  <input 
+                    type="date" 
+                    value={newPhaseStartDate ? newPhaseStartDate.substring(0, 10) : ''} 
+                    onChange={(e) => setNewPhaseStartDate(e.target.value)} 
+                    className="input-spec" 
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Ngày kết thúc</label>
+                  <input 
+                    type="date" 
+                    value={newPhaseEndDate ? newPhaseEndDate.substring(0, 10) : ''} 
+                    onChange={(e) => setNewPhaseEndDate(e.target.value)} 
+                    className="input-spec" 
+                  />
+                </div>
+              </div>
               <div>
                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Trạng thái</label>
                 <select 
@@ -5391,6 +5894,8 @@ function App() {
                     setShowPhaseModal(false);
                     setNewPhaseName('');
                     setNewPhaseStatus('Not Started');
+                    setNewPhaseStartDate('');
+                    setNewPhaseEndDate('');
                   }} 
                   className="btn-filled-3"
                 >
@@ -5489,15 +5994,15 @@ function App() {
       {/* KPI Modal */}
       {showKpiModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: activeRole === 'Employee' ? '400px' : '500px' }}>
+          <div className="modal-content" style={{ maxWidth: (activeRole === 'Employee' && !checkPermission('kpi-catalog')) ? '400px' : '500px' }}>
             <h3 style={{ marginBottom: '16px', fontSize: '15px', fontWeight: 700 }}>
-              {activeRole === 'Employee' 
+              {(activeRole === 'Employee' && !checkPermission('kpi-catalog')) 
                 ? 'Cập nhật tiến độ thực tế KPI' 
                 : editingKpi ? 'Chỉnh sửa mục tiêu KPI' : 'Gán chỉ tiêu KPI mới'}
             </h3>
             
             <form onSubmit={handleSaveKpi} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {activeRole === 'Employee' ? (
+              {(activeRole === 'Employee' && !checkPermission('kpi-catalog')) ? (
                 // Employee Simplified Form
                 <>
                   <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: '#FAF9F9', padding: '12px', borderRadius: '6px', border: '1px solid var(--color-border-light)' }}>
@@ -5751,7 +6256,7 @@ function App() {
                 </div>
               )}
               {/* Timesheet Pending alert */}
-              {activeRole === 'ProjectManager' && pendingApprovalsTimesheets.length > 0 && (
+              {checkPermission('resources') && pendingApprovalsTimesheets.length > 0 && (
                 <div style={{ padding: '10px 12px', border: '1px solid #E29E2E', borderRadius: '6px', fontSize: '13px', backgroundColor: '#FFFDF6' }}>
                   <strong style={{ color: '#E29E2E' }}>Duyệt giờ:</strong> Đang có {pendingApprovalsTimesheets.length} timesheets đang chờ bạn phê duyệt.
                 </div>

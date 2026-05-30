@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import type { User, Task, HeadcountRequest, KPITarget, Company, PositionCatalog, JobPosition, AuditLog } from '../lib/types';
+import type { User, Task, HeadcountRequest, KPITarget, Company, PositionCatalog, JobPosition, AuditLog, PermissionGroup } from '../lib/types';
 
 export type ActiveTab =
   | 'dashboard' | 'tasks' | 'timesheets' | 'kpi' | 'performance'
   | 'companies' | 'positions' | 'headcount' | 'requests' | 'directory'
   | 'roles' | 'resources' | 'routes' | 'kpi-catalog';
 
-export type ActiveRole = 'Employee' | 'ProjectManager' | 'HRManager' | 'Admin';
+export type ActiveRole = 'Employee' | 'Admin';
 
 export function useAppState() {
   // ── Navigation ──────────────────────────────────────────────────────────
@@ -45,6 +45,9 @@ export function useAppState() {
   const [objectivesList, setObjectivesList] = useState<any[]>([]);
   const [approvalRoutesList, setApprovalRoutesList] = useState<any[]>([]);
   const [changeRequestsList, setChangeRequestsList] = useState<any[]>([]);
+  const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>([]);
+  const [defaultGroups, setDefaultGroups] = useState<string>('');
+  const [defaultGroupsDbId, setDefaultGroupsDbId] = useState<string>('');
 
   // Debug log when routes/requests reload
   useEffect(() => {
@@ -73,7 +76,7 @@ export function useAppState() {
   const [kpiTimeRange, setKpiTimeRange] = useState<'week' | 'month' | 'quarter' | 'custom'>('quarter');
 
   // ── Employee Directory ───────────────────────────────────────────────────
-  const [activeDirectorySubTab, setActiveDirectorySubTab] = useState<'view' | 'manage' | 'history'>('view');
+  const [activeDirectorySubTab, setActiveDirectorySubTab] = useState<'view' | 'manage' | 'history' | 'groups'>('view');
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<User | null>(null);
   const [employeeFullName, setEmployeeFullName] = useState('');
@@ -97,6 +100,8 @@ export function useAppState() {
   const [showPhaseModal, setShowPhaseModal] = useState(false);
   const [newPhaseName, setNewPhaseName] = useState('');
   const [newPhaseStatus, setNewPhaseStatus] = useState('Not Started');
+  const [newPhaseStartDate, setNewPhaseStartDate] = useState('');
+  const [newPhaseEndDate, setNewPhaseEndDate] = useState('');
   const [showRiskModal, setShowRiskModal] = useState(false);
   const [newRiskName, setNewRiskName] = useState('');
   const [newRiskImpact, setNewRiskImpact] = useState('Medium');
@@ -229,14 +234,31 @@ export function useAppState() {
 
   // ── Role Gate: redirect to dashboard if tab not permitted ────────────────
   useEffect(() => {
-    if (activeRole === 'Employee') {
-      const allowed: ActiveTab[] = ['dashboard', 'tasks', 'timesheets', 'kpi', 'performance', 'requests'];
-      if (!allowed.includes(activeTab)) setActiveTab('dashboard');
-    } else if (activeRole === 'ProjectManager') {
-      const allowed: ActiveTab[] = ['dashboard', 'tasks', 'timesheets', 'kpi', 'performance', 'resources', 'directory', 'requests'];
-      if (!allowed.includes(activeTab)) setActiveTab('dashboard');
+    if (activeRole === 'Admin') return;
+    if (usersList.length === 0) return; // Wait for data to load
+
+    const BASELINE_TABS = ['dashboard', 'tasks', 'timesheets', 'kpi', 'requests'];
+    if (BASELINE_TABS.includes(activeTab)) return;
+
+    const currentUser = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+    if (!currentUser) {
+      setActiveTab('dashboard');
+      return;
     }
-  }, [activeRole, activeTab]);
+
+    const roleStr = currentUser.cr5db_systemrole || '';
+    if (roleStr.startsWith('Employee:')) {
+      const assignedGroupIds = roleStr.substring(9).split(',');
+      const hasPermission = permissionGroups.some(group => 
+        assignedGroupIds.includes(group.id) && group.tabs.includes(activeTab)
+      );
+      if (!hasPermission) {
+        setActiveTab('dashboard');
+      }
+    } else {
+      setActiveTab('dashboard');
+    }
+  }, [activeRole, activeTab, usersList, currentUserEmail, permissionGroups]);
 
   return {
     // Navigation
@@ -319,6 +341,8 @@ export function useAppState() {
     showPhaseModal, setShowPhaseModal,
     newPhaseName, setNewPhaseName,
     newPhaseStatus, setNewPhaseStatus,
+    newPhaseStartDate, setNewPhaseStartDate,
+    newPhaseEndDate, setNewPhaseEndDate,
     showRiskModal, setShowRiskModal,
     newRiskName, setNewRiskName,
     newRiskImpact, setNewRiskImpact,
@@ -434,5 +458,8 @@ export function useAppState() {
     routeApproverRole, setRouteApproverRole,
     routeApproverUserId, setRouteApproverUserId,
     routePriority, setRoutePriority,
+    permissionGroups, setPermissionGroups,
+    defaultGroups, setDefaultGroups,
+    defaultGroupsDbId, setDefaultGroupsDbId,
   };
 }
