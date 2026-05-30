@@ -42,12 +42,53 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
   const tryCall = async (actionName: string, fn: () => Promise<any>) => {
     try {
       progressCallback(actionName);
-      return await fn();
+      console.log(`[Seeding] ▶ Bắt đầu: ${actionName}`);
+      const result = await fn();
+      console.log(`[Seeding] ✅ Hoàn tất: ${actionName}`);
+      return result;
     } catch (error: any) {
-      console.warn(`[Seeding Warning] Failed during "${actionName}":`, error);
+      const errMsg = error?.message || JSON.stringify(error);
+      progressCallback(`❌ LỖI khi "${actionName}": ${errMsg}`);
+      console.error(`[Seeding] ❌ Lỗi: ${actionName}`, error);
       // Log error and continue to allow partial seeding if some tables are missing
       return null;
     }
+  };
+
+  // Helper: log kết quả từng lệnh create Dataverse
+  const logCreate = (entityName: string, res: any) => {
+    if (res?.success === false) {
+      const errDetail = res?.error?.message || res?.error?.code || JSON.stringify(res?.error);
+      progressCallback(`  ⚠️ ${entityName}: Dataverse trả về success=false → ${errDetail}`);
+      console.error(`[Seeding] ${entityName} create failed:`, res);
+    } else if (res?.data) {
+      const firstKey = Object.keys(res.data).find(k => k.endsWith('id') && k.startsWith('cr5db_'));
+      const id = firstKey ? res.data[firstKey] : '(unknown)';
+      console.log(`[Seeding] ${entityName} created OK, ID=${id}`);
+    } else {
+      progressCallback(`  ⚠️ ${entityName}: Response trống hoặc bất thường`);
+      console.warn(`[Seeding] ${entityName} unexpected response:`, res);
+    }
+  };
+
+  // Helper: Tạo bản ghi an toàn, tự động catch lỗi và log chi tiết từng bản ghi
+  const safeCreate = async (entityName: string, serviceCreateFn: () => Promise<any>) => {
+    try {
+      const res = await serviceCreateFn();
+      logCreate(entityName, res);
+      return res?.data;
+    } catch (err: any) {
+      const errMsg = err?.message || JSON.stringify(err);
+      progressCallback(`  ❌ LỖI tạo ${entityName}: ${errMsg}`);
+      console.error(`[Seeding] ❌ Lỗi tạo ${entityName}:`, err);
+      return null;
+    }
+  };
+
+  // Helper: Tránh lỗi OData bind URL bị rỗng hoặc lỗi cú pháp khi GUID trống
+  const bindOData = (entitySet: string, id: string | undefined) => {
+    if (!id) return undefined;
+    return `/${entitySet}(${id})`;
   };
 
   // 1. Companies
@@ -58,9 +99,9 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
       { cr5db_companycode: "GLB", cr5db_companyname: "VibePower Global" }
     ];
     for (const c of companies) {
-      const res = await Cr5db_companiesService.create(c as any);
-      if (res?.data?.cr5db_companyid) {
-        guids["companies"].push(res.data.cr5db_companyid);
+      const data = await safeCreate(`Company[${c.cr5db_companycode}]`, () => Cr5db_companiesService.create(c as any));
+      if (data?.cr5db_companyid) {
+        guids["companies"].push(data.cr5db_companyid);
       }
     }
   });
@@ -80,9 +121,9 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
       { cr5db_systemlabel1: "Feature", cr5db_hexcolor: "#107c41", cr5db_labelgroup: "Category" }
     ];
     for (const l of labels) {
-      const res = await Cr5db_systemlabelsService.create(l as any);
-      if (res?.data?.cr5db_systemlabelid) {
-        guids["labels"].push({ name: l.cr5db_systemlabel1, id: res.data.cr5db_systemlabelid });
+      const data = await safeCreate(`Label[${l.cr5db_systemlabel1}]`, () => Cr5db_systemlabelsService.create(l as any));
+      if (data?.cr5db_systemlabelid) {
+        guids["labels"].push({ name: l.cr5db_systemlabel1, id: data.cr5db_systemlabelid });
       }
     }
   });
@@ -94,23 +135,23 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
       {
         cr5db_departmentcode: "RND",
         cr5db_departmentname: "Research & Development",
-        "cr5db_CompanyID@odata.bind": `/cr5db_companies(${guids["companies"][0]})`
+        "cr5db_CompanyID@odata.bind": bindOData("cr5db_companies", guids["companies"]?.[0])
       },
       {
         cr5db_departmentcode: "HRM",
         cr5db_departmentname: "Human Resources",
-        "cr5db_CompanyID@odata.bind": `/cr5db_companies(${guids["companies"][0]})`
+        "cr5db_CompanyID@odata.bind": bindOData("cr5db_companies", guids["companies"]?.[0])
       },
       {
         cr5db_departmentcode: "MKT",
         cr5db_departmentname: "Marketing",
-        "cr5db_CompanyID@odata.bind": `/cr5db_companies(${guids["companies"][1]})`
+        "cr5db_CompanyID@odata.bind": bindOData("cr5db_companies", guids["companies"]?.[1])
       }
     ];
     for (const d of depts) {
-      const res = await Cr5db_departmentsService.create(d as any);
-      if (res?.data?.cr5db_departmentid) {
-        guids["departments"][d.cr5db_departmentcode] = res.data.cr5db_departmentid;
+      const data = await safeCreate(`Department[${d.cr5db_departmentcode}]`, () => Cr5db_departmentsService.create(d as any));
+      if (data?.cr5db_departmentid) {
+        guids["departments"][d.cr5db_departmentcode] = data.cr5db_departmentid;
       }
     }
   });
@@ -125,9 +166,9 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
       { cr5db_code: "HR", cr5db_positioncatalog1: "HR Specialist" }
     ];
     for (const cat of catalog) {
-      const res = await Cr5db_positioncatalogsService.create(cat as any);
-      if (res?.data?.cr5db_positioncatalogid) {
-        guids["catalog"][cat.cr5db_code] = res.data.cr5db_positioncatalogid;
+      const data = await safeCreate(`Catalog[${cat.cr5db_code}]`, () => Cr5db_positioncatalogsService.create(cat as any));
+      if (data?.cr5db_positioncatalogid) {
+        guids["catalog"][cat.cr5db_code] = data.cr5db_positioncatalogid;
       }
     }
   });
@@ -139,42 +180,49 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
       {
         cr5db_positionname: "Director of R&D",
         cr5db_headcountquota: 1,
-        "cr5db_Department@odata.bind": `/cr5db_departments(${guids["departments"]["RND"]})`,
-        "cr5db_PositionCatalogTitle@odata.bind": `/cr5db_positioncatalogs(${guids["catalog"]["DIR"]})`
+        "cr5db_Department@odata.bind": bindOData("cr5db_departments", guids["departments"]?.["RND"]),
+        "cr5db_PositionCatalogTitle@odata.bind": bindOData("cr5db_positioncatalogs", guids["catalog"]?.["DIR"])
       },
       {
         cr5db_positionname: "R&D Project Manager",
         cr5db_headcountquota: 2,
-        "cr5db_Department@odata.bind": `/cr5db_departments(${guids["departments"]["RND"]})`,
-        "cr5db_PositionCatalogTitle@odata.bind": `/cr5db_positioncatalogs(${guids["catalog"]["MGR"]})`
+        "cr5db_Department@odata.bind": bindOData("cr5db_departments", guids["departments"]?.["RND"]),
+        "cr5db_PositionCatalogTitle@odata.bind": bindOData("cr5db_positioncatalogs", guids["catalog"]?.["MGR"])
       },
       {
         cr5db_positionname: "Senior Software Engineer",
         cr5db_headcountquota: 5,
-        "cr5db_Department@odata.bind": `/cr5db_departments(${guids["departments"]["RND"]})`,
-        "cr5db_PositionCatalogTitle@odata.bind": `/cr5db_positioncatalogs(${guids["catalog"]["ENG"]})`
+        "cr5db_Department@odata.bind": bindOData("cr5db_departments", guids["departments"]?.["RND"]),
+        "cr5db_PositionCatalogTitle@odata.bind": bindOData("cr5db_positioncatalogs", guids["catalog"]?.["ENG"])
       },
       {
         cr5db_positionname: "HR Recruitment Specialist",
         cr5db_headcountquota: 2,
-        "cr5db_Department@odata.bind": `/cr5db_departments(${guids["departments"]["HRM"]})`,
-        "cr5db_PositionCatalogTitle@odata.bind": `/cr5db_positioncatalogs(${guids["catalog"]["HR"]})`
+        "cr5db_Department@odata.bind": bindOData("cr5db_departments", guids["departments"]?.["HRM"]),
+        "cr5db_PositionCatalogTitle@odata.bind": bindOData("cr5db_positioncatalogs", guids["catalog"]?.["HR"])
       }
     ];
     for (const pos of positions) {
-      const res = await Cr5db_jobpositionsService.create(pos as any);
-      if (res?.data?.cr5db_jobpositionid) {
-        guids["jobpositions"].push(res.data.cr5db_jobpositionid);
+      const data = await safeCreate(`JobPosition[${pos.cr5db_positionname}]`, () => Cr5db_jobpositionsService.create(pos as any));
+      if (data?.cr5db_jobpositionid) {
+        guids["jobpositions"].push(data.cr5db_jobpositionid);
       }
     }
 
     // Link reports to relationship
-    if (guids["jobpositions"].length >= 2) {
+    if (guids["jobpositions"] && guids["jobpositions"].length >= 2) {
       const dirId = guids["jobpositions"][0];
       const pmId = guids["jobpositions"][1];
-      await Cr5db_jobpositionsService.update(pmId, {
-        "cr5db_ReportsToPositionID@odata.bind": `/cr5db_jobpositions(${dirId})`
-      } as any);
+      if (dirId && pmId) {
+        try {
+          console.log(`[Seeding] Linking R&D Project Manager reporting to Director of R&D`);
+          await Cr5db_jobpositionsService.update(pmId, {
+            "cr5db_ReportsToPositionID@odata.bind": bindOData("cr5db_jobpositions", dirId)
+          } as any);
+        } catch (hierarchyErr: any) {
+          console.error(`[Seeding] Failed to link job position hierarchy:`, hierarchyErr);
+        }
+      }
     }
   });
 
@@ -187,34 +235,34 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
         cr5db_email: "admin@company.com",
         cr5db_isactive: true,
         cr5db_systemrole: "Admin",
-        "cr5db_JobPosition@odata.bind": `/cr5db_jobpositions(${guids["jobpositions"][0]})`
+        "cr5db_JobPosition@odata.bind": bindOData("cr5db_jobpositions", guids["jobpositions"]?.[0])
       },
       {
         cr5db_fullname: "Alice PM",
         cr5db_email: "pm@company.com",
         cr5db_isactive: true,
         cr5db_systemrole: "ProjectManager",
-        "cr5db_JobPosition@odata.bind": `/cr5db_jobpositions(${guids["jobpositions"][1]})`
+        "cr5db_JobPosition@odata.bind": bindOData("cr5db_jobpositions", guids["jobpositions"]?.[1])
       },
       {
         cr5db_fullname: "Bob Developer",
         cr5db_email: "dev1@company.com",
         cr5db_isactive: true,
         cr5db_systemrole: "Employee",
-        "cr5db_JobPosition@odata.bind": `/cr5db_jobpositions(${guids["jobpositions"][2]})`
+        "cr5db_JobPosition@odata.bind": bindOData("cr5db_jobpositions", guids["jobpositions"]?.[2])
       },
       {
         cr5db_fullname: "Charlie Developer",
         cr5db_email: "dev2@company.com",
         cr5db_isactive: true,
         cr5db_systemrole: "Employee",
-        "cr5db_JobPosition@odata.bind": `/cr5db_jobpositions(${guids["jobpositions"][2]})`
+        "cr5db_JobPosition@odata.bind": bindOData("cr5db_jobpositions", guids["jobpositions"]?.[2])
       }
     ];
     for (const u of users) {
-      const res = await Cr5db_usersService.create(u as any);
-      if (res?.data?.cr5db_userid) {
-        guids["users"][u.cr5db_email] = res.data.cr5db_userid;
+      const data = await safeCreate(`User[${u.cr5db_fullname}]`, () => Cr5db_usersService.create(u as any));
+      if (data?.cr5db_userid) {
+        guids["users"][u.cr5db_email] = data.cr5db_userid;
       }
     }
   });
@@ -228,9 +276,9 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
       cr5db_enddate: "2026-06-30T00:00:00Z",
       cr5db_islocked: false
     };
-    const res = await Cr5db_evaluationperiodsService.create(period as any);
-    if (res?.data?.cr5db_evaluationperiodid) {
-      guids["periods"].push(res.data.cr5db_evaluationperiodid);
+    const data = await safeCreate('EvaluationPeriod[Q2/2026]', () => Cr5db_evaluationperiodsService.create(period as any));
+    if (data?.cr5db_evaluationperiodid) {
+      guids["periods"].push(data.cr5db_evaluationperiodid);
     }
   });
 
@@ -241,11 +289,11 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
       cr5db_objective1: "Đạt chất lượng phần mềm QLDA Q2/2026",
       cr5db_targetvalue: 100,
       cr5db_objectiveprogress: 0,
-      "cr5db_PeriodName@odata.bind": `/cr5db_evaluationperiods(${guids["periods"][0]})`
+      "cr5db_PeriodName@odata.bind": bindOData("cr5db_evaluationperiods", guids["periods"]?.[0])
     };
-    const res = await Cr5db_objectivesService.create(obj as any);
-    if (res?.data?.cr5db_objectiveid) {
-      guids["objectives"].push(res.data.cr5db_objectiveid);
+    const data = await safeCreate('Objective', () => Cr5db_objectivesService.create(obj as any));
+    if (data?.cr5db_objectiveid) {
+      guids["objectives"].push(data.cr5db_objectiveid);
     }
   });
 
@@ -257,75 +305,75 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
       cr5db_startdate: "2026-04-05T00:00:00Z",
       cr5db_enddate: "2026-06-25T00:00:00Z"
     };
-    const res = await Cr5db_projectsService.create(proj as any);
-    if (res?.data?.cr5db_projectid) {
-      const projId = res.data.cr5db_projectid;
+    const data = await safeCreate('Project[Traffic Analysis Engine]', () => Cr5db_projectsService.create(proj as any));
+    if (data?.cr5db_projectid) {
+      const projId = data.cr5db_projectid;
 
       // Labels Assignment
       if (guids["labels"] && guids["labels"].length > 0) {
-        await Cr5db_projectlabelassignmentsService.create({
+        await safeCreate('ProjectLabelAssignment', () => Cr5db_projectlabelassignmentsService.create({
           cr5db_projectlabelassignment1: "Traffic Project - Urgent",
-          "cr5db_ProjectID@odata.bind": `/cr5db_projects(${projId})`,
-          "cr5db_LabelName@odata.bind": `/cr5db_systemlabels(${guids["labels"][0].id})`
-        } as any);
+          "cr5db_ProjectID@odata.bind": bindOData("cr5db_projects", projId),
+          "cr5db_LabelName@odata.bind": bindOData("cr5db_systemlabels", guids["labels"][0]?.id)
+        } as any));
       }
 
       // Objective Alignment
       if (guids["objectives"] && guids["objectives"].length > 0) {
-        await Cr5db_projectobjectivealignmentsService.create({
+        await safeCreate('ProjectObjectiveAlignment', () => Cr5db_projectobjectivealignmentsService.create({
           cr5db_projectobjectivealignment1: "Traffic Objective Alignment",
-          "cr5db_Project@odata.bind": `/cr5db_projects(${projId})`,
-          "cr5db_Objective@odata.bind": `/cr5db_objectives(${guids["objectives"][0]})`
-        } as any);
+          "cr5db_Project@odata.bind": bindOData("cr5db_projects", projId),
+          "cr5db_Objective@odata.bind": bindOData("cr5db_objectives", guids["objectives"][0])
+        } as any));
       }
 
       // Project Risks
-      await Cr5db_projectrisksService.create({
+      await safeCreate('ProjectRisk', () => Cr5db_projectrisksService.create({
         cr5db_projectrisk1: "Database scaling bottlenecks",
         cr5db_impact: "High",
         cr5db_probability: "Medium",
         cr5db_mitigationplan: "Implement horizontal partitioning on PostgreSQL",
-        "cr5db_ProjectID@odata.bind": `/cr5db_projects(${projId})`
-      } as any);
+        "cr5db_ProjectID@odata.bind": bindOData("cr5db_projects", projId)
+      } as any));
 
       // Project Phase
-      const phaseRes = await Cr5db_projectphasesService.create({
+      const phaseData = await safeCreate('ProjectPhase[Phase 1]', () => Cr5db_projectphasesService.create({
         cr5db_phasename: "Phase 1: Database Setup & Integration",
         cr5db_startdate: "2026-04-06T00:00:00Z",
         cr5db_enddate: "2026-04-30T00:00:00Z",
-        "cr5db_ProjectID@odata.bind": `/cr5db_projects(${projId})`
-      } as any);
-      if (phaseRes?.data?.cr5db_projectphaseid) {
-        guids["phase_id"] = phaseRes.data.cr5db_projectphaseid;
+        "cr5db_ProjectID@odata.bind": bindOData("cr5db_projects", projId)
+      } as any));
+      if (phaseData?.cr5db_projectphaseid) {
+        guids["phase_id"] = phaseData.cr5db_projectphaseid;
       }
 
       // Project Team
-      const teamRes = await Cr5db_projectteamsService.create({
+      const teamData = await safeCreate('ProjectTeam', () => Cr5db_projectteamsService.create({
         cr5db_teamname: "Traffic Engine Dev Team",
-        "cr5db_ProjectID@odata.bind": `/cr5db_projects(${projId})`
-      } as any);
-      if (teamRes?.data?.cr5db_projectteamid) {
-        const teamId = teamRes.data.cr5db_projectteamid;
+        "cr5db_ProjectID@odata.bind": bindOData("cr5db_projects", projId)
+      } as any));
+      if (teamData?.cr5db_projectteamid) {
+        const teamId = teamData.cr5db_projectteamid;
 
         // Allocations
         for (const email of ["dev1@company.com", "dev2@company.com"]) {
           const uId = guids["users"][email];
           if (uId) {
-            const allocRes = await Cr5db_resourceallocationsService.create({
+            const allocData = await safeCreate(`ResourceAllocation[${email.split('@')[0]}]`, () => Cr5db_resourceallocationsService.create({
               cr5db_resourceallocation1: `Allocation for ${email.split('@')[0]}`,
               cr5db_allocationpercentage: 100,
-              "cr5db_UserID@odata.bind": `/cr5db_users(${uId})`,
-              "cr5db_ProjectTeamID@odata.bind": `/cr5db_projectteams(${teamId})`
-            } as any);
+              "cr5db_UserID@odata.bind": bindOData("cr5db_users", uId),
+              "cr5db_ProjectTeamID@odata.bind": bindOData("cr5db_projectteams", teamId)
+            } as any));
 
-            if (allocRes?.data?.cr5db_resourceallocationid) {
-              const allocId = allocRes.data.cr5db_resourceallocationid;
+            if (allocData?.cr5db_resourceallocationid) {
+              const allocId = allocData.cr5db_resourceallocationid;
               const isLead = email === "dev1@company.com";
-              await Cr5db_userprojectrolesService.create({
+              await safeCreate(`UserProjectRole[${isLead ? 'Lead' : 'QA'}]`, () => Cr5db_userprojectrolesService.create({
                 cr5db_rolename: isLead ? "Lead Developer" : "QA Tester",
                 cr5db_rolecode: isLead ? "LD" : "QA",
-                "cr5db_AllocationID@odata.bind": `/cr5db_resourceallocations(${allocId})`
-              } as any);
+                "cr5db_AllocationID@odata.bind": bindOData("cr5db_resourceallocations", allocId)
+              } as any));
             }
           }
         }
@@ -341,9 +389,9 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
       { cr5db_kpiname: "Tỷ lệ thời gian Timesheet chuẩn", cr5db_unit: "%", cr5db_formula: "(Số giờ Timesheet hợp lệ / Tổng số giờ quy định) * 100" }
     ];
     for (const lib of library) {
-      const res = await Cr5db_kpilibrariesService.create(lib as any);
-      if (res?.data?.cr5db_kpilibraryid) {
-        guids["kpilibrary"].push(res.data.cr5db_kpilibraryid);
+      const data = await safeCreate(`KPILibrary[${lib.cr5db_kpiname}]`, () => Cr5db_kpilibrariesService.create(lib as any));
+      if (data?.cr5db_kpilibraryid) {
+        guids["kpilibrary"].push(data.cr5db_kpilibraryid);
       }
     }
   });
@@ -351,114 +399,114 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
   // 11. KPI Targets & Actuals
   await tryCall("Gán chỉ tiêu và ghi nhận thực tế KPI...", async () => {
     const bobId = guids["users"]["dev1@company.com"];
-    const targetRes = await Cr5db_kpitargetsService.create({
+    const targetData = await safeCreate('KPITarget', () => Cr5db_kpitargetsService.create({
       cr5db_kpitarget1: "Hoàn thành Schema Q2",
       cr5db_targetvalue: 95,
       cr5db_actualvalue: 0,
       cr5db_weightpercentage: 50,
-      "cr5db_EmployeeID@odata.bind": `/cr5db_users(${bobId})`,
-      "cr5db_KPICode@odata.bind": `/cr5db_kpilibraries(${guids["kpilibrary"][0]})`,
-      "cr5db_ParentObjective@odata.bind": `/cr5db_objectives(${guids["objectives"][0]})`
-    } as any);
+      "cr5db_EmployeeID@odata.bind": bindOData("cr5db_users", bobId),
+      "cr5db_KPICode@odata.bind": bindOData("cr5db_kpilibraries", guids["kpilibrary"]?.[0]),
+      "cr5db_ParentObjective@odata.bind": bindOData("cr5db_objectives", guids["objectives"]?.[0])
+    } as any));
 
-    if (targetRes?.data?.cr5db_kpitargetid) {
-      const targetId = targetRes.data.cr5db_kpitargetid;
+    if (targetData?.cr5db_kpitargetid) {
+      const targetId = targetData.cr5db_kpitargetid;
       guids["kpitarget"] = targetId;
 
-      await Cr5db_kpiactuallogsService.create({
+      await safeCreate('KPIActualLog', () => Cr5db_kpiactuallogsService.create({
         cr5db_kpiactuallog1: "Completed Phase 1 database definition schema review",
         cr5db_actualvalue: 90,
         cr5db_evidencelink: "https://github.com/violet/traffic-analysis-engine/pull/1",
-        "cr5db_TargetId@odata.bind": `/cr5db_kpitargets(${targetId})`
-      } as any);
+        "cr5db_TargetId@odata.bind": bindOData("cr5db_kpitargets", targetId)
+      } as any));
     }
   });
 
   // 12. Tasks, Comments & Timesheets
   await tryCall("Tạo công việc (Tasks), timesheets và bình luận...", async () => {
     const bobId = guids["users"]["dev1@company.com"];
-    const taskRes = await Cr5db_tasksService.create({
+    const taskData = await safeCreate('Task[Setup Dataverse schema]', () => Cr5db_tasksService.create({
       cr5db_taskname: "Thiết lập Schema Dataverse cho bảng ProjectRisk",
       cr5db_description: "Định nghĩa các cột, kiểu dữ liệu, các quan hệ khóa ngoại liên kết cho bảng Project Risk.",
       cr5db_duedate: "2026-05-30T17:00:00Z",
       cr5db_status: "Completed",
-      "cr5db_AssigneeID@odata.bind": `/cr5db_users(${bobId})`,
-      "cr5db_ObjectiveName@odata.bind": `/cr5db_objectives(${guids["objectives"][0]})`,
-      "cr5db_ProjectPhaseID@odata.bind": `/cr5db_projectphases(${guids["phase_id"]})`
-    } as any);
+      "cr5db_AssigneeID@odata.bind": bindOData("cr5db_users", bobId),
+      "cr5db_ObjectiveName@odata.bind": bindOData("cr5db_objectives", guids["objectives"]?.[0]),
+      "cr5db_ProjectPhaseID@odata.bind": bindOData("cr5db_projectphases", guids["phase_id"])
+    } as any));
 
-    if (taskRes?.data?.cr5db_taskid) {
-      const taskId = taskRes.data.cr5db_taskid;
+    if (taskData?.cr5db_taskid) {
+      const taskId = taskData.cr5db_taskid;
 
-      await Cr5db_taskcommentsService.create({
+      await safeCreate('TaskComment', () => Cr5db_taskcommentsService.create({
         cr5db_taskcomment1: "Task Completed Comment",
         cr5db_commenttext: "Đã hoàn thành cấu hình Schema XML và định nghĩa Relationships. Đang đợi import.",
-        "cr5db_TaskID@odata.bind": `/cr5db_tasks(${taskId})`
-      } as any);
+        "cr5db_TaskID@odata.bind": bindOData("cr5db_tasks", taskId)
+      } as any));
 
-      await Cr5db_timesheetlogsService.create({
+      await safeCreate('TimesheetLog', () => Cr5db_timesheetlogsService.create({
         cr5db_timesheetlog1: "Log 8h RND setup",
         cr5db_actualhoursworked: 8,
         cr5db_logdate: "2026-05-29T00:00:00Z",
         statecode: 1, // Approved
-        "cr5db_TaskID@odata.bind": `/cr5db_tasks(${taskId})`
-      } as any);
+        "cr5db_TaskID@odata.bind": bindOData("cr5db_tasks", taskId)
+      } as any));
     }
   });
 
   // 13. Appraisals
   await tryCall("Tạo đánh giá hiệu suất (Performance Appraisals)...", async () => {
     const bobId = guids["users"]["dev1@company.com"];
-    const appraisalRes = await Cr5db_performanceappraisalsService.create({
+    const appraisalData = await safeCreate('PerformanceAppraisal', () => Cr5db_performanceappraisalsService.create({
       cr5db_performanceappraisal1: "Đánh giá hiệu suất Bob Q2/2026",
       cr5db_selfscore: 90,
       cr5db_finalscore: 95,
-      "cr5db_EmployeeID@odata.bind": `/cr5db_users(${bobId})`,
-      "cr5db_PeriodName@odata.bind": `/cr5db_evaluationperiods(${guids["periods"][0]})`
-    } as any);
+      "cr5db_EmployeeID@odata.bind": bindOData("cr5db_users", bobId),
+      "cr5db_PeriodName@odata.bind": bindOData("cr5db_evaluationperiods", guids["periods"]?.[0])
+    } as any));
 
-    if (appraisalRes?.data?.cr5db_performanceappraisalid && guids["kpitarget"]) {
-      const appraisalId = appraisalRes.data.cr5db_performanceappraisalid;
-      await Cr5db_appraisalkpidetailsService.create({
+    if (appraisalData?.cr5db_performanceappraisalid && guids["kpitarget"]) {
+      const appraisalId = appraisalData.cr5db_performanceappraisalid;
+      await safeCreate('AppraisalKPIDetails', () => Cr5db_appraisalkpidetailsService.create({
         cr5db_appraisalkpidetail1: "Chi tiết KPI Target Schema",
         cr5db_scoreachieved: 95,
         cr5db_comment: "Nhân sự hoàn thành xuất sắc nhiệm vụ và đóng góp tích cực vào tiến trình thiết lập hệ thống.",
-        "cr5db_AppraisalName@odata.bind": `/cr5db_performanceappraisals(${appraisalId})`,
-        "cr5db_TargetId@odata.bind": `/cr5db_kpitargets(${guids["kpitarget"]})`
-      } as any);
+        "cr5db_AppraisalName@odata.bind": bindOData("cr5db_performanceappraisals", appraisalId),
+        "cr5db_TargetId@odata.bind": bindOData("cr5db_kpitargets", guids["kpitarget"])
+      } as any));
     }
   });
 
   // 14. System Configuration & Extras
   await tryCall("Cấu hình chính sách, headcount và các cấu hình phụ trợ...", async () => {
     // Headcount Request
-    await Cr5db_headcountrequestsService.create({
+    await safeCreate('HeadcountRequest', () => Cr5db_headcountrequestsService.create({
       cr5db_requestname: "Yêu cầu tăng định biên R&D Devs",
       cr5db_requestedquantity: 2,
       cr5db_reason: "Tăng trưởng dự án Traffic Engine đòi hỏi thêm 2 Backend Engineers cho các module AI.",
       cr5db_approvalstatus: "Pending",
       cr5db_requesttype: "Increase",
-      "cr5db_Department@odata.bind": `/cr5db_departments(${guids["departments"]["RND"]})`,
-      "cr5db_JobPosition@odata.bind": `/cr5db_jobpositions(${guids["jobpositions"][2]})`,
-      "cr5db_PositionCatalog@odata.bind": `/cr5db_positioncatalogs(${guids["catalog"]["ENG"]})`
-    } as any);
+      "cr5db_Department@odata.bind": bindOData("cr5db_departments", guids["departments"]?.["RND"]),
+      "cr5db_JobPosition@odata.bind": bindOData("cr5db_jobpositions", guids["jobpositions"]?.[2]),
+      "cr5db_PositionCatalog@odata.bind": bindOData("cr5db_positioncatalogs", guids["catalog"]?.["ENG"])
+    } as any));
 
     // System Notification
     const pmId = guids["users"]["pm@company.com"];
-    await Cr5db_systemnotificationsService.create({
+    await safeCreate('SystemNotification', () => Cr5db_systemnotificationsService.create({
       cr5db_systemnotification1: "Duyệt công mới",
       cr5db_content: "Bạn có 1 yêu cầu duyệt Timesheet mới từ Bob Developer.",
       cr5db_deeplinkurl: "/requests",
       cr5db_isread: false,
-      "cr5db_RecipientID@odata.bind": `/cr5db_users(${pmId})`
-    } as any);
+      "cr5db_RecipientID@odata.bind": bindOData("cr5db_users", pmId)
+    } as any));
 
     // System Parameter
-    await Cr5db_systemparametersService.create({
+    await safeCreate('SystemParameter[MaxTimesheetHours]', () => Cr5db_systemparametersService.create({
       cr5db_systemparameter1: "MaxTimesheetHoursPerDay",
       cr5db_paramvalue: "24",
       cr5db_valuetype: "Integer"
-    } as any);
+    } as any));
 
     // Permission Groups
     const groups = [
@@ -467,25 +515,25 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
       { cr5db_systemparameter1: "pg_employee", cr5db_paramvalue: "Nhân Viên R&D|abcdf", cr5db_valuetype: "PermissionGroup" }
     ];
     for (const g of groups) {
-      await Cr5db_systemparametersService.create(g as any);
+      await safeCreate(`PermissionGroup[${g.cr5db_systemparameter1}]`, () => Cr5db_systemparametersService.create(g as any));
     }
 
     // Default Permission Groups Parameter
-    await Cr5db_systemparametersService.create({
+    await safeCreate('SystemParameter[DefaultPermissionGroups]', () => Cr5db_systemparametersService.create({
       cr5db_systemparameter1: "DefaultPermissionGroups",
       cr5db_paramvalue: "pg_employee",
       cr5db_valuetype: "DefaultPermissionGroups"
-    } as any);
+    } as any));
 
     // System Policy Rule
-    await Cr5db_systempolicyrulesService.create({
+    await safeCreate('SystemPolicyRule', () => Cr5db_systempolicyrulesService.create({
       cr5db_systempolicyrule1: "Timesheet Submission Deadline Policy",
       cr5db_targetentity: "cr5db_timesheetlog",
       cr5db_contextcondition: "SubmittedDate > Sunday 23:59",
       cr5db_operator: "Block",
       cr5db_constraintvalue: "Block Submission",
       cr5db_effect: "Error"
-    } as any);
+    } as any));
   });
 
   // 15. Approval Routes
@@ -513,7 +561,7 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
       }
     ];
     for (const r of routes) {
-      await Cr5db_approvalroutesesService.create(r as any);
+      await safeCreate(`ApprovalRoute[${r.cr5db_routename}]`, () => Cr5db_approvalroutesesService.create(r as any));
     }
   });
 
