@@ -6,9 +6,9 @@
 import type { Cr5db_usersBase, Cr5db_users } from '../models/Cr5db_usersModel';
 import type { GetEntityMetadataOptions, EntityMetadata } from '@microsoft/power-apps/data/metadata/dataverse';
 import type { IGetOptions, IGetAllOptions } from '../models/CommonModels';
-import type { IOperationResult } from '@microsoft/power-apps/data';
+import type { IOperationResult } from '../../lib/mockPowerAppsData';
 import { dataSourcesInfo } from '../../../.power/schemas/appschemas/dataSourcesInfo';
-import { getClient } from '@microsoft/power-apps/data';
+import { getClient } from '../../lib/mockPowerAppsData';
 
 
 export class Cr5db_usersService {

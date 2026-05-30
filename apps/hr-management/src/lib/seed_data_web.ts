@@ -36,6 +36,49 @@ import {
   Cr5db_changerequestsesService
 } from '../generated';
 
+
+const PLURAL_TO_SINGULAR: Record<string, string> = {
+  "cr5db_appraisalkpidetails": "cr5db_appraisalkpidetail",
+  "cr5db_performanceappraisals": "cr5db_performanceappraisal",
+  "cr5db_kpiactuallogs": "cr5db_kpiactuallog",
+  "cr5db_kpitargets": "cr5db_kpitarget",
+  "cr5db_timesheetlogs": "cr5db_timesheetlog",
+  "cr5db_taskcomments": "cr5db_taskcomment",
+  "cr5db_taskdependencies": "cr5db_taskdependency",
+  "cr5db_tasklabelassignments": "cr5db_tasklabelassignment",
+  "cr5db_projectlabelassignments": "cr5db_projectlabelassignment",
+  "cr5db_projectobjectivealignments": "cr5db_projectobjectivealignment",
+  "cr5db_projectissues": "cr5db_projectissue",
+  "cr5db_projectrisks": "cr5db_projectrisk",
+  "cr5db_tasks": "cr5db_task",
+  "cr5db_userprojectroles": "cr5db_userprojectrole",
+  "cr5db_resourceallocations": "cr5db_resourceallocation",
+  "cr5db_projectteams": "cr5db_projectteam",
+  "cr5db_projectphases": "cr5db_projectphase",
+  "cr5db_projects": "cr5db_project",
+  "cr5db_objectives": "cr5db_objective",
+  "cr5db_kpilibraries": "cr5db_kpilibrary",
+  "cr5db_evaluationperiods": "cr5db_evaluationperiod",
+  "cr5db_users": "cr5db_user",
+  "cr5db_jobpositions": "cr5db_jobposition",
+  "cr5db_positioncatalogs": "cr5db_positioncatalog",
+  "cr5db_departments": "cr5db_department",
+  "cr5db_companies": "cr5db_company",
+  "cr5db_systemlabels": "cr5db_systemlabel",
+  "cr5db_systemnotifications": "cr5db_systemnotification",
+  "cr5db_systemparameters": "cr5db_systemparameter",
+  "cr5db_systempolicyrules": "cr5db_systempolicyrule",
+  "cr5db_headcountrequests": "cr5db_headcountrequest",
+  "cr5db_approvaldelegations": "cr5db_approvaldelegation",
+  "cr5db_audittraillogs": "cr5db_audittraillog",
+  "cr5db_approvalrouteses": "cr5db_approvalroutes",
+  "cr5db_changerequestses": "cr5db_changerequests",
+  "cr5db_roleassignments": "cr5db_roleassignment",
+  "cr5db_systemroles": "cr5db_systemrole",
+  "cr5db_taskownerships": "cr5db_taskownership",
+  "cr5db_timesheetaudits": "cr5db_timesheetaudit"
+};
+
 export async function runWebSeeding(progressCallback: (status: string) => void): Promise<void> {
   const guids: Record<string, any> = {};
 
@@ -88,7 +131,7 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
   // Helper: Tránh lỗi OData bind URL bị rỗng hoặc lỗi cú pháp khi GUID trống
   const bindOData = (entitySet: string, id: string | undefined) => {
     if (!id) return undefined;
-    return `/${entitySet}(${id})`;
+    return `${entitySet}(${id})`;
   };
 
   // 1. Companies
@@ -584,14 +627,9 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
       
       // Xác định tên trường khóa chính (Primary Key Field)
       const firstRec = records[0];
-      const candidates = [
-        `${tableName}id`,
-        `${tableName.slice(0, -1)}id`, // projects -> projectid
-        `${tableName.slice(0, -2)}id`, // approvalrouteses -> approvalroutesid
-        `${tableName.slice(0, -3)}yid` // companies -> companyid
-      ];
-      let idField = candidates.find(c => c in firstRec);
-      if (!idField) {
+      const singularName = PLURAL_TO_SINGULAR[tableName] || tableName;
+      let idField = `${singularName}id`;
+      if (!(idField in firstRec)) {
         // Fallback: Tìm trường nào bắt đầu bằng cr5db_ và kết thúc bằng id, lấy trường ngắn nhất
         const keys = Object.keys(firstRec).filter(k => k.startsWith('cr5db_') && k.endsWith('id') && !k.includes('@'));
         idField = keys.sort((a,b) => a.length - b.length)[0];

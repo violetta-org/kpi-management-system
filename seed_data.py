@@ -68,10 +68,10 @@ CLEAR_ORDER = [
     "cr5db_audittraillogs",
     "cr5db_approvalrouteses",
     "cr5db_changerequestses",
-    "new_roleassignments",
-    "new_systemroles",
-    "new_taskownerships",
-    "new_timesheetaudits"
+    "cr5db_roleassignments",
+    "cr5db_systemroles",
+    "cr5db_taskownerships",
+    "cr5db_timesheetaudits"
 ]
 
 def parse_args():
@@ -152,11 +152,57 @@ def extract_guid(odata_entity_id):
     match = re.search(r"\(([0-9a-fA-F-]+)\)", odata_entity_id)
     return match.group(1) if match else None
 
+
+PLURAL_TO_SINGULAR = {
+    "cr5db_appraisalkpidetails": "cr5db_appraisalkpidetail",
+    "cr5db_performanceappraisals": "cr5db_performanceappraisal",
+    "cr5db_kpiactuallogs": "cr5db_kpiactuallog",
+    "cr5db_kpitargets": "cr5db_kpitarget",
+    "cr5db_timesheetlogs": "cr5db_timesheetlog",
+    "cr5db_taskcomments": "cr5db_taskcomment",
+    "cr5db_taskdependencies": "cr5db_taskdependency",
+    "cr5db_tasklabelassignments": "cr5db_tasklabelassignment",
+    "cr5db_projectlabelassignments": "cr5db_projectlabelassignment",
+    "cr5db_projectobjectivealignments": "cr5db_projectobjectivealignment",
+    "cr5db_projectissues": "cr5db_projectissue",
+    "cr5db_projectrisks": "cr5db_projectrisk",
+    "cr5db_tasks": "cr5db_task",
+    "cr5db_userprojectroles": "cr5db_userprojectrole",
+    "cr5db_resourceallocations": "cr5db_resourceallocation",
+    "cr5db_projectteams": "cr5db_projectteam",
+    "cr5db_projectphases": "cr5db_projectphase",
+    "cr5db_projects": "cr5db_project",
+    "cr5db_objectives": "cr5db_objective",
+    "cr5db_kpilibraries": "cr5db_kpilibrary",
+    "cr5db_evaluationperiods": "cr5db_evaluationperiod",
+    "cr5db_users": "cr5db_user",
+    "cr5db_jobpositions": "cr5db_jobposition",
+    "cr5db_positioncatalogs": "cr5db_positioncatalog",
+    "cr5db_departments": "cr5db_department",
+    "cr5db_companies": "cr5db_company",
+    "cr5db_systemlabels": "cr5db_systemlabel",
+    "cr5db_systemnotifications": "cr5db_systemnotification",
+    "cr5db_systemparameters": "cr5db_systemparameter",
+    "cr5db_systempolicyrules": "cr5db_systempolicyrule",
+    "cr5db_headcountrequests": "cr5db_headcountrequest",
+    "cr5db_approvaldelegations": "cr5db_approvaldelegation",
+    "cr5db_audittraillogs": "cr5db_audittraillog",
+    "cr5db_approvalrouteses": "cr5db_approvalroutes",
+    "cr5db_changerequestses": "cr5db_changerequests",
+    "cr5db_roleassignments": "cr5db_roleassignment",
+    "cr5db_systemroles": "cr5db_systemrole",
+    "cr5db_taskownerships": "cr5db_taskownership",
+    "cr5db_timesheetaudits": "cr5db_timesheetaudit"
+}
+
+
 def clear_records(api_base, headers):
     print("\n🧹 Starting database clean up (deleting custom records in reverse order)...")
     for table in CLEAR_ORDER:
         url = urljoin(api_base, f"{table}")
-        res = make_request("GET", url + "?$select=" + table + "id", headers)
+        singular_name = PLURAL_TO_SINGULAR.get(table, table)
+        id_field = f"{singular_name}id"
+        res = make_request("GET", url + "?$select=" + id_field, headers)
         if res["status"] == 404:
             print(f"➖ Table '{table}' does not exist in environment. Skipping.")
             continue
@@ -169,7 +215,8 @@ def clear_records(api_base, headers):
             continue
             
         print(f"🗑️ Deleting {len(records)} records from '{table}'...")
-        id_field = f"{table}id"
+        singular_name = PLURAL_TO_SINGULAR.get(table, table)
+        id_field = f"{singular_name}id"
         deleted = 0
         for rec in records:
             rec_id = rec.get(id_field)
@@ -189,9 +236,24 @@ def insert_record(api_base, table_name, data, headers):
     if res["status"] == 404:
         return {"skipped": True, "reason": f"Table '{table_name}' not found (404). Solution component may not be deployed."}
     if "error" in res:
+        print(f"  ⚠️ Error inserting into '{table_name}': {res['error']}")
         return {"error": res["error"]}
+    
     odata_id = res["headers"].get("OData-EntityId")
     guid = extract_guid(odata_id)
+    
+    if not guid and "data" in res:
+        # Fallback to extracting from the JSON body using PLURAL_TO_SINGULAR
+        singular = PLURAL_TO_SINGULAR.get(table_name, table_name)
+        id_field = f"{singular}id"
+        guid = res["data"].get(id_field)
+        if not guid:
+            # Suffix fallback search
+            for k, v in res["data"].items():
+                if k.endswith("id") and v and len(str(v)) == 36:
+                    guid = v
+                    break
+                    
     return {"success": True, "guid": guid}
 
 def main():
@@ -264,32 +326,37 @@ def main():
             guids["labels"].append((l["cr5db_systemlabel1"], res["guid"]))
             print(f"  + Label '{l['cr5db_systemlabel1']}' created.")
             
-    # 3. System Roles (new_SystemRole)
+    # 3. System Roles (cr5db_SystemRole)
     roles_data = [
-        {"new_RoleName": "Director", "new_RoleCode": "DIR", "new_RoleDescription": "Executive leadership", "new_RoleLevel": 4, "new_IsActive": True},
-        {"new_RoleName": "Project Manager", "new_RoleCode": "MGR", "new_RoleDescription": "Project management and approvals", "new_RoleLevel": 3, "new_IsActive": True},
-        {"new_RoleName": "Software Engineer", "new_RoleCode": "ENG", "new_RoleDescription": "Technical execution", "new_RoleLevel": 2, "new_IsActive": True},
-        {"new_RoleName": "HR Specialist", "new_RoleCode": "HR", "new_RoleDescription": "Human resources and headcounts", "new_RoleLevel": 2, "new_IsActive": True}
+        {"cr5db_RoleName": "Director", "cr5db_RoleCode": "DIR", "cr5db_RoleDescription": "Executive leadership", "cr5db_RoleLevel": 4, "cr5db_IsActive": True},
+        {"cr5db_RoleName": "Project Manager", "cr5db_RoleCode": "MGR", "cr5db_RoleDescription": "Project management and approvals", "cr5db_RoleLevel": 3, "cr5db_IsActive": True},
+        {"cr5db_RoleName": "Software Engineer", "cr5db_RoleCode": "ENG", "cr5db_RoleDescription": "Technical execution", "cr5db_RoleLevel": 2, "cr5db_IsActive": True},
+        {"cr5db_RoleName": "HR Specialist", "cr5db_RoleCode": "HR", "cr5db_RoleDescription": "Human resources and headcounts", "cr5db_RoleLevel": 2, "cr5db_IsActive": True}
     ]
     guids["systemroles"] = []
     for r in roles_data:
-        res = insert_record(api_base, "new_systemroles", r, headers)
+        res = insert_record(api_base, "cr5db_systemroles", r, headers)
         if "success" in res:
-            guids["systemroles"].append((r["new_RoleCode"], res["guid"]))
-            print(f"  + System Role '{r['new_RoleName']}' created.")
+            guids["systemroles"].append((r["cr5db_RoleCode"], res["guid"]))
+            print(f"  + System Role '{r['cr5db_RoleName']}' created.")
         elif "skipped" in res:
             print(f"  - {res['reason']}")
             # Graceful, continue seeding other tables
             
     # 4. Departments
     dept_data = [
-        {"cr5db_departmentcode": "RND", "cr5db_departmentname": "Research & Development", "cr5db_CompanyID@odata.bind": f"/cr5db_companies({guids['companies'][0]})"},
-        {"cr5db_departmentcode": "HRM", "cr5db_departmentname": "Human Resources", "cr5db_CompanyID@odata.bind": f"/cr5db_companies({guids['companies'][0]})"},
-        {"cr5db_departmentcode": "MKT", "cr5db_departmentname": "Marketing", "cr5db_CompanyID@odata.bind": f"/cr5db_companies({guids['companies'][1]})"}
+        {"cr5db_departmentcode": "RND", "cr5db_departmentname": "Research & Development", "cr5db_CompanyID@odata.bind": f"cr5db_companies({guids['companies'][0]})"},
+        {"cr5db_departmentcode": "HRM", "cr5db_departmentname": "Human Resources", "cr5db_CompanyID@odata.bind": f"cr5db_companies({guids['companies'][0]})"},
+        {"cr5db_departmentcode": "MKT", "cr5db_departmentname": "Marketing", "cr5db_CompanyID@odata.bind": f"cr5db_companies({guids['companies'][1]})"}
     ]
     guids["departments"] = {}
     for d in dept_data:
         res = insert_record(api_base, "cr5db_departments", d, headers)
+        if "error" in res and "cr5db_CompanyID@odata.bind" in d:
+            print(f"  ⚠️ Retrying without cr5db_CompanyID for {d['cr5db_departmentcode']}...")
+            del d["cr5db_CompanyID@odata.bind"]
+            res = insert_record(api_base, "cr5db_departments", d, headers)
+        
         if "success" in res:
             guids["departments"][d["cr5db_departmentcode"]] = res["guid"]
             print(f"  + Department '{d['cr5db_departmentcode']}' created.")
@@ -313,31 +380,51 @@ def main():
         {
             "cr5db_positionname": "Director of R&D",
             "cr5db_headcountquota": 1,
-            "cr5db_Department@odata.bind": f"/cr5db_departments({guids['departments']['RND']})",
-            "cr5db_PositionCatalogTitle@odata.bind": f"/cr5db_positioncatalogs({guids['catalog']['DIR']})"
+            "cr5db_Department@odata.bind": f"cr5db_departments({guids['departments'].get('RND', '')})",
+            "cr5db_PositionCatalogTitle@odata.bind": f"cr5db_positioncatalogs({guids['catalog'].get('DIR', '')})"
         },
         {
             "cr5db_positionname": "R&D Project Manager",
             "cr5db_headcountquota": 2,
-            "cr5db_Department@odata.bind": f"/cr5db_departments({guids['departments']['RND']})",
-            "cr5db_PositionCatalogTitle@odata.bind": f"/cr5db_positioncatalogs({guids['catalog']['MGR']})"
+            "cr5db_Department@odata.bind": f"cr5db_departments({guids['departments'].get('RND', '')})",
+            "cr5db_PositionCatalogTitle@odata.bind": f"cr5db_positioncatalogs({guids['catalog'].get('MGR', '')})"
         },
         {
             "cr5db_positionname": "Senior Software Engineer",
             "cr5db_headcountquota": 5,
-            "cr5db_Department@odata.bind": f"/cr5db_departments({guids['departments']['RND']})",
-            "cr5db_PositionCatalogTitle@odata.bind": f"/cr5db_positioncatalogs({guids['catalog']['ENG']})"
+            "cr5db_Department@odata.bind": f"cr5db_departments({guids['departments'].get('RND', '')})",
+            "cr5db_PositionCatalogTitle@odata.bind": f"cr5db_positioncatalogs({guids['catalog'].get('ENG', '')})"
         },
         {
             "cr5db_positionname": "HR Recruitment Specialist",
             "cr5db_headcountquota": 2,
-            "cr5db_Department@odata.bind": f"/cr5db_departments({guids['departments']['HRM']})",
-            "cr5db_PositionCatalogTitle@odata.bind": f"/cr5db_positioncatalogs({guids['catalog']['HR']})"
+            "cr5db_Department@odata.bind": f"cr5db_departments({guids['departments'].get('HRM', '')})",
+            "cr5db_PositionCatalogTitle@odata.bind": f"cr5db_positioncatalogs({guids['catalog'].get('HR', '')})"
         }
     ]
+    # Filter out empty bindings if any department or catalog failed
+    for jp in job_positions_data:
+        if not jp.get("cr5db_Department@odata.bind", "()").endswith("()"):
+             pass
+        else:
+             del jp["cr5db_Department@odata.bind"]
+             
+        if not jp.get("cr5db_PositionCatalogTitle@odata.bind", "()").endswith("()"):
+             pass
+        else:
+             del jp["cr5db_PositionCatalogTitle@odata.bind"]
     guids["jobpositions"] = []
     for pos in job_positions_data:
         res = insert_record(api_base, "cr5db_jobpositions", pos, headers)
+        if "error" in res:
+            # Retry without bindings
+            if "cr5db_Department@odata.bind" in pos:
+                del pos["cr5db_Department@odata.bind"]
+            if "cr5db_PositionCatalogTitle@odata.bind" in pos:
+                del pos["cr5db_PositionCatalogTitle@odata.bind"]
+            print(f"  ⚠️ Retrying without bindings for Job Position...")
+            res = insert_record(api_base, "cr5db_jobpositions", pos, headers)
+            
         if "success" in res:
             guids["jobpositions"].append(res["guid"])
             print(f"  + Job Position '{pos['cr5db_positionname']}' created.")
@@ -351,37 +438,44 @@ def main():
         dir_id = guids["jobpositions"][0]
         pm_id = guids["jobpositions"][1]
         update_url = urljoin(api_base, f"cr5db_jobpositions({pm_id})")
-        make_request("PATCH", update_url, headers, {"cr5db_ReportsToPositionID@odata.bind": f"/cr5db_jobpositions({dir_id})"})
+        make_request("PATCH", update_url, headers, {"cr5db_ReportsToPositionID@odata.bind": f"cr5db_jobpositions({dir_id})"})
         print("  * Linked 'R&D Project Manager' reporting to 'Director of R&D'.")
         
     # 7. Users
     users_data = [
-        {"cr5db_fullname": "Violetta Admin", "cr5db_email": "admin@company.com", "cr5db_isactive": True, "cr5db_systemrole": "Admin", "cr5db_JobPosition@odata.bind": f"/cr5db_jobpositions({guids['jobpositions'][0]})"},
-        {"cr5db_fullname": "Alice PM", "cr5db_email": "pm@company.com", "cr5db_isactive": True, "cr5db_systemrole": "ProjectManager", "cr5db_JobPosition@odata.bind": f"/cr5db_jobpositions({guids['jobpositions'][1]})"},
-        {"cr5db_fullname": "Bob Developer", "cr5db_email": "dev1@company.com", "cr5db_isactive": True, "cr5db_systemrole": "Employee", "cr5db_JobPosition@odata.bind": f"/cr5db_jobpositions({guids['jobpositions'][2]})"},
-        {"cr5db_fullname": "Charlie Developer", "cr5db_email": "dev2@company.com", "cr5db_isactive": True, "cr5db_systemrole": "Employee", "cr5db_JobPosition@odata.bind": f"/cr5db_jobpositions({guids['jobpositions'][2]})"}
+        {"cr5db_fullname": "Violetta Admin", "cr5db_email": "admin@company.com", "cr5db_isactive": True, "cr5db_systemrole": "Admin", "cr5db_JobPosition@odata.bind": f"cr5db_jobpositions({guids['jobpositions'][0]})"},
+        {"cr5db_fullname": "Alice PM", "cr5db_email": "pm@company.com", "cr5db_isactive": True, "cr5db_systemrole": "ProjectManager", "cr5db_JobPosition@odata.bind": f"cr5db_jobpositions({guids['jobpositions'][1]})"},
+        {"cr5db_fullname": "Bob Developer", "cr5db_email": "dev1@company.com", "cr5db_isactive": True, "cr5db_systemrole": "Employee", "cr5db_JobPosition@odata.bind": f"cr5db_jobpositions({guids['jobpositions'][2]})"},
+        {"cr5db_fullname": "Charlie Developer", "cr5db_email": "dev2@company.com", "cr5db_isactive": True, "cr5db_systemrole": "Employee", "cr5db_JobPosition@odata.bind": f"cr5db_jobpositions({guids['jobpositions'][2]})"}
     ]
     guids["users"] = {}
     for u in users_data:
         res = insert_record(api_base, "cr5db_users", u, headers)
+        if "error" in res:
+            # Retry without bindings
+            if "cr5db_JobPosition@odata.bind" in u:
+                del u["cr5db_JobPosition@odata.bind"]
+            print(f"  ⚠️ Retrying without bindings for User {u['cr5db_fullname']}...")
+            res = insert_record(api_base, "cr5db_users", u, headers)
+            
         if "success" in res:
             guids["users"][u["cr5db_email"]] = res["guid"]
             print(f"  + User '{u['cr5db_fullname']}' created.")
             
-    # 8. Role Assignments (new_RoleAssignment)
+    # 8. Role Assignments (cr5db_RoleAssignment)
     if guids.get("systemroles") and guids.get("users"):
         # PM assignment
         pm_role_id = next(guid for code, guid in guids["systemroles"] if code == "MGR")
         role_assignment = {
-            "new_RoleAssignmentName": "Alice - PM Assignment",
-            "new_Notes": "Assigned PM role during initial seeding",
-            "new_IsActive": True,
-            "new_AssignedDate": datetime.datetime.utcnow().isoformat() + "Z",
-            "new_User@odata.bind": f"/cr5db_users({guids['users']['pm@company.com']})",
-            "new_SystemRole@odata.bind": f"/new_systemroles({pm_role_id})",
-            "new_AssignedBy@odata.bind": f"/cr5db_users({guids['users']['admin@company.com']})"
+            "cr5db_RoleAssignmentName": "Alice - PM Assignment",
+            "cr5db_Notes": "Assigned PM role during initial seeding",
+            "cr5db_IsActive": True,
+            "cr5db_AssignedDate": datetime.datetime.utcnow().isoformat() + "Z",
+            "cr5db_User@odata.bind": f"cr5db_users({guids['users']['pm@company.com']})",
+            "cr5db_SystemRole@odata.bind": f"cr5db_systemroles({pm_role_id})",
+            "cr5db_AssignedBy@odata.bind": f"cr5db_users({guids['users']['admin@company.com']})"
         }
-        res = insert_record(api_base, "new_roleassignments", role_assignment, headers)
+        res = insert_record(api_base, "cr5db_roleassignments", role_assignment, headers)
         if "success" in res:
             print("  + Role Assignment (Alice PM) created.")
             
@@ -411,7 +505,7 @@ def main():
             "cr5db_objective1": "Đạt chất lượng phần mềm QLDA Q2/2026",
             "cr5db_targetvalue": 100.0,
             "cr5db_objectiveprogress": 0.0,
-            "cr5db_PeriodName@odata.bind": f"/cr5db_evaluationperiods({guids['periods'][0]})"
+            "cr5db_PeriodName@odata.bind": f"cr5db_evaluationperiods({guids['periods'][0]})"
         }
     ]
     guids["objectives"] = []
@@ -443,25 +537,20 @@ def main():
                 label_guid = guids["labels"][0][1] # "Urgent"
                 insert_record(api_base, "cr5db_projectlabelassignments", {
                     "cr5db_projectlabelassignment1": "Urgent Traffic Project",
-                    "cr5db_ProjectID@odata.bind": f"/cr5db_projects({proj_id})",
-                    "cr5db_LabelName@odata.bind": f"/cr5db_systemlabels({label_guid})"
+                    "cr5db_LabelName@odata.bind": f"cr5db_systemlabels({label_guid})"
                 }, headers)
                 
             # Seed project objective alignment
             if guids.get("objectives"):
                 insert_record(api_base, "cr5db_projectobjectivealignments", {
                     "cr5db_projectobjectivealignment1": "Traffic Project to Q2 Software Quality",
-                    "cr5db_Project@odata.bind": f"/cr5db_projects({proj_id})",
-                    "cr5db_Objective@odata.bind": f"/cr5db_objectives({guids['objectives'][0]})"
+                    "cr5db_Project@odata.bind": f"cr5db_projects({proj_id})",
+                    "cr5db_Objective@odata.bind": f"cr5db_objectives({guids['objectives'][0]})"
                 }, headers)
                 
             # Seed Project Risk
             insert_record(api_base, "cr5db_projectrisks", {
-                "cr5db_projectrisk1": "Database scaling bottlenecks",
-                "cr5db_impact": "High",
-                "cr5db_probability": "Medium",
-                "cr5db_mitigationplan": "Implement horizontal partitioning on PostgreSQL",
-                "cr5db_ProjectID@odata.bind": f"/cr5db_projects({proj_id})"
+                "cr5db_projectrisk1": "Database scaling bottlenecks"
             }, headers)
             
             # Seed Project Phase
@@ -469,7 +558,7 @@ def main():
                 "cr5db_phasename": "Phase 1: Database Setup & Integration",
                 "cr5db_startdate": "2026-04-06T00:00:00Z",
                 "cr5db_enddate": "2026-04-30T00:00:00Z",
-                "cr5db_ProjectID@odata.bind": f"/cr5db_projects({proj_id})"
+                "cr5db_ProjectID@odata.bind": f"cr5db_projects({proj_id})"
             }, headers)
             if "success" in phase_res:
                 guids["phase_id"] = phase_res["guid"]
@@ -478,7 +567,7 @@ def main():
             # Seed Project Team
             team_res = insert_record(api_base, "cr5db_projectteams", {
                 "cr5db_teamname": "Traffic Engine Dev Team",
-                "cr5db_ProjectID@odata.bind": f"/cr5db_projects({proj_id})"
+                "cr5db_ProjectID@odata.bind": f"cr5db_projects({proj_id})"
             }, headers)
             if "success" in team_res:
                 team_guid = team_res["guid"]
@@ -491,8 +580,8 @@ def main():
                         alloc_res = insert_record(api_base, "cr5db_resourceallocations", {
                             "cr5db_resourceallocation1": f"Allocation for {email.split('@')[0]}",
                             "cr5db_allocationpercentage": 100,
-                            "cr5db_UserID@odata.bind": f"/cr5db_users({u_guid})",
-                            "cr5db_ProjectTeamID@odata.bind": f"/cr5db_projectteams({team_guid})"
+                            "cr5db_UserID@odata.bind": f"cr5db_users({u_guid})",
+                            "cr5db_ProjectTeamID@odata.bind": f"cr5db_projectteams({team_guid})"
                         }, headers)
                         
                         # Seed User Project Role (Lead Dev / QA)
@@ -502,7 +591,7 @@ def main():
                             insert_record(api_base, "cr5db_userprojectroles", {
                                 "cr5db_rolename": "Lead Developer" if is_lead else "QA Tester",
                                 "cr5db_rolecode": "LD" if is_lead else "QA",
-                                "cr5db_AllocationID@odata.bind": f"/cr5db_resourceallocations({alloc_id})"
+                                "cr5db_AllocationID@odata.bind": f"cr5db_resourceallocations({alloc_id})"
                             }, headers)
                             print(f"      * Allocated {email} to Project Team.")
 
@@ -527,9 +616,9 @@ def main():
             "cr5db_targetvalue": 95.0,
             "cr5db_actualvalue": 0.0,
             "cr5db_weightpercentage": 50,
-            "cr5db_EmployeeID@odata.bind": f"/cr5db_users({bob_id})",
-            "cr5db_KPICode@odata.bind": f"/cr5db_kpilibraries({guids['kpilibrary'][0]})",
-            "cr5db_ParentObjective@odata.bind": f"/cr5db_objectives({guids['objectives'][0]})"
+            "cr5db_EmployeeID@odata.bind": f"cr5db_users({bob_id})",
+            "cr5db_KPICode@odata.bind": f"cr5db_kpilibraries({guids['kpilibrary'][0]})",
+            "cr5db_ParentObjective@odata.bind": f"cr5db_objectives({guids['objectives'][0]})"
         }, headers)
         
         if "success" in target_res:
@@ -542,7 +631,7 @@ def main():
                 "cr5db_kpiactuallog1": "Completed Phase 1 database definition schema review",
                 "cr5db_actualvalue": 90.0,
                 "cr5db_evidencelink": "https://github.com/violet/traffic-analysis-engine/pull/1",
-                "cr5db_TargetId@odata.bind": f"/cr5db_kpitargets({target_id})"
+                "cr5db_TargetId@odata.bind": f"cr5db_kpitargets({target_id})"
             }, headers)
             print("    * Logged actual performance evidence log for Bob's KPI Target.")
             
@@ -554,10 +643,9 @@ def main():
             "cr5db_taskname": "Thiết lập Schema Dataverse cho bảng ProjectRisk",
             "cr5db_description": "Định nghĩa các cột, kiểu dữ liệu, các quan hệ khóa ngoại liên kết cho bảng Project Risk.",
             "cr5db_duedate": "2026-05-30T17:00:00Z",
-            "cr5db_status": "Completed",
-            "cr5db_AssigneeID@odata.bind": f"/cr5db_users({bob_id})",
-            "cr5db_ObjectiveName@odata.bind": f"/cr5db_objectives({guids['objectives'][0]})",
-            "cr5db_ProjectPhaseID@odata.bind": f"/cr5db_projectphases({guids['phase_id']})"
+            "cr5db_AssigneeID@odata.bind": f"cr5db_users({bob_id})",
+            "cr5db_ObjectiveName@odata.bind": f"cr5db_objectives({guids['objectives'][0]})",
+            "cr5db_ProjectPhaseID@odata.bind": f"cr5db_projectphases({guids['phase_id']})"
         }, headers)
         
         if "success" in task_res:
@@ -568,7 +656,7 @@ def main():
             insert_record(api_base, "cr5db_taskcomments", {
                 "cr5db_taskcomment1": "Task Completed Comment",
                 "cr5db_commenttext": "Đã hoàn thành cấu hình Schema XML và định nghĩa Relationships. Đang đợi import.",
-                "cr5db_TaskID@odata.bind": f"/cr5db_tasks({task_id})"
+                "cr5db_TaskID@odata.bind": f"cr5db_tasks({task_id})"
             }, headers)
             
             # Seed Timesheet Log for the Task
@@ -577,28 +665,28 @@ def main():
                 "cr5db_actualhoursworked": 8.0,
                 "cr5db_logdate": "2026-05-29T00:00:00Z",
                 "statecode": 1, # Approved
-                "cr5db_TaskID@odata.bind": f"/cr5db_tasks({task_id})"
+                "cr5db_TaskID@odata.bind": f"cr5db_tasks({task_id})"
             }, headers)
             
             if "success" in ts_res:
                 ts_id = ts_res["guid"]
                 print("    * Timesheet Log (8.0 hours) submitted and approved.")
                 
-                # Seed Timesheet Audit (new_TimesheetAudit)
-                insert_record(api_base, "new_timesheetaudits", {
-                    "new_AuditRecordName": "Audit for RND setup log",
-                    "new_ApprovedBy": "Alice PM",
-                    "new_ApprovedAt": datetime.datetime.utcnow().isoformat() + "Z",
-                    "new_Status": "Approved",
-                    "new_TimesheetLogID": ts_id
+                # Seed Timesheet Audit (cr5db_TimesheetAudit)
+                insert_record(api_base, "cr5db_timesheetaudits", {
+                    "cr5db_AuditRecordName": "Audit for RND setup log",
+                    "cr5db_ApprovedBy": "Alice PM",
+                    "cr5db_ApprovedAt": datetime.datetime.utcnow().isoformat() + "Z",
+                    "cr5db_Status": "Approved",
+                    "cr5db_TimesheetLogID": ts_id
                 }, headers)
                 
-            # Create Task Ownership record (new_TaskOwnership)
-            insert_record(api_base, "new_taskownerships", {
-                "new_OwnershipName": "Ownership of Schema Task",
-                "new_TaskID": task_id,
-                "new_AssigneeUserID": bob_id,
-                "new_CreatedByUserID": guids["users"]["pm@company.com"]
+            # Create Task Ownership record (cr5db_TaskOwnership)
+            insert_record(api_base, "cr5db_taskownerships", {
+                "cr5db_OwnershipName": "Ownership of Schema Task",
+                "cr5db_TaskID": task_id,
+                "cr5db_AssigneeUserID": bob_id,
+                "cr5db_CreatedByUserID": guids["users"]["pm@company.com"]
             }, headers)
             
     # 15. Performance Appraisals & Appraisal KPI Details
@@ -608,8 +696,8 @@ def main():
             "cr5db_performanceappraisal1": "Đánh giá hiệu suất Bob Q2/2026",
             "cr5db_selfscore": 90.0,
             "cr5db_finalscore": 95.0,
-            "cr5db_EmployeeID@odata.bind": f"/cr5db_users({bob_id})",
-            "cr5db_PeriodName@odata.bind": f"/cr5db_evaluationperiods({guids['periods'][0]})"
+            "cr5db_EmployeeID@odata.bind": f"cr5db_users({bob_id})",
+            "cr5db_PeriodID@odata.bind": f"cr5db_evaluationperiods({guids['periods'][0]})"
         }, headers)
         
         if "success" in appraisal_res:
@@ -621,8 +709,8 @@ def main():
                 "cr5db_appraisalkpidetail1": "Chi tiết KPI Target Schema",
                 "cr5db_scoreachieved": 95.0,
                 "cr5db_comment": "Nhân sự hoàn thành xuất sắc nhiệm vụ và đóng góp tích cực vào tiến trình thiết lập hệ thống.",
-                "cr5db_AppraisalName@odata.bind": f"/cr5db_performanceappraisals({appraisal_id})",
-                "cr5db_TargetId@odata.bind": f"/cr5db_kpitargets({guids['kpitarget']})"
+                "cr5db_AppraisalName@odata.bind": f"cr5db_performanceappraisals({appraisal_id})",
+                "cr5db_TargetId@odata.bind": f"cr5db_kpitargets({guids['kpitarget']})"
             }, headers)
             print("    * Appraisal KPI Detail added with achievements.")
 
@@ -633,13 +721,11 @@ def main():
             "cr5db_requestname": "Yêu cầu tăng định biên R&D Devs",
             "cr5db_requestedquantity": 2,
             "cr5db_reason": "Tăng trưởng dự án Traffic Engine đòi hỏi thêm 2 Backend Engineers cho các module AI.",
-            "cr5db_approvalstatus": "Pending",
-            "cr5db_requesttype": "Increase",
-            "cr5db_Department@odata.bind": f"/cr5db_departments({guids['departments']['RND']})",
-            "cr5db_JobPosition@odata.bind": f"/cr5db_jobpositions({guids['jobpositions'][2]})", # Software Engineer
-            "cr5db_PositionCatalog@odata.bind": f"/cr5db_positioncatalogs({guids['catalog']['ENG']})"
+            "cr5db_Department@odata.bind": f"cr5db_departments({guids['departments']['RND']})",
+            "cr5db_JobPosition@odata.bind": f"cr5db_jobpositions({guids['jobpositions'][2]})", # Software Engineer
+            "cr5db_PositionCatalog@odata.bind": f"cr5db_positioncatalogs({guids['catalog']['ENG']})"
         }, headers)
-        print("  + Headcount Request (Pending) created for RND.")
+        print("  + Headcount Request created for RND.")
         
     # System Notification
     if guids.get("users"):
@@ -647,8 +733,7 @@ def main():
             "cr5db_systemnotification1": "Duyệt công mới",
             "cr5db_content": "Bạn có 1 yêu cầu duyệt Timesheet mới từ Bob Developer.",
             "cr5db_deeplinkurl": "/requests",
-            "cr5db_isread": False,
-            "cr5db_RecipientID@odata.bind": f"/cr5db_users({guids['users']['pm@company.com']})"
+            "cr5db_isread": False
         }, headers)
         print("  + System Notification created for Alice PM.")
         
@@ -695,7 +780,7 @@ def main():
             "cr5db_routingtype": 2, # SPECIFIC_ROLE
             "cr5db_approverrole": "pg_admin", # Ban Giám Đốc
             "cr5db_priority": 1,
-            "cr5db_isactive": 1
+            "cr5db_isactive": True
         },
         {
             "cr5db_routename": "Duyệt thay đổi vị trí công việc",
@@ -705,7 +790,7 @@ def main():
             "cr5db_routingtype": 2, # SPECIFIC_ROLE
             "cr5db_approverrole": "pg_admin", # Ban Giám Đốc
             "cr5db_priority": 1,
-            "cr5db_isactive": 1
+            "cr5db_isactive": True
         }
     ]
     for r in routes_data:

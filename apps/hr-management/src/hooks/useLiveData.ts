@@ -78,13 +78,23 @@ export function useLiveData(setters: LiveDataSetters) {
       // 1. Fetch current user context
       let authenticatedEmail = '';
       let authenticatedName = '';
-      try {
-        const context = await getContext();
-        authenticatedEmail = context.user.userPrincipalName || '';
-        authenticatedName = context.user.fullName || '';
-      } catch (err) {
-        console.error('SDK getContext failed: ', err);
-        throw new Error('Ứng dụng chỉ hoạt động trong Power Apps Host. Vui lòng mở từ Power Apps Portal hoặc link Local Play.');
+      
+      const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const forceMock = sessionStorage.getItem('devForceMockContext') === 'true' || isLocalHost;
+
+      if (forceMock) {
+        console.log('[Dev] Running in offline dev/mock mode.');
+        authenticatedEmail = sessionStorage.getItem('devUserEmail') || 'admin@company.com';
+        authenticatedName = sessionStorage.getItem('devUserName') || 'Violetta Admin';
+      } else {
+        try {
+          const context = await getContext();
+          authenticatedEmail = context.user.userPrincipalName || '';
+          authenticatedName = context.user.fullName || '';
+        } catch (err) {
+          console.error('SDK getContext failed: ', err);
+          throw new Error('Ứng dụng chỉ hoạt động trong Power Apps Host. Vui lòng mở từ Power Apps Portal hoặc link Local Play.');
+        }
       }
 
       if (!authenticatedEmail) {
