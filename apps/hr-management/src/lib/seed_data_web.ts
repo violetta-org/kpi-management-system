@@ -524,11 +524,11 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
   const tryDeleteAll = async (tableName: string, service: any) => {
     try {
       progressCallback(`Đang dọn dẹp bảng ${tableName}...`);
-      const res = await service.getAll();
+      const idField = `${tableName}id`;
+      const res = await service.getAll({ maxPageSize: 5000, select: [idField] });
       const records = res?.data || [];
       if (records.length === 0) return;
       
-      const idField = `${tableName}id`;
       for (const rec of records) {
         const id = rec[idField];
         if (id) {
@@ -573,7 +573,10 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
   // Clean System Parameters (only those starting with pg_ or MaxTimesheetHoursPerDay or DefaultPermissionGroups)
   try {
     progressCallback("Đang dọn dẹp các Cấu hình & Nhóm quyền...");
-    const res = await Cr5db_systemparametersService.getAll();
+    const res = await Cr5db_systemparametersService.getAll({
+      maxPageSize: 5000,
+      select: ['cr5db_systemparameterid', 'cr5db_systemparameter1']
+    });
     const params = res?.data || [];
     for (const p of params) {
       const name = p.cr5db_systemparameter1 || '';
