@@ -524,7 +524,10 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
   const tryDeleteAll = async (tableName: string, service: any) => {
     try {
       progressCallback(`Đang dọn dẹp bảng ${tableName}...`);
-      const idField = `${tableName}id`;
+      let idField = `${tableName}id`;
+      if (tableName === 'cr5db_approvalrouteses') {
+        idField = 'cr5db_approvalroutesid';
+      }
       const res = await service.getAll({ maxPageSize: 5000, select: [idField] });
       const records = res?.data || [];
       if (records.length === 0) {
