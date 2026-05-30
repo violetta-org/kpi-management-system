@@ -529,6 +529,9 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
         idField = 'cr5db_approvalroutesid';
       }
       const res = await service.getAll({ maxPageSize: 5000, select: [idField] });
+      console.log(`[CleanData] Bảng ${tableName}, field khóa chính: ${idField}`);
+      console.log(`[CleanData] Bảng ${tableName}, Raw Response:`, res);
+
       const records = res?.data || [];
       if (records.length === 0) {
         progressCallback(`Bảng ${tableName} không có dữ liệu cần dọn dẹp.`);
@@ -541,6 +544,7 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
         const id = rec[idField];
         if (id) {
           try {
+            console.log(`[CleanData] Đang xóa ID: ${id} trong bảng ${tableName}`);
             await service.delete(id);
             deletedCount++;
           } catch (delErr: any) {
@@ -548,6 +552,8 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
             progressCallback(`⚠️ Lỗi xóa dòng ${id} trong ${tableName}: ${errMsg}`);
             console.error(`Error deleting ${id} in ${tableName}:`, delErr);
           }
+        } else {
+          console.warn(`[CleanData] Bản ghi trong ${tableName} không có field ${idField}`, rec);
         }
       }
       progressCallback(`Đã xóa thành công ${deletedCount}/${records.length} bản ghi trong ${tableName}.`);
