@@ -659,6 +659,22 @@ def main():
         "cr5db_valuetype": "Integer"
     }, headers)
     
+    # Permission Groups
+    groups = [
+        {"cr5db_systemparameter1": "pg_admin", "cr5db_paramvalue": "Ban Giám Đốc|abcdefghijklm", "cr5db_valuetype": "PermissionGroup"},
+        {"cr5db_systemparameter1": "pg_pm", "cr5db_paramvalue": "Quản Lý Dự Án|abcdefjkl", "cr5db_valuetype": "PermissionGroup"},
+        {"cr5db_systemparameter1": "pg_employee", "cr5db_paramvalue": "Nhân Viên R&D|abcdf", "cr5db_valuetype": "PermissionGroup"}
+    ]
+    for g in groups:
+        insert_record(api_base, "cr5db_systemparameters", g, headers)
+        
+    # Default Permission Groups Parameter
+    insert_record(api_base, "cr5db_systemparameters", {
+        "cr5db_systemparameter1": "DefaultPermissionGroups",
+        "cr5db_paramvalue": "pg_employee",
+        "cr5db_valuetype": "DefaultPermissionGroups"
+    }, headers)
+    
     # System Policy Rule
     insert_record(api_base, "cr5db_systempolicyrules", {
         "cr5db_systempolicyrule1": "Timesheet Submission Deadline Policy",
@@ -668,6 +684,32 @@ def main():
         "cr5db_constraintvalue": "Block Submission",
         "cr5db_effect": "Error"
     }, headers)
+
+    # Approval Routes
+    routes_data = [
+        {
+            "cr5db_routename": "Duyệt yêu cầu tuyển dụng nhân sự mới",
+            "cr5db_targetentity": 4, # HeadcountRequests
+            "cr5db_operationtype": 4, # All
+            "cr5db_requesterrole": 2, # ProjectManager
+            "cr5db_routingtype": 2, # SPECIFIC_ROLE
+            "cr5db_approverrole": "pg_admin", # Ban Giám Đốc
+            "cr5db_priority": 1,
+            "cr5db_isactive": 1
+        },
+        {
+            "cr5db_routename": "Duyệt thay đổi vị trí công việc",
+            "cr5db_targetentity": 3, # JobPositions
+            "cr5db_operationtype": 4, # All
+            "cr5db_requesterrole": 3, # HRManager
+            "cr5db_routingtype": 2, # SPECIFIC_ROLE
+            "cr5db_approverrole": "pg_admin", # Ban Giám Đốc
+            "cr5db_priority": 1,
+            "cr5db_isactive": 1
+        }
+    ]
+    for r in routes_data:
+        insert_record(api_base, "cr5db_approvalrouteses", r, headers)
     
     print("\n🎉 Seeding process completed successfully!")
 

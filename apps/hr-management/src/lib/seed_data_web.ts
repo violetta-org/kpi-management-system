@@ -26,7 +26,8 @@ import {
   Cr5db_headcountrequestsService,
   Cr5db_systemnotificationsService,
   Cr5db_systemparametersService,
-  Cr5db_systempolicyrulesService
+  Cr5db_systempolicyrulesService,
+  Cr5db_approvalroutesesService
 } from '../generated';
 
 export async function runWebSeeding(progressCallback: (status: string) => void): Promise<void> {
@@ -453,6 +454,23 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
       cr5db_valuetype: "Integer"
     } as any);
 
+    // Permission Groups
+    const groups = [
+      { cr5db_systemparameter1: "pg_admin", cr5db_paramvalue: "Ban Giám Đốc|abcdefghijklm", cr5db_valuetype: "PermissionGroup" },
+      { cr5db_systemparameter1: "pg_pm", cr5db_paramvalue: "Quản Lý Dự Án|abcdefjkl", cr5db_valuetype: "PermissionGroup" },
+      { cr5db_systemparameter1: "pg_employee", cr5db_paramvalue: "Nhân Viên R&D|abcdf", cr5db_valuetype: "PermissionGroup" }
+    ];
+    for (const g of groups) {
+      await Cr5db_systemparametersService.create(g as any);
+    }
+
+    // Default Permission Groups Parameter
+    await Cr5db_systemparametersService.create({
+      cr5db_systemparameter1: "DefaultPermissionGroups",
+      cr5db_paramvalue: "pg_employee",
+      cr5db_valuetype: "DefaultPermissionGroups"
+    } as any);
+
     // System Policy Rule
     await Cr5db_systempolicyrulesService.create({
       cr5db_systempolicyrule1: "Timesheet Submission Deadline Policy",
@@ -462,6 +480,35 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
       cr5db_constraintvalue: "Block Submission",
       cr5db_effect: "Error"
     } as any);
+  });
+
+  // 15. Approval Routes
+  await tryCall("Tạo quy tắc phê duyệt (Approval Routes)...", async () => {
+    const routes = [
+      {
+        cr5db_routename: "Duyệt yêu cầu tuyển dụng nhân sự mới",
+        cr5db_targetentity: 4, // HeadcountRequests
+        cr5db_operationtype: 4, // All
+        cr5db_requesterrole: 2, // ProjectManager
+        cr5db_routingtype: 2, // SPECIFIC_ROLE
+        cr5db_approverrole: "pg_admin", // Ban Giám Đốc
+        cr5db_priority: 1,
+        cr5db_isactive: 1
+      },
+      {
+        cr5db_routename: "Duyệt thay đổi vị trí công việc",
+        cr5db_targetentity: 3, // JobPositions
+        cr5db_operationtype: 4, // All
+        cr5db_requesterrole: 3, // HRManager
+        cr5db_routingtype: 2, // SPECIFIC_ROLE
+        cr5db_approverrole: "pg_admin", // Ban Giám Đốc
+        cr5db_priority: 1,
+        cr5db_isactive: 1
+      }
+    ];
+    for (const r of routes) {
+      await Cr5db_approvalroutesesService.create(r as any);
+    }
   });
 
   progressCallback("Hoàn tất Seeding thành công!");
