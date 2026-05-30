@@ -362,10 +362,8 @@ export function buildApprovalEngine(ctx: ApprovalEngineContext) {
         'cr5db_Requester@odata.bind': `/cr5db_users(${requesterRecord.cr5db_userid})`,
         'cr5db_Approver@odata.bind': `/cr5db_users(${ctx.selectedApproverId})`,
         'cr5db_AppliedRoute@odata.bind': ctx.approvalModalData.appliedRouteId ? `/cr5db_approvalrouteses(${ctx.approvalModalData.appliedRouteId})` : undefined,
-        ownerid: '',
-        owneridtype: '',
         statecode: 0
-      });
+      } as any);
 
       if (createRes.error) {
         throw new Error(createRes.error.message || "Lỗi lưu trữ yêu cầu thay đổi vào Dataverse.");

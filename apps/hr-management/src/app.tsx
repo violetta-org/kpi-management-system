@@ -1461,10 +1461,8 @@ function App() {
         cr5db_allocationpercentage: Number(allocationPercentage) || 100,
         "cr5db_UserID@odata.bind": `/cr5db_users(${allocationUser})`,
         "cr5db_ProjectTeamID@odata.bind": `/cr5db_projects(${allocationProject})`,
-        statecode: 0,
-        ownerid: '',
-        owneridtype: ''
-      });
+        statecode: 0
+      } as any);
 
       setShowAllocationModal(false);
       setAllocationName('');
