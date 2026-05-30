@@ -524,12 +524,8 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
   const tryDeleteAll = async (tableName: string, service: any) => {
     try {
       progressCallback(`Đang dọn dẹp bảng ${tableName}...`);
-      let idField = `${tableName}id`;
-      if (tableName === 'cr5db_approvalrouteses') {
-        idField = 'cr5db_approvalroutesid';
-      }
-      const res = await service.getAll({ maxPageSize: 5000, select: [idField] });
-      console.log(`[CleanData] Bảng ${tableName}, field khóa chính: ${idField}`);
+      // Lấy toàn bộ trường để tránh lỗi OData sai tên cột
+      const res = await service.getAll({ maxPageSize: 5000 });
       console.log(`[CleanData] Bảng ${tableName}, Raw Response:`, res);
 
       const records = res?.data || [];
@@ -538,10 +534,27 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
         return;
       }
       
+      // Xác định tên trường khóa chính (Primary Key Field)
+      const firstRec = records[0];
+      const candidates = [
+        `${tableName}id`,
+        `${tableName.slice(0, -1)}id`, // projects -> projectid
+        `${tableName.slice(0, -2)}id`, // approvalrouteses -> approvalroutesid
+        `${tableName.slice(0, -3)}yid` // companies -> companyid
+      ];
+      let idField = candidates.find(c => c in firstRec);
+      if (!idField) {
+        // Fallback: Tìm trường nào bắt đầu bằng cr5db_ và kết thúc bằng id, lấy trường ngắn nhất
+        const keys = Object.keys(firstRec).filter(k => k.startsWith('cr5db_') && k.endsWith('id') && !k.includes('@'));
+        idField = keys.sort((a,b) => a.length - b.length)[0];
+      }
+
+      console.log(`[CleanData] Bảng ${tableName}, field khóa chính xác định được: ${idField}`);
+      
       progressCallback(`Tìm thấy ${records.length} bản ghi trong ${tableName}. Đang tiến hành xóa...`);
       let deletedCount = 0;
       for (const rec of records) {
-        const id = rec[idField];
+        const id = idField ? rec[idField] : undefined;
         if (id) {
           try {
             console.log(`[CleanData] Đang xóa ID: ${id} trong bảng ${tableName}`);
