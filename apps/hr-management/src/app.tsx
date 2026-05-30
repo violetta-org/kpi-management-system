@@ -3121,6 +3121,12 @@ function App() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {(() => {
                     const activeUser = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+                    console.log("=== CHANGE REQUESTS DIAGNOSTICS ===");
+                    console.log("Current Logged-in Email (currentUserEmail):", currentUserEmail);
+                    console.log("Matched User Record (activeUser):", activeUser);
+                    console.log("All Database Users (usersList):", usersList.map(u => ({ name: u.cr5db_fullname, email: u.cr5db_email, id: u.cr5db_userid, role: u.cr5db_systemrole })));
+                    console.log("Raw Change Requests List (changeRequestsList):", changeRequestsList);
+                    console.log("====================================");
                     const filteredChangeRequests = changeRequestsList.filter((cr: any) => {
                       if (activeRole === 'Admin') return true;
                       if (!activeUser) return false;
