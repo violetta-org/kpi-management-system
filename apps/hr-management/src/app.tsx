@@ -2609,9 +2609,17 @@ function App() {
             </div>
           )}
 
-          {/* SCREEN 4: MY KPIs */}
-          {activeTab === 'kpi' && (
-            <div className="space-y-6 p-6" style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '24px', fontFamily: 'ui-sans-serif, system-ui, sans-serif', color: '#000000', backgroundColor: '#ffffff' }}>
+          {activeTab === 'kpi' && (() => {
+            const userKpis = activeRole === 'Employee'
+              ? kpiTargets.filter(k => k.cr5db_user_email.toLowerCase() === currentUserEmail.toLowerCase())
+              : selectedKpiEmployeeFilter === 'All'
+                ? kpiTargets
+                : kpiTargets.filter(k => {
+                    const employee = usersList.find(u => u.cr5db_userid === k._cr5db_employeeid_value);
+                    return employee?.cr5db_userid === selectedKpiEmployeeFilter;
+                  });
+            return (
+              <div className="space-y-6 p-6" style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '24px', fontFamily: 'ui-sans-serif, system-ui, sans-serif', color: '#000000', backgroundColor: '#ffffff' }}>
               {/* Header section */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -2684,16 +2692,6 @@ function App() {
 
               {activeKpiSubTab === 'overview' ? (
                 (() => {
-                  // Filter logic
-                  const userKpis = activeRole === 'Employee'
-                    ? kpiTargets.filter(k => k.cr5db_user_email.toLowerCase() === currentUserEmail.toLowerCase())
-                    : selectedKpiEmployeeFilter === 'All'
-                      ? kpiTargets
-                      : kpiTargets.filter(k => {
-                          const employee = usersList.find(u => u.cr5db_userid === k._cr5db_employeeid_value);
-                          return employee?.cr5db_userid === selectedKpiEmployeeFilter;
-                        });
-
                   const totalCount = userKpis.length;
                   const onTrackCount = userKpis.filter(k => k.cr5db_actualvalue >= k.cr5db_targetvalue).length;
                   const atRiskCount = userKpis.filter(k => k.cr5db_actualvalue < k.cr5db_targetvalue && k.cr5db_actualvalue > 0).length;
@@ -2972,26 +2970,138 @@ function App() {
                     </span>
                   </div>
 
-                  {/* Chart Placeholder Card */}
-                  <div className="card-spec" style={{ border: '1.11px solid #000000', borderRadius: '12px', padding: '24px', boxSizing: 'border-box', boxShadow: '0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1)', backgroundColor: '#ffffff', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {/* Empty State (No Data) */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center', gap: '16px' }}>
-                      <div style={{ color: 'rgba(0, 0, 0, 0.4)', display: 'flex', alignItems: 'center' }}>
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                          <polyline points="17 6 23 6 23 12" />
-                        </svg>
+                    {/* Dynamic Visual Seeding Charts */}
+                    {userKpis.length === 0 ? (
+                      <div className="card-spec" style={{ border: '1.11px solid #000000', borderRadius: '12px', padding: '24px', boxSizing: 'border-box', boxShadow: '0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1)', backgroundColor: '#ffffff', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {/* Empty State (No Data) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center', gap: '16px' }}>
+                          <div style={{ color: 'rgba(0, 0, 0, 0.4)', display: 'flex', alignItems: 'center' }}>
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                              <polyline points="17 6 23 6 23 12" />
+                            </svg>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <h4 style={{ fontSize: '18px', fontWeight: 500, color: '#000000', margin: 0 }}>No KPI progress data</h4>
+                            <p style={{ fontSize: '14px', color: 'rgba(0, 0, 0, 0.7)', margin: 0 }}>Progress charts will appear here once KPIs are assigned to you</p>
+                          </div>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <h4 style={{ fontSize: '18px', fontWeight: 500, color: '#000000', margin: 0 }}>No KPI progress data</h4>
-                        <p style={{ fontSize: '14px', color: 'rgba(0, 0, 0, 0.7)', margin: 0 }}>Progress charts will appear here once KPIs are assigned to you</p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        {/* Highlights cards */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+                          {(() => {
+                            const rates = userKpis.map(k => k.cr5db_targetvalue > 0 ? Math.min(100, Math.round((k.cr5db_actualvalue / k.cr5db_targetvalue) * 100)) : 0);
+                            const avgProgress = rates.length > 0 ? Math.round(rates.reduce((sum, r) => sum + r, 0) / rates.length) : 0;
+                            const totalWeight = userKpis.reduce((sum, k) => sum + (k.cr5db_weightpercentage || 0), 0);
+                            const achievedCount = userKpis.filter(k => k.cr5db_actualvalue >= k.cr5db_targetvalue).length;
+                            
+                            return (
+                              <>
+                                <div className="card-spec" style={{ border: '1.11px solid #000000', borderRadius: '12px', padding: '20px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', border: '2px solid #b6393a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 700, color: '#b6393a' }}>
+                                    {avgProgress}%
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: '12px', color: 'rgba(0,0,0,0.5)', fontWeight: 600 }}>Tiến độ Trung bình</div>
+                                    <div style={{ fontSize: '20px', fontWeight: 700, color: '#000000' }}>{avgProgress}% Hoàn thành</div>
+                                  </div>
+                                </div>
+
+                                <div className="card-spec" style={{ border: '1.11px solid #000000', borderRadius: '12px', padding: '20px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', border: '2px solid #107C41', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', color: '#107C41' }}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: '12px', color: 'rgba(0,0,0,0.5)', fontWeight: 600 }}>KPI Đạt mục tiêu</div>
+                                    <div style={{ fontSize: '20px', fontWeight: 700, color: '#000000' }}>{achievedCount} / {userKpis.length} Chỉ tiêu</div>
+                                  </div>
+                                </div>
+
+                                <div className="card-spec" style={{ border: '1.11px solid #000000', borderRadius: '12px', padding: '20px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', border: '2px solid #ff8c00', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 700, color: '#ff8c00' }}>
+                                    {totalWeight}%
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: '12px', color: 'rgba(0,0,0,0.5)', fontWeight: 600 }}>Tổng Tỷ trọng Đã gán</div>
+                                    <div style={{ fontSize: '20px', fontWeight: 700, color: '#000000' }}>{totalWeight}% Tỷ trọng</div>
+                                  </div>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Comparative Horizontal SVG Bar Chart */}
+                        <div className="card-spec" style={{ border: '1.11px solid #000000', borderRadius: '12px', padding: '24px', backgroundColor: '#ffffff' }}>
+                          <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 20px 0', color: '#000000' }}>Biểu đồ So sánh Mục tiêu vs Thực tế</h3>
+                          
+                          {(() => {
+                            const chartHeight = Math.max(220, userKpis.length * 55 + 40);
+                            return (
+                              <div style={{ overflowX: 'auto', width: '100%' }}>
+                                <svg width="100%" height={chartHeight} style={{ minWidth: '450px', overflow: 'visible' }}>
+                                  {/* Grid Lines & Percent Labels */}
+                                  {[0, 25, 50, 75, 100].map((val) => {
+                                    const xPos = `${180 + val * 5.2}px`;
+                                    return (
+                                      <g key={val}>
+                                        <line x1={xPos} y1="10" x2={xPos} y2={chartHeight - 30} stroke="rgba(0,0,0,0.08)" strokeDasharray="3,3" />
+                                        <text x={xPos} y={chartHeight - 12} textAnchor="middle" style={{ fontSize: '11px', fill: 'rgba(0,0,0,0.5)', fontFamily: 'inherit' }}>{val}%</text>
+                                      </g>
+                                    );
+                                  })}
+
+                                  {/* Draw comparative bars for each KPI */}
+                                  {userKpis.map((k, idx) => {
+                                    const yPos = idx * 55 + 20;
+                                    const progressRate = k.cr5db_targetvalue > 0 ? Math.min(100, Math.round((k.cr5db_actualvalue / k.cr5db_targetvalue) * 100)) : 0;
+                                    const kpiNameTruncated = k.cr5db_kpiname.length > 25 ? k.cr5db_kpiname.substring(0, 23) + '...' : k.cr5db_kpiname;
+
+                                    return (
+                                      <g key={k.cr5db_kpitargetid} style={{ transition: 'all 0.3s ease' }}>
+                                        {/* KPI Title Label */}
+                                        <text x="10" y={yPos + 18} style={{ fontSize: '13px', fontWeight: 600, fill: '#000000', fontFamily: 'inherit' }}>
+                                          {kpiNameTruncated}
+                                        </text>
+                                        <title>{k.cr5db_kpiname}</title>
+
+                                        {/* Track bar */}
+                                        <rect x="180" y={yPos} width="520" height="28" rx="6" fill="#FAF9F9" stroke="rgba(0,0,0,0.1)" strokeWidth="1.11" />
+
+                                        {/* Progress actual bar */}
+                                        <rect 
+                                          x="180" 
+                                          y={yPos + 2} 
+                                          width={progressRate * 5.2} 
+                                          height="24" 
+                                          rx="4" 
+                                          fill={progressRate >= 100 ? '#107C41' : progressRate >= 80 ? '#2ea366' : '#b6393a'} 
+                                        />
+
+                                        {/* Target line indicator (100% of target) */}
+                                        <line x1="700" y1={yPos - 4} x2="700" y2={yPos + 32} stroke="#000000" strokeWidth="2" strokeDasharray="3,3" />
+
+                                        {/* Progress Label inside or next to bar */}
+                                        <text x={progressRate > 15 ? 190 : (190 + progressRate * 5.2)} y={yPos + 18} style={{ fontSize: '11px', fontWeight: 700, fill: progressRate > 15 ? '#ffffff' : '#000000', fontFamily: 'inherit' }}>
+                                          {k.cr5db_actualvalue}/{k.cr5db_targetvalue} {k.cr5db_unit} ({progressRate}%)
+                                        </text>
+                                      </g>
+                                    );
+                                  })}
+                                </svg>
+                              </div>
+                            );
+                          })()}
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
           {/* SCREEN 5: PERFORMANCE */}
           {activeTab === 'performance' && (
