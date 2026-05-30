@@ -21,12 +21,6 @@ export class Cr5db_departmentsService {
       Cr5db_departmentsService.dataSourceName,
       record
     );
-    if (result && result.error) {
-
-      throw new Error(result.error.message || JSON.stringify(result.error));
-
-    }
-
     return result;
   }
 
@@ -36,24 +30,13 @@ export class Cr5db_departmentsService {
       id,
       changedFields
     );
-    if (result && result.error) {
-
-      throw new Error(result.error.message || JSON.stringify(result.error));
-
-    }
-
     return result;
   }
 
-  public static async delete(id: string): Promise<IOperationResult<void>> {
-    const result = await Cr5db_departmentsService.client.deleteRecordAsync(
+  public static async delete(id: string): Promise<void> {
+    await Cr5db_departmentsService.client.deleteRecordAsync(
       Cr5db_departmentsService.dataSourceName,
-      id
-    );
-    if (result && result.error) {
-      throw new Error(result.error.message || JSON.stringify(result.error));
-    }
-    return result;
+      id);
   }
 
   public static async get(id: string, options?: IGetOptions): Promise<IOperationResult<Cr5db_departments>> {

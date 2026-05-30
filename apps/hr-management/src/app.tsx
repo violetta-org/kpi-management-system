@@ -114,6 +114,9 @@ function App() {
   const [kpiCustomStartDate, setKpiCustomStartDate] = React.useState('2026-05-01');
   const [kpiCustomEndDate, setKpiCustomEndDate] = React.useState('2026-05-30');
 
+  // Seeding status state
+  const [seedingStatus, setSeedingStatus] = React.useState('');
+
   // Permission Group local states
   const [showGroupModal, setShowGroupModal] = React.useState(false);
   const [editingGroup, setEditingGroup] = React.useState<PermissionGroup | null>(null);
@@ -2020,6 +2023,19 @@ function App() {
                 </svg>
               </span>
               Approval Routes
+            </button>
+          )}
+
+          {activeRole === 'Admin' && (
+            <button onClick={() => setActiveTab('system-seed')} className={`nav-item ${activeTab === 'system-seed' ? 'active' : ''}`}>
+              <span className="nav-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                  <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path>
+                </svg>
+              </span>
+              Developer Portal
             </button>
           )}
         </nav>
@@ -4784,6 +4800,57 @@ function App() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'system-seed' && activeRole === 'Admin' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', padding: '24px' }}>
+              <div>
+                <h1 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '6px' }}>Developer Portal</h1>
+                <p style={{ color: 'var(--color-text-secondary)', fontSize: '15px' }}>Database administration and demo seed utility for Dataverse</p>
+              </div>
+
+              <div className="large-card" style={{ padding: '24px', maxWidth: '600px', borderRadius: '12px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '12px' }}>Seeding System Data</h3>
+                <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', lineHeight: '1.6', marginBottom: '20px' }}>
+                  Clicking the button below will seed all custom system entities with realistic demo data, including companies, departments, catalog positions, active job positions, users, projects, strategic objectives, tasks, timesheets, and performance appraisals. 
+                  <br /><br />
+                  <strong>Note:</strong> If some tables do not exist on the environment, they will be skipped gracefully with a warning.
+                </p>
+
+                {seedingStatus && (
+                  <div style={{ padding: '12px 16px', backgroundColor: '#f5f5f5', border: '1px solid #e0e0e0', borderRadius: '6px', fontSize: '13px', fontFamily: 'monospace', marginBottom: '20px', whiteSpace: 'pre-wrap', maxHeight: '200px', overflowY: 'auto' }}>
+                    {seedingStatus}
+                  </div>
+                )}
+
+                <button 
+                  onClick={async () => {
+                    if (!window.confirm("Bạn có chắc chắn muốn chạy tiến trình seeding dữ liệu vào Dataverse?")) return;
+                    setSeedingStatus("Đang khởi tạo tiến trình seeding...");
+                    setIsLoading(true);
+                    try {
+                      const { runWebSeeding } = await import('./lib/seed_data_web');
+                      await runWebSeeding((msg) => {
+                        setSeedingStatus(prev => prev + "\n" + msg);
+                      });
+                      alert("Gieo dữ liệu thành công!");
+                      await fetchLiveValues();
+                    } catch (err: any) {
+                      console.error(err);
+                      setSeedingStatus(prev => prev + "\n❌ Lỗi: " + (err.message || err));
+                      alert("Gieo dữ liệu thất bại: " + (err.message || err));
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
+                  className="btn-primary"
+                  style={{ padding: '10px 24px', fontSize: '14px', fontWeight: 600, borderRadius: '6px' }}
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Đang Seeding...' : 'Seed System Data'}
+                </button>
               </div>
             </div>
           )}

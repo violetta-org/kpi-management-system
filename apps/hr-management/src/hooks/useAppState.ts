@@ -4,7 +4,7 @@ import type { User, Task, HeadcountRequest, KPITarget, Company, PositionCatalog,
 export type ActiveTab =
   | 'dashboard' | 'tasks' | 'timesheets' | 'kpi' | 'performance'
   | 'companies' | 'positions' | 'headcount' | 'requests' | 'directory'
-  | 'roles' | 'resources' | 'routes' | 'kpi-catalog';
+  | 'roles' | 'resources' | 'routes' | 'kpi-catalog' | 'system-seed';
 
 export type ActiveRole = 'Employee' | 'Admin';
 

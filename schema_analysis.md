@@ -41,6 +41,10 @@ Below is the list of custom tables created in the solution:
 | `cr5db_TimesheetLog` | **Timesheet Log** | This table contains timesheet logs for tasks and users |
 | `cr5db_User` | **User** | This table contains records of users |
 | `cr5db_UserProjectRole` | **User Project Role** | This table contains records of user project roles |
+| `new_RoleAssignment` | **Role Assignment** | Tracks role assignments to users with audit information |
+| `new_SystemRole` | **System Role** | Defines system roles with hierarchy and permissions |
+| `new_TaskOwnership` | **Task Ownership** | Tracks task ownership for filtering purposes |
+| `new_TimesheetAudit` | **Timesheet Audit** | Stores timesheet approval and rejection audit trail information |
 
 ## 2. Entity-Relationship Model
 
@@ -61,7 +65,11 @@ These are the primary database relationships established between your custom tab
 | `cr5db_KPIActualLog` | OneToMany | `cr5db_KPITarget` | `cr5db_TargetId` |
 | `cr5db_KPITarget` | OneToMany | `cr5db_KPILibrary` | `cr5db_KPICode` |
 | `cr5db_KPITarget` | OneToMany | `cr5db_Objective` | `cr5db_ParentObjective` |
+| `cr5db_KPITarget` | OneToMany | `cr5db_User` | `cr5db_EmployeeID` |
 | `cr5db_Objective` | OneToMany | `cr5db_EvaluationPeriod` | `cr5db_PeriodName` |
+| `cr5db_PerformanceAppraisal` | OneToMany | `cr5db_EvaluationPeriod` | `cr5db_PeriodID` |
+| `cr5db_PerformanceAppraisal` | OneToMany | `cr5db_User` | `cr5db_EmployeeID` |
+| `cr5db_PerformanceAppraisal` | OneToMany | `cr5db_User` | `cr5db_EvaluatorID` |
 | `cr5db_ProjectIssue` | OneToMany | `cr5db_Task` | `cr5db_TaskID` |
 | `cr5db_ProjectLabelAssignment` | OneToMany | `cr5db_SystemLabel` | `cr5db_LabelName` |
 | `cr5db_ProjectObjectiveAlignment` | OneToMany | `cr5db_Objective` | `cr5db_Objective` |
@@ -71,12 +79,15 @@ These are the primary database relationships established between your custom tab
 | `cr5db_ResourceAllocation` | OneToMany | `cr5db_ProjectTeam` | `cr5db_ProjectTeamID` |
 | `cr5db_ResourceAllocation` | OneToMany | `cr5db_User` | `cr5db_UserID` |
 | `cr5db_Task` | OneToMany | `cr5db_Objective` | `cr5db_ObjectiveName` |
+| `cr5db_Task` | OneToMany | `cr5db_ProjectPhase` | `cr5db_ProjectPhaseID` |
 | `cr5db_Task` | OneToMany | `cr5db_Task` | `cr5db_ParentTask` |
+| `cr5db_Task` | OneToMany | `cr5db_User` | `cr5db_AssigneeID` |
 | `cr5db_TaskComment` | OneToMany | `cr5db_Task` | `cr5db_TaskID` |
 | `cr5db_TaskDependency` | OneToMany | `cr5db_Task` | `cr5db_PredecessorTask` |
 | `cr5db_TaskDependency` | OneToMany | `cr5db_Task` | `cr5db_SuccessorTask` |
 | `cr5db_TaskLabelAssignment` | OneToMany | `cr5db_SystemLabel` | `cr5db_LabelName` |
 | `cr5db_TimesheetLog` | OneToMany | `cr5db_Task` | `cr5db_TaskID` |
+| `cr5db_TimesheetLog` | OneToMany | `cr5db_User` | `cr5db_UserID` |
 | `cr5db_User` | OneToMany | `cr5db_JobPosition` | `cr5db_JobPosition` |
 | `cr5db_UserProjectRole` | OneToMany | `cr5db_ResourceAllocation` | `cr5db_AllocationID` |
 
@@ -220,6 +231,7 @@ These are the primary database relationships established between your custom tab
 | Column Name | Type | Display Name | Target / Notes |
 | :--- | :--- | :--- | :--- |
 | `cr5db_ActualValue` | `decimal` | Actual Value |  Kết quả thực tế nhân sự đạt được, được đổ về từ các bản ghi nhật ký |
+| `cr5db_EmployeeID` | `lookup` | Employee |  The employee this KPI target belongs to |
 | `cr5db_KPIAchievementRate` | `decimal` | KPI Achievement Rate |  Tự động tính toán tỷ lệ % hoàn thành dựa trên Target và Actual |
 | `cr5db_KPICode` | `lookup` | KPI Template |   |
 | `cr5db_KPITarget1` | `nvarchar` | KPI Target |   |
@@ -248,9 +260,12 @@ These are the primary database relationships established between your custom tab
 
 | Column Name | Type | Display Name | Target / Notes |
 | :--- | :--- | :--- | :--- |
+| `cr5db_EmployeeID` | `lookup` | Employee |  The employee being appraised |
+| `cr5db_EvaluatorID` | `lookup` | Evaluator |  The manager/evaluator performing the appraisal |
 | `cr5db_FinalScore` | `decimal` | Final Score |   |
 | `cr5db_PerformanceAppraisal1` | `nvarchar` | Performance Appraisal |   |
 | `cr5db_PerformanceAppraisalId` | `primarykey` | Performance Appraisal |  Unique identifier for entity instances |
+| `cr5db_PeriodID` | `lookup` | Evaluation Period |  The evaluation period for this appraisal |
 | `cr5db_SelfScore` | `decimal` | Self Score |   |
 
 ---
@@ -420,10 +435,12 @@ These are the primary database relationships established between your custom tab
 
 | Column Name | Type | Display Name | Target / Notes |
 | :--- | :--- | :--- | :--- |
+| `cr5db_AssigneeID` | `lookup` | Assignee |  The user assigned to this task |
 | `cr5db_Description` | `nvarchar` | Description |   |
 | `cr5db_DueDate` | `datetime` | Due Date |   |
 | `cr5db_ObjectiveName` | `lookup` | Objective |   |
 | `cr5db_ParentTask` | `lookup` | Task |   |
+| `cr5db_ProjectPhaseID` | `lookup` | Project Phase |  The project phase this task belongs to |
 | `cr5db_TaskId` | `primarykey` | Task |  Unique identifier for entity instances |
 | `cr5db_TaskName` | `nvarchar` | Task Name |   |
 
@@ -474,6 +491,7 @@ These are the primary database relationships established between your custom tab
 | `cr5db_TaskID` | `lookup` | Task |   |
 | `cr5db_TimesheetLog1` | `nvarchar` | Timesheet Log |   |
 | `cr5db_TimesheetLogId` | `primarykey` | Timesheet Log |  Unique identifier for entity instances |
+| `cr5db_UserID` | `lookup` | User |  The user this timesheet log belongs to |
 
 ---
 
@@ -486,6 +504,7 @@ These are the primary database relationships established between your custom tab
 | `cr5db_FullName` | `nvarchar` | Full Name |   |
 | `cr5db_IsActive` | `bit` | Is Active |   |
 | `cr5db_JobPosition` | `lookup` | Job Position |  Vị trí/Ghế định biên cụ thể mà nhân viên này đang đảm nhận |
+| `cr5db_SystemRole` | `nvarchar` | System Role |  Global RBAC role: Employee, ProjectManager, HRManager, Admin |
 | `cr5db_UserId` | `primarykey` | User |  Unique identifier for entity instances |
 
 ---
@@ -499,6 +518,64 @@ These are the primary database relationships established between your custom tab
 | `cr5db_RoleCode` | `nvarchar` | Role Code |   |
 | `cr5db_RoleName` | `nvarchar` | Role Name |   |
 | `cr5db_UserProjectRoleId` | `primarykey` | User Project Role |  Unique identifier for entity instances |
+
+---
+
+### 📦 Role Assignment (`new_RoleAssignment`)
+*Tracks role assignments to users with audit information*
+
+| Column Name | Type | Display Name | Target / Notes |
+| :--- | :--- | :--- | :--- |
+| `new_AssignedBy` | `lookup` | Assigned By |   |
+| `new_AssignedDate` | `datetime` | Assigned Date |   |
+| `new_IsActive` | `bit` | Is Active |   |
+| `new_Notes` | `nvarchar` | Notes |   |
+| `new_RoleAssignmentId` | `primarykey` | Role Assignment |  Unique identifier for entity instances |
+| `new_RoleAssignmentName` | `nvarchar` | Role Assignment Name |   |
+| `new_SystemRole` | `lookup` | System Role |   |
+| `new_User` | `lookup` | User |   |
+
+---
+
+### 📦 System Role (`new_SystemRole`)
+*Defines system roles with hierarchy and permissions*
+
+| Column Name | Type | Display Name | Target / Notes |
+| :--- | :--- | :--- | :--- |
+| `new_IsActive` | `bit` | Is Active |   |
+| `new_RoleCode` | `nvarchar` | Role Code |   |
+| `new_RoleDescription` | `nvarchar` | Role Description |   |
+| `new_RoleLevel` | `int` | Role Level |   |
+| `new_RoleName` | `nvarchar` | Role Name |   |
+| `new_SystemRoleId` | `primarykey` | System Role |  Unique identifier for entity instances |
+
+---
+
+### 📦 Task Ownership (`new_TaskOwnership`)
+*Tracks task ownership for filtering purposes*
+
+| Column Name | Type | Display Name | Target / Notes |
+| :--- | :--- | :--- | :--- |
+| `new_AssigneeUserID` | `nvarchar` | Assignee User ID |   |
+| `new_CreatedByUserID` | `nvarchar` | Created By User ID |   |
+| `new_OwnershipName` | `nvarchar` | Ownership Name |   |
+| `new_TaskID` | `nvarchar` | Task ID |   |
+| `new_TaskOwnershipId` | `primarykey` | Task Ownership |  Unique identifier for entity instances |
+
+---
+
+### 📦 Timesheet Audit (`new_TimesheetAudit`)
+*Stores timesheet approval and rejection audit trail information*
+
+| Column Name | Type | Display Name | Target / Notes |
+| :--- | :--- | :--- | :--- |
+| `new_ApprovedAt` | `datetime` | Approved At |   |
+| `new_ApprovedBy` | `nvarchar` | Approved By |   |
+| `new_AuditRecordName` | `nvarchar` | Audit Record Name |   |
+| `new_RejectionReason` | `nvarchar` | Rejection Reason |   |
+| `new_Status` | `nvarchar` | Status |   |
+| `new_TimesheetAuditId` | `primarykey` | Timesheet Audit |  Unique identifier for entity instances |
+| `new_TimesheetLogID` | `nvarchar` | Timesheet Log ID |   |
 
 ---
 

@@ -21,12 +21,6 @@ export class Cr5db_appraisalkpidetailsService {
       Cr5db_appraisalkpidetailsService.dataSourceName,
       record
     );
-    if (result && result.error) {
-
-      throw new Error(result.error.message || JSON.stringify(result.error));
-
-    }
-
     return result;
   }
 
@@ -36,24 +30,13 @@ export class Cr5db_appraisalkpidetailsService {
       id,
       changedFields
     );
-    if (result && result.error) {
-
-      throw new Error(result.error.message || JSON.stringify(result.error));
-
-    }
-
     return result;
   }
 
-  public static async delete(id: string): Promise<IOperationResult<void>> {
-    const result = await Cr5db_appraisalkpidetailsService.client.deleteRecordAsync(
+  public static async delete(id: string): Promise<void> {
+    await Cr5db_appraisalkpidetailsService.client.deleteRecordAsync(
       Cr5db_appraisalkpidetailsService.dataSourceName,
-      id
-    );
-    if (result && result.error) {
-      throw new Error(result.error.message || JSON.stringify(result.error));
-    }
-    return result;
+      id);
   }
 
   public static async get(id: string, options?: IGetOptions): Promise<IOperationResult<Cr5db_appraisalkpidetails>> {
