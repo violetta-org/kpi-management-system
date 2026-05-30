@@ -527,16 +527,31 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
       const idField = `${tableName}id`;
       const res = await service.getAll({ maxPageSize: 5000, select: [idField] });
       const records = res?.data || [];
-      if (records.length === 0) return;
+      if (records.length === 0) {
+        progressCallback(`Bảng ${tableName} không có dữ liệu cần dọn dẹp.`);
+        return;
+      }
       
+      progressCallback(`Tìm thấy ${records.length} bản ghi trong ${tableName}. Đang tiến hành xóa...`);
+      let deletedCount = 0;
       for (const rec of records) {
         const id = rec[idField];
         if (id) {
-          await service.delete(id);
+          try {
+            await service.delete(id);
+            deletedCount++;
+          } catch (delErr: any) {
+            const errMsg = delErr?.message || JSON.stringify(delErr);
+            progressCallback(`⚠️ Lỗi xóa dòng ${id} trong ${tableName}: ${errMsg}`);
+            console.error(`Error deleting ${id} in ${tableName}:`, delErr);
+          }
         }
       }
-    } catch (error) {
-      console.warn(`[Cleanup Warning] Failed during clean up of "${tableName}":`, error);
+      progressCallback(`Đã xóa thành công ${deletedCount}/${records.length} bản ghi trong ${tableName}.`);
+    } catch (error: any) {
+      const errMsg = error?.message || JSON.stringify(error);
+      progressCallback(`❌ Lỗi truy vấn bảng ${tableName}: ${errMsg}`);
+      console.error(`[Cleanup Warning] Failed during clean up of "${tableName}":`, error);
     }
   };
 
@@ -578,15 +593,24 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
       select: ['cr5db_systemparameterid', 'cr5db_systemparameter1']
     });
     const params = res?.data || [];
+    let count = 0;
     for (const p of params) {
       const name = p.cr5db_systemparameter1 || '';
       if (name.startsWith('pg_') || name === 'DefaultPermissionGroups' || name === 'MaxTimesheetHoursPerDay') {
         if (p.cr5db_systemparameterid) {
-          await Cr5db_systemparametersService.delete(p.cr5db_systemparameterid);
+          try {
+            await Cr5db_systemparametersService.delete(p.cr5db_systemparameterid);
+            count++;
+          } catch (paramErr: any) {
+            progressCallback(`⚠️ Lỗi xóa tham số ${name}: ${paramErr?.message || JSON.stringify(paramErr)}`);
+          }
         }
       }
     }
-  } catch (err) {}
+    progressCallback(`Đã dọn dẹp xong ${count} tham số hệ thống.`);
+  } catch (err: any) {
+    progressCallback(`❌ Lỗi truy vấn bảng systemparameters: ${err?.message || JSON.stringify(err)}`);
+  }
 
   await tryDeleteAll("cr5db_systempolicyrules", Cr5db_systempolicyrulesService);
   await tryDeleteAll("cr5db_headcountrequests", Cr5db_headcountrequestsService);
