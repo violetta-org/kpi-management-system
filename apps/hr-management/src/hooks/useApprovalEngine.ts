@@ -284,6 +284,7 @@ export function buildApprovalEngine(ctx: ApprovalEngineContext) {
     ctx.setSelectedApproverId(defaultApproverId);
     ctx.setRequestReason('');
     ctx.setShowApprovalModal(true);
+    ctx.setIsLoading(false);
     return null;
   };
 
