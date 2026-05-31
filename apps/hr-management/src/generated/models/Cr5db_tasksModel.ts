@@ -23,6 +23,7 @@ export interface Cr5db_tasksBase {
   cr5db_taskid: string;
   cr5db_taskname: string;
   importsequencenumber?: number;
+  "new_KPITarget@odata.bind"?: string;
   overriddencreatedon?: string;
   ownerid: string;
   owneridtype: string;
@@ -47,6 +48,7 @@ export interface Cr5db_tasks extends Cr5db_tasksBase {
   modifiedon?: string;
   modifiedonbehalfbyname?: string;
   modifiedonbehalfbyyominame: string;
+  new_kpitargetname?: string;
   owneridname: string;
   owneridyominame: string;
   owningbusinessunitname: string;
@@ -69,6 +71,8 @@ export interface Cr5db_tasks extends Cr5db_tasksBase {
   _modifiedby_value?: string;
   modifiedonbehalfby?: object;
   _modifiedonbehalfby_value?: string;
+  new_kpitarget?: object;
+  _new_kpitarget_value?: string;
   owningbusinessunit?: object;
   _owningbusinessunit_value?: string;
   owningteam?: object;

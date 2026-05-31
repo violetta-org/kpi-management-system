@@ -427,6 +427,10 @@ function App() {
     kpiRollupMethod, setKpiRollupMethod,
   } = s;
 
+  const [kpiStandardHoursLimit, setKpiStandardHoursLimit] = React.useState<number>(0);
+  const [kpiActiveTasksLimit, setKpiActiveTasksLimit] = React.useState<number>(0);
+  const [newTaskKpiTargetId, setNewTaskKpiTargetId] = React.useState<string>('');
+
   const t = (key: string) => getTranslation(key, language);
 
   const resolveKpiActualValue = React.useCallback((k: any, visited = new Set<string>()): number => {
@@ -1064,6 +1068,12 @@ function App() {
           payload.cr5db_ProjectPhaseID = null;
         }
 
+        if (newTaskKpiTargetId) {
+          payload["new_KPITarget@odata.bind"] = `/cr5db_kpitargets(${newTaskKpiTargetId})`;
+        } else {
+          payload.new_KPITarget = null;
+        }
+
         payload.statecode = newTaskStatus === 'Completed' ? 1 : 0;
         payload.statuscode = newTaskStatus === 'Completed' ? 2 : 1;
 
@@ -1092,6 +1102,9 @@ function App() {
         if (newTaskPhaseId) {
           payload["cr5db_ProjectPhaseID@odata.bind"] = `/cr5db_projectphases(${newTaskPhaseId})`;
         }
+        if (newTaskKpiTargetId) {
+          payload["new_KPITarget@odata.bind"] = `/cr5db_kpitargets(${newTaskKpiTargetId})`;
+        }
 
         await executeCrudWithApproval("Tasks", "Create", payload, undefined, `Tạo công việc mới: ${newTaskName}`);
 
@@ -1113,6 +1126,7 @@ function App() {
       setNewTaskObjectiveId('');
       setNewTaskParentId('');
       setNewTaskAssigneeId('');
+      setNewTaskKpiTargetId('');
       // Note: fetchLiveValues is called inside executeCrudWithApproval or inside modal submit
     } catch (err) {
       console.error(err);
@@ -2901,6 +2915,8 @@ function App() {
         cr5db_actualvalue: Number(kpiActualValue),
         cr5db_weightpercentage: Number(kpiWeight),
         cr5db_rollupmethod: kpiRollupMethod,
+        new_standardhourslimit: Number(kpiStandardHoursLimit),
+        new_activetaskslimit: Number(kpiActiveTasksLimit),
         "cr5db_EmployeeID@odata.bind": `/cr5db_users(${kpiEmployeeId})`,
         "cr5db_ParentObjective@odata.bind": `/cr5db_objectives(${kpiObjectiveId})`,
         "cr5db_KPICode@odata.bind": `/cr5db_kpilibraries(${kpiLibraryId})`,
@@ -2957,6 +2973,8 @@ function App() {
       setKpiParentKpiId('');
       setKpiRollupMethod('Manual');
       setKpiPeriod(evaluationPeriodsList[0]?.cr5db_evaluationperiod1 || 'Q2/2026');
+      setKpiStandardHoursLimit(0);
+      setKpiActiveTasksLimit(0);
     } catch (err) {
       console.error(err);
       alert("Không thể lưu mục tiêu KPI.");
@@ -3528,6 +3546,7 @@ function App() {
                                     setNewTaskObjectiveId(task._cr5db_objectivename_value || '');
                                     setNewTaskParentId(task._cr5db_parenttask_value || '');
                                     setNewTaskAssigneeId(task._cr5db_assigneeid_value || '');
+                                    setNewTaskKpiTargetId(task._new_kpitarget_value || '');
                                     setNewTaskDueDate(task.cr5db_due_date ? new Date(task.cr5db_due_date).toISOString().split('T')[0] : '');
                                     setNewTaskStatus(task.cr5db_status);
                                     setShowTaskModal(true);
@@ -3792,6 +3811,26 @@ function App() {
               filteredKpis = filteredKpis.filter(k => k.cr5db_period === selectedKpiPeriodFilter);
             }
             const userKpis = filteredKpis;
+            const targetEmployee = activeRole === 'Employee'
+              ? usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase())
+              : selectedKpiEmployeeFilter === 'All'
+                ? null
+                : usersList.find(u => u.cr5db_userid === selectedKpiEmployeeFilter);
+
+            let adHocTasksCount = 0;
+            let adHocHoursLogged = 0;
+            if (targetEmployee) {
+              const employeeTasks = tasks.filter(t => 
+                t._cr5db_assigneeid_value === targetEmployee.cr5db_userid ||
+                t.cr5db_assignee_email?.toLowerCase() === targetEmployee.cr5db_email?.toLowerCase()
+              );
+              const adHocTasksList = employeeTasks.filter(t => !t._new_kpitarget_value);
+              adHocTasksCount = adHocTasksList.filter(t => t.cr5db_status !== 'Completed').length;
+              
+              const adHocTaskIds = adHocTasksList.map(t => t.cr5db_taskid);
+              const adHocTimesheets = timesheets.filter(ts => ts._cr5db_taskid_value && adHocTaskIds.includes(ts._cr5db_taskid_value));
+              adHocHoursLogged = adHocTimesheets.reduce((sum, ts) => sum + (ts.cr5db_actualhoursworked || 0), 0);
+            }
             return (
               <div className="space-y-6 p-6" style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '24px', fontFamily: 'ui-sans-serif, system-ui, sans-serif', color: '#000000', backgroundColor: '#ffffff' }}>
               {/* Header section */}
@@ -3824,6 +3863,8 @@ function App() {
                       const firstMatchedObj = objectivesList.find(o => o.cr5db_periodnamename === defaultPeriod);
                       setKpiObjectiveId(firstMatchedObj?.cr5db_objectiveid || objectivesList[0]?.cr5db_objectiveid || '');
                       setKpiLibraryId(firstLib ? firstLib.cr5db_kpilibraryid : '');
+                      setKpiStandardHoursLimit(4);
+                      setKpiActiveTasksLimit(3);
                       setShowKpiModal(true);
                     }}
                     className="btn-primary"
@@ -3985,6 +4026,102 @@ function App() {
                         </div>
                       </div>
 
+                      {targetEmployee && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                          {/* Card 1: Trạng thái Năng lực */}
+                          <div style={{ padding: '16px 20px', border: '1px solid #000000', borderRadius: '8px', backgroundColor: '#ffffff', boxSizing: 'border-box' }}>
+                            <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 700 }}>
+                              ⚡ Trạng thái Năng lực (Capacity Status)
+                            </h4>
+                            {(() => {
+                              const employeeKpis = kpiTargets.filter(k => k.cr5db_user_email?.toLowerCase() === targetEmployee.cr5db_email?.toLowerCase());
+                              const totalWipLimit = employeeKpis.reduce((sum, k) => sum + (k.new_activetaskslimit || 0), 0);
+                              const totalHoursLimit = employeeKpis.reduce((sum, k) => sum + (k.new_standardhourslimit || 0), 0);
+                              
+                              const totalActiveTasks = employeeKpis.reduce((sum, k) => sum + (k.currentActiveTasks || 0), 0);
+                              const totalLoggedHours = employeeKpis.reduce((sum, k) => sum + (k.currentLoggedHours || 0), 0);
+                              
+                              const isWipOverloaded = totalWipLimit > 0 && totalActiveTasks > totalWipLimit;
+                              const isHoursOverloaded = totalHoursLimit > 0 && totalLoggedHours > totalHoursLimit;
+                              const isOverloaded = isWipOverloaded || isHoursOverloaded;
+                              
+                              return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                    <span>Tổng Task đang mở (WIP):</span>
+                                    <span style={{ fontWeight: 600, color: isWipOverloaded ? '#d83b01' : '#000000' }}>
+                                      {totalActiveTasks} / {totalWipLimit || 'Không giới hạn'}
+                                    </span>
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                    <span>Tổng Giờ đã làm (Kế hoạch):</span>
+                                    <span style={{ fontWeight: 600, color: isHoursOverloaded ? '#d83b01' : '#000000' }}>
+                                      {totalLoggedHours}h / {totalHoursLimit || 'Không giới hạn'}h
+                                    </span>
+                                  </div>
+                                  {isOverloaded ? (
+                                    <div style={{ 
+                                      marginTop: '4px',
+                                      padding: '8px 12px', 
+                                      backgroundColor: '#FDE7E9', 
+                                      border: '1px solid #d83b01', 
+                                      borderRadius: '4px', 
+                                      color: '#d83b01',
+                                      fontSize: '12px',
+                                      fontWeight: 600
+                                    }}>
+                                      ⚠️ Báo động quá tải! Nhân viên đang vượt quá giới hạn năng lực.
+                                    </div>
+                                  ) : (
+                                    <div style={{ 
+                                      marginTop: '4px',
+                                      padding: '8px 12px', 
+                                      backgroundColor: '#DFF6DD', 
+                                      border: '1px solid #107C41', 
+                                      borderRadius: '4px', 
+                                      color: '#107C41',
+                                      fontSize: '12px',
+                                      fontWeight: 600
+                                    }}>
+                                      ✅ Năng lực bình thường. Khối lượng công việc an toàn.
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </div>
+
+                          {/* Card 2: Công việc phát sinh */}
+                          <div style={{ padding: '16px 20px', border: '1px solid #000000', borderRadius: '8px', backgroundColor: '#ffffff', boxSizing: 'border-box' }}>
+                            <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 700 }}>
+                              🎁 Công việc phát sinh (Ad-hoc Tasks)
+                            </h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                <span>Số Task phát sinh đang mở:</span>
+                                <span style={{ fontWeight: 600 }}>{adHocTasksCount}</span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                <span>Tổng giờ phát sinh đã làm:</span>
+                                <span style={{ fontWeight: 600 }}>{adHocHoursLogged}h</span>
+                              </div>
+                              <div style={{ 
+                                marginTop: '4px',
+                                padding: '8px 12px', 
+                                backgroundColor: '#FFF4CE', 
+                                border: '1px solid #795B00', 
+                                borderRadius: '4px', 
+                                color: '#795B00',
+                                fontSize: '11px',
+                                fontWeight: 500
+                              }}>
+                                💡 Nhận xét: Dữ liệu giờ phát sinh được gom riêng để xét duyệt cộng điểm thưởng (Bonus) cuối kỳ và tránh làm ảnh hưởng trọng số KPI chính.
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Main content table card */}
                       <div className="card-spec" style={{ padding: '0px', overflowX: 'auto' }}>
                         {userKpis.length === 0 ? (
@@ -4032,6 +4169,55 @@ function App() {
                                             Parent: {parentKpi.cr5db_kpiname}
                                           </div>
                                         )}
+
+                                        {/* Workload limit indicators */}
+                                        <div style={{ display: 'flex', gap: '8px', fontSize: '11px', marginTop: '4px', flexWrap: 'wrap' }}>
+                                          {k.new_activetaskslimit ? (
+                                            <span style={{ 
+                                              color: (k.currentActiveTasks || 0) > k.new_activetaskslimit ? '#d83b01' : '#555555',
+                                              fontWeight: (k.currentActiveTasks || 0) > k.new_activetaskslimit ? 700 : 400,
+                                              backgroundColor: (k.currentActiveTasks || 0) > k.new_activetaskslimit ? '#FDE7E9' : '#F3F2F1',
+                                              padding: '2px 6px',
+                                              borderRadius: '4px',
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: '4px'
+                                            }} title="Số Task đang mở / Giới hạn Task (WIP Limit)">
+                                              📋 {k.currentActiveTasks || 0}/{k.new_activetaskslimit}
+                                              {(k.currentActiveTasks || 0) > k.new_activetaskslimit && ' ⚠️'}
+                                            </span>
+                                          ) : null}
+
+                                          {k.new_standardhourslimit ? (
+                                            <span style={{ 
+                                              color: (k.currentLoggedHours || 0) > k.new_standardhourslimit ? '#d83b01' : '#555555',
+                                              fontWeight: (k.currentLoggedHours || 0) > k.new_standardhourslimit ? 700 : 400,
+                                              backgroundColor: (k.currentLoggedHours || 0) > k.new_standardhourslimit ? '#FDE7E9' : '#F3F2F1',
+                                              padding: '2px 6px',
+                                              borderRadius: '4px',
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: '4px'
+                                            }} title="Số giờ đã làm / Giới hạn giờ (Hours Limit)">
+                                              ⏱️ {k.currentLoggedHours || 0}/{k.new_standardhourslimit}h
+                                              {(k.currentLoggedHours || 0) > k.new_standardhourslimit && ' ⚠️'}
+                                            </span>
+                                          ) : null}
+
+                                          {k.hasCapacityAlert && (
+                                            <span style={{
+                                              color: '#ffffff',
+                                              backgroundColor: '#d83b01',
+                                              fontWeight: 700,
+                                              padding: '2px 6px',
+                                              borderRadius: '4px',
+                                              fontSize: '10px',
+                                              textTransform: 'uppercase'
+                                            }}>
+                                              Quá tải!
+                                            </span>
+                                          )}
+                                        </div>
                                       </div>
                                     </td>
                                     {activeRole !== 'Employee' && <td style={{ padding: '14px 20px' }}>{employeeName}</td>}
@@ -4073,6 +4259,8 @@ function App() {
                                               setKpiActualValue(k.cr5db_actualvalue);
                                               setKpiParentKpiId(k._cr5db_parentkpi_value || '');
                                               setKpiRollupMethod(k.cr5db_rollupmethod || 'Manual');
+                                              setKpiStandardHoursLimit(k.new_standardhourslimit || 0);
+                                              setKpiActiveTasksLimit(k.new_activetaskslimit || 0);
                                               setShowKpiModal(true);
                                             }}
                                             className="btn-filled-3"
@@ -4097,6 +4285,8 @@ function App() {
                                                 setKpiLibraryId(k._cr5db_kpicode_value || '');
                                                 setKpiParentKpiId(k._cr5db_parentkpi_value || '');
                                                 setKpiRollupMethod(k.cr5db_rollupmethod || 'Manual');
+                                                setKpiStandardHoursLimit(k.new_standardhourslimit || 0);
+                                                setKpiActiveTasksLimit(k.new_activetaskslimit || 0);
                                                 setShowKpiModal(true);
                                               }}
                                               className="btn-filled-3"
@@ -6620,6 +6810,7 @@ function App() {
                 setNewTaskObjectiveId('');
                 setNewTaskParentId('');
                 setNewTaskAssigneeId('');
+                setNewTaskKpiTargetId('');
               }}
               style={{ position: 'absolute', top: '16px', right: '16px', width: '16px', height: '16px', opacity: 0.7, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
               title="Close"
@@ -6728,6 +6919,27 @@ function App() {
                     ))}
                   </select>
                 </div>
+
+                {/* KPI Target */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '141px' }}>
+                  <label style={{ fontSize: '14px', fontWeight: 500, lineHeight: '14px', color: '#000000' }}>KPI Target</label>
+                  <select
+                    value={newTaskKpiTargetId}
+                    onChange={(e) => setNewTaskKpiTargetId(e.target.value)}
+                    style={{ height: '36px', padding: '8px 12px', border: '1px solid #000000', borderRadius: '6px', fontSize: '14px', fontWeight: 400, color: '#000000', backgroundColor: '#ffffff', cursor: 'pointer', boxSizing: 'border-box' }}
+                  >
+                    <option value="">KPI Target (Optional)</option>
+                    {kpiTargets
+                      .filter(k => {
+                        const assignee = usersList.find(u => u.cr5db_userid === (newTaskAssigneeId || usersList.find(x => x.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase())?.cr5db_userid));
+                        return k.cr5db_user_email?.toLowerCase() === assignee?.cr5db_email?.toLowerCase();
+                      })
+                      .map(k => (
+                        <option key={k.cr5db_kpitargetid} value={k.cr5db_kpitargetid}>{k.cr5db_kpiname}</option>
+                      ))
+                    }
+                  </select>
+                </div>
               </div>
 
               {/* Status field (only in Edit mode) */}
@@ -6794,6 +7006,7 @@ function App() {
                     setNewTaskObjectiveId('');
                     setNewTaskParentId('');
                     setNewTaskAssigneeId('');
+                    setNewTaskKpiTargetId('');
                   }} 
                   style={{ border: '1px solid #000000', borderRadius: '6px', padding: '8px 16px', height: '36px', width: '485px', fontWeight: 500, fontSize: '14px', backgroundColor: 'transparent', color: '#000000', cursor: 'pointer', boxSizing: 'border-box' }}
                 >
@@ -8068,6 +8281,37 @@ function App() {
                         type="text" 
                         value={kpiUnit} 
                         onChange={(e) => setKpiUnit(e.target.value)} 
+                        className="input-spec" 
+                        required 
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>
+                        Giới hạn Giờ làm việc (Hours Limit)
+                      </label>
+                      <input 
+                        type="number" 
+                        step="0.5"
+                        min={0}
+                        value={kpiStandardHoursLimit} 
+                        onChange={(e) => setKpiStandardHoursLimit(Number(e.target.value))} 
+                        className="input-spec" 
+                        required 
+                      />
+                      <span style={{ fontSize: '10px', color: '#666666' }}>Gợi ý: {Math.round(kpiWeight * 0.4)} giờ/tuần (dựa trên {kpiWeight}%)</span>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>
+                        Giới hạn Tasks mở (WIP Limit)
+                      </label>
+                      <input 
+                        type="number" 
+                        min={0}
+                        value={kpiActiveTasksLimit} 
+                        onChange={(e) => setKpiActiveTasksLimit(Number(e.target.value))} 
                         className="input-spec" 
                         required 
                       />

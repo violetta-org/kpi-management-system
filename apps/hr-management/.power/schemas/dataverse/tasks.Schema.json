@@ -240,6 +240,22 @@
           "required": true,
           "maxLength": 100
         },
+        "new_kpitarget": {
+          "type": "string",
+          "title": "KPI Target",
+          "x-ms-dataverse-attribute": "new_kpitarget",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "new_KPITarget"
+        },
+        "new_kpitargetname": {
+          "type": "string",
+          "title": "new_kpitargetname",
+          "x-ms-dataverse-attribute": "new_kpitargetname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "new_KPITargetName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
         "overriddencreatedon": {
           "type": "string",
           "title": "Record Created On",

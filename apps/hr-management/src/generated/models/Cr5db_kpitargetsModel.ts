@@ -23,8 +23,10 @@ export interface Cr5db_kpitargetsBase {
   cr5db_targetvalue?: number;
   cr5db_weightpercentage?: number;
   importsequencenumber?: number;
+  new_activetaskslimit?: number;
   "new_ParentKpi@odata.bind"?: string;
   new_rollupmethod?: string;
+  new_standardhourslimit?: number;
   overriddencreatedon?: string;
   ownerid: string;
   owneridtype: string;

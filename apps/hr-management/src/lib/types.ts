@@ -24,6 +24,8 @@ export interface Task {
   _cr5db_objectivename_value?: string;
   _cr5db_projectphaseid_value?: string;
   _cr5db_assigneeid_value?: string;
+  _new_kpitarget_value?: string;
+  new_kpitargetname?: string;
   createdbyname?: string;
   _createdby_value?: string;
   modifiedon?: string;
@@ -63,6 +65,11 @@ export interface KPITarget {
   _cr5db_parentkpi_value?: string;
   cr5db_rollupmethod?: string;
   cr5db_employee_name?: string;
+  new_standardhourslimit?: number;
+  new_activetaskslimit?: number;
+  currentActiveTasks?: number;
+  currentLoggedHours?: number;
+  hasCapacityAlert?: boolean;
 }
 
 export interface Company {
