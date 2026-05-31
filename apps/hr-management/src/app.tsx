@@ -452,8 +452,6 @@ function App() {
     newAppraisalEvaluatorId, setNewAppraisalEvaluatorId,
     newAppraisalPeriodId, setNewAppraisalPeriodId,
     language, toggleLanguage,
-    kpiParentKpiId, setKpiParentKpiId,
-    kpiRollupMethod, setKpiRollupMethod,
   } = s;
 
   const [kpiStandardHoursLimit, setKpiStandardHoursLimit] = React.useState<number>(0);

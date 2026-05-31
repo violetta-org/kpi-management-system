@@ -66,7 +66,6 @@ export interface KPITarget {
   _cr5db_kpicode_value?: string;
   _new_parentkpi_value?: string;
   new_rollupmethod?: string;
-  cr5db_employee_name?: string;
   new_standardhourslimit?: number;
   new_activetaskslimit?: number;
   currentActiveTasks?: number;
