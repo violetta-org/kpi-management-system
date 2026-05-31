@@ -8354,7 +8354,8 @@ function App() {
                                     label="Xé nhỏ dự án"
                                     onClick={async () => {
                                       const pName = currentActiveProject.cr5db_projectname || 'Dự án';
-                                      const existingTasks = tasks.filter(t => t._cr5db_project_value === currentActiveProject.cr5db_projectid).map(t => t.cr5db_taskname || '');
+                                      const projPhaseIds = projectPhases.filter(ph => ph._cr5db_projectid_value === currentActiveProject.cr5db_projectid).map(ph => ph.cr5db_projectphaseid);
+                                      const existingTasks = tasks.filter(t => t._cr5db_projectphaseid_value && projPhaseIds.includes(t._cr5db_projectphaseid_value)).map(t => t.cr5db_taskname || '');
                                       return await AIService.breakdownProjectTasks(pName, existingTasks);
                                     }}
                                     onSuccess={(text) => {
