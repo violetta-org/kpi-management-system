@@ -4268,7 +4268,11 @@ function App() {
                               return calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.new_direction);
                             });
                             const avgProgress = rates.length > 0 ? Math.round(rates.reduce((sum, r) => sum + r, 0) / rates.length) : 0;
-                            const totalWeight = userKpis.reduce((sum, k) => sum + (k.cr5db_weightpercentage || 0), 0);
+                            const uniqueEmployees = Array.from(new Set(userKpis.map(k => k.cr5db_user_email?.toLowerCase()).filter(Boolean)));
+                            const totalWeightSum = userKpis.reduce((sum, k) => sum + (k.cr5db_weightpercentage || 0), 0);
+                            const totalWeight = uniqueEmployees.length > 0
+                              ? Math.round(totalWeightSum / uniqueEmployees.length)
+                              : 0;
                             const achievedCount = userKpis.filter(k => {
                               const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
                               return calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.new_direction) >= 100;
@@ -4301,8 +4305,12 @@ function App() {
                                     {totalWeight}%
                                   </div>
                                   <div>
-                                    <div style={{ fontSize: '12px', color: 'rgba(0,0,0,0.5)', fontWeight: 600 }}>Tổng Tỷ trọng Đã gán</div>
-                                    <div style={{ fontSize: '20px', fontWeight: 700, color: '#000000' }}>{totalWeight}% Tỷ trọng</div>
+                                    <div style={{ fontSize: '12px', color: 'rgba(0,0,0,0.5)', fontWeight: 600 }}>
+                                      {uniqueEmployees.length > 1 ? 'Tỷ trọng Trung bình / Nhân sự' : 'Tổng Tỷ trọng Đã gán'}
+                                    </div>
+                                    <div style={{ fontSize: '20px', fontWeight: 700, color: '#000000' }}>
+                                      {totalWeight}% {uniqueEmployees.length > 1 ? 'Trung bình' : 'Tỷ trọng'}
+                                    </div>
                                   </div>
                                 </div>
                               </>

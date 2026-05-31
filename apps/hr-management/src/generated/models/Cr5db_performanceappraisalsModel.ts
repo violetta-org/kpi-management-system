@@ -22,6 +22,7 @@ export interface Cr5db_performanceappraisalsBase {
   "cr5db_PeriodID@odata.bind"?: string;
   cr5db_selfscore?: number;
   importsequencenumber?: number;
+  new_bonusmultiplier?: number;
   overriddencreatedon?: string;
   ownerid: string;
   owneridtype: string;

@@ -223,6 +223,13 @@
           "required": true,
           "maxLength": 100
         },
+        "new_bonusmultiplier": {
+          "type": "string",
+          "title": "Bonus Multiplier",
+          "x-ms-dataverse-attribute": "new_bonusmultiplier",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "new_BonusMultiplier"
+        },
         "overriddencreatedon": {
           "type": "string",
           "title": "Record Created On",

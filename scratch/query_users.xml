@@ -1,7 +1,0 @@
-<fetch>
-  <entity name="cr5db_user">
-    <attribute name="cr5db_fullname" />
-    <attribute name="cr5db_email" />
-    <attribute name="cr5db_jobposition" />
-  </entity>
-</fetch>

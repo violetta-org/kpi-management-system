@@ -1,8 +1,0 @@
-<fetch>
-  <entity name="cr5db_jobposition">
-    <attribute name="cr5db_positionname" />
-    <attribute name="cr5db_headcountquota" />
-    <attribute name="cr5db_currentheadcount" />
-    <attribute name="new_actualheadcount" />
-  </entity>
-</fetch>
