@@ -48,7 +48,6 @@ export interface Cr5db_projectrisks extends Cr5db_projectrisksBase {
   modifiedon?: string;
   modifiedonbehalfbyname?: string;
   modifiedonbehalfbyyominame: string;
-  new_mitigationplan?: string;
   new_projectname?: string;
   owneridname: string;
   owneridyominame: string;
