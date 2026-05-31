@@ -366,6 +366,17 @@ function App() {
     newRequiredLevel, setNewRequiredLevel,
     newCompetencyWeight, setNewCompetencyWeight,
 
+    // Onboarding Modals
+    processTemplateList, setProcessTemplateList,
+    processTemplateStepList, setProcessTemplateStepList,
+    employeeProcessList, setEmployeeProcessList,
+    processStepList, setProcessStepList,
+    showProcessModal, setShowProcessModal,
+    newProcessEmployeeId, setNewProcessEmployeeId,
+    newProcessTemplateId, setNewProcessTemplateId,
+    showProcessDetailModal, setShowProcessDetailModal,
+    selectedProcessId, setSelectedProcessId,
+
     // Appraisal cycles
     evaluationPeriodsList, setEvaluationPeriodsList,
     showPeriodModal, setShowPeriodModal,
@@ -973,7 +984,119 @@ function App() {
     );
   };
 
-  // ── Live Data ─────────────────────────────────────────────────────────────
+  const renderProcessTable = (processList: any[]) => {
+    return (
+      <div className="card-spec" style={{ padding: '0px', overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+              <th style={{ padding: '14px 20px' }}>Tên Quy trình</th>
+              <th style={{ padding: '14px 20px' }}>Loại</th>
+              <th style={{ padding: '14px 20px' }}>Nhân viên</th>
+              <th style={{ padding: '14px 20px' }}>Tiến độ</th>
+              <th style={{ padding: '14px 20px' }}>Trạng thái</th>
+              <th style={{ padding: '14px 20px', width: '100px', textAlign: 'center' }}>Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            {processList.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                  Chưa có quy trình nào.
+                </td>
+              </tr>
+            ) : (
+              processList.map(proc => {
+                const emp = usersList.find(u => u.cr5db_userid === proc._new_employeeid_value);
+                const steps = processStepList.filter(s => s._new_processid_value === proc.new_employeeprocessid);
+                const completedSteps = steps.filter(s => s.new_status === 'Completed').length;
+                const totalSteps = steps.length;
+                const progress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+                
+                return (
+                  <tr key={proc.new_employeeprocessid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                    <td style={{ padding: '14px 20px', fontWeight: 600 }}>{proc.new_name}</td>
+                    <td style={{ padding: '14px 20px' }}>
+                      <span style={{ 
+                        padding: '4px 8px', 
+                        borderRadius: '12px', 
+                        fontSize: '11px', 
+                        fontWeight: 600,
+                        backgroundColor: proc.new_type === 'Onboarding' ? 'rgba(16, 124, 65, 0.1)' : 'rgba(232, 17, 35, 0.1)',
+                        color: proc.new_type === 'Onboarding' ? '#107c41' : '#e81123'
+                      }}>
+                        {proc.new_type}
+                      </span>
+                    </td>
+                    <td style={{ padding: '14px 20px' }}>{emp?.cr5db_fullname || 'N/A'}</td>
+                    <td style={{ padding: '14px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '100px', height: '6px', backgroundColor: 'var(--color-border)', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${progress}%`, backgroundColor: progress === 100 ? '#107c41' : 'var(--color-primary)' }}></div>
+                        </div>
+                        <span style={{ fontSize: '12px', fontWeight: 600 }}>{progress}%</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '14px 20px' }}>
+                      <span style={{ 
+                        padding: '4px 8px', 
+                        borderRadius: '12px', 
+                        fontSize: '11px', 
+                        fontWeight: 600,
+                        backgroundColor: proc.new_status === 'Completed' ? 'rgba(16, 124, 65, 0.1)' : proc.new_status === 'Cancelled' ? 'rgba(232, 17, 35, 0.1)' : 'rgba(0, 120, 212, 0.1)',
+                        color: proc.new_status === 'Completed' ? '#107c41' : proc.new_status === 'Cancelled' ? '#e81123' : '#0078d4'
+                      }}>
+                        {proc.new_status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                      <button 
+                        className="btn-icon" 
+                        title="Xem chi tiết"
+                        onClick={() => {
+                          setSelectedProcessId(proc.new_employeeprocessid);
+                          setShowProcessDetailModal(true);
+                        }}
+                      >
+                        <i className="fas fa-eye"></i>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+  const getMyProcesses = () => {
+    if (!currentUserObj) return [];
+    const currentUserPosition = jobPositionsList.find(p => p.cr5db_jobpositionid === currentUserObj._cr5db_jobposition_value);
+    const currentUserDeptId = currentUserPosition?._cr5db_department_value;
+    const isManager = currentUserPosition?.cr5db_positionname?.toLowerCase().includes('manager') || currentUserPosition?.cr5db_positionname?.toLowerCase().includes('trưởng phòng');
+
+    return employeeProcessList.filter(proc => {
+      // 1. Is employee themselves
+      if (proc._new_employeeid_value === currentUserObj.cr5db_userid) return true;
+      
+      // 2. Is Department Manager
+      if (isManager && currentUserDeptId) {
+        const emp = usersList.find(u => u.cr5db_userid === proc._new_employeeid_value);
+        const empPos = jobPositionsList.find(p => p.cr5db_jobpositionid === emp?._cr5db_jobposition_value);
+        if (empPos && empPos._cr5db_department_value === currentUserDeptId) return true;
+      }
+
+      // 3. Has task assigned to user
+      const steps = processStepList.filter(s => s._new_processid_value === proc.new_employeeprocessid);
+      return steps.some(s => 
+        s._new_assigneduser_value === currentUserObj.cr5db_userid ||
+        (currentUserDeptId && s._new_assigneddepartment_value === currentUserDeptId) ||
+        (s.new_assigneerole && s.new_assigneerole === activeRole)
+      );
+    });
+  };
+
   const { fetchLiveValues } = useLiveData({
     setIsLoading, setErrorMsg,
     setCurrentUserEmail, setCurrentUserName, setActiveRole,
@@ -992,7 +1115,9 @@ function App() {
     setPermissionGroups, setDefaultGroups,
     setDefaultGroupsDbId, setBonusMatrixList,
     setCompetencyCatalogList, setJobCompetenciesList, setCompetencyAssessmentsList,
-    setIdpList, setIdpActionList
+    setIdpList, setIdpActionList,
+    setProcessTemplateList, setProcessTemplateStepList,
+    setEmployeeProcessList, setProcessStepList
   });
 
   // ── Approval Engine ───────────────────────────────────────────────────────
@@ -1329,6 +1454,87 @@ function App() {
     } catch (err) {
       console.error(err);
       alert("Không thể nộp bản đánh giá.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateProcess = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProcessEmployeeId || !newProcessTemplateId) return;
+    setIsLoading(true);
+    try {
+      const template = processTemplateList.find(t => t.new_processtemplateid === newProcessTemplateId);
+      const employee = usersList.find(u => u.cr5db_userid === newProcessEmployeeId);
+      if (!template || !employee) return;
+
+      const { New_employeeprocessService } = await import('./generated/services/New_employeeprocessService');
+      const { New_processstepService } = await import('./generated/services/New_processstepService');
+      
+      const processName = `[${template.new_type}] ${employee.cr5db_fullname}`;
+      const procPayload = {
+        new_name: processName,
+        new_type: template.new_type,
+        new_status: 'In Progress',
+        "new_EmployeeId@odata.bind": `/cr5db_userses(${employee.cr5db_userid})`,
+        "new_TemplateId@odata.bind": `/new_processtemplates(${template.new_processtemplateid})`
+      };
+
+      const procRes = await New_employeeprocessService.create(procPayload as any);
+      if (procRes.data && procRes.data.new_employeeprocessid) {
+        const processId = procRes.data.new_employeeprocessid;
+        // Copy steps
+        const templateSteps = processTemplateStepList.filter(s => s._new_processtemplate_value === template.new_processtemplateid);
+        for (const tStep of templateSteps) {
+          const newStepPayload: any = {
+            new_name: tStep.new_name,
+            new_order: tStep.new_order,
+            new_status: 'Pending',
+            new_assigneerole: tStep.new_assigneerole,
+            "new_ProcessId@odata.bind": `/new_employeeprocesses(${processId})`
+          };
+          if (tStep._new_assigneddepartment_value) {
+            newStepPayload["new_AssignedDepartmentId@odata.bind"] = `/cr5db_departmentses(${tStep._new_assigneddepartment_value})`;
+          }
+          if (tStep._new_assigneduser_value) {
+            newStepPayload["new_AssignedUserId@odata.bind"] = `/cr5db_userses(${tStep._new_assigneduser_value})`;
+          }
+          await New_processstepService.create(newStepPayload);
+        }
+        await fetchLiveValues();
+        setShowProcessModal(false);
+      }
+    } catch (err: any) {
+      alert("Lỗi khi tạo quy trình: " + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateProcessStep = async (stepId: string, newStatus: string) => {
+    setIsLoading(true);
+    try {
+      const { New_processstepService } = await import('./generated/services/New_processstepService');
+      await New_processstepService.update(stepId, { 
+        new_status: newStatus,
+        new_completeddate: newStatus === 'Completed' ? new Date().toISOString() : null
+      } as any);
+
+      // Check if all steps are completed
+      const step = processStepList.find(s => s.new_processstepid === stepId);
+      if (step) {
+        const processId = step._new_processid_value;
+        const processSteps = processStepList.filter(s => s._new_processid_value === processId);
+        const allCompleted = processSteps.every(s => (s.new_processstepid === stepId ? newStatus : s.new_status) === 'Completed');
+        
+        if (allCompleted) {
+          const { New_employeeprocessService } = await import('./generated/services/New_employeeprocessService');
+          await New_employeeprocessService.update(processId, { new_status: 'Completed' } as any);
+        }
+      }
+      await fetchLiveValues();
+    } catch (err: any) {
+      alert("Lỗi cập nhật bước: " + err.message);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -3528,6 +3734,9 @@ function App() {
           <button onClick={() => setActiveTab('tasks')} className={`nav-item ${activeTab === 'tasks' ? 'active' : ''}`}>
             <span className="nav-icon"><TaskIcon /></span>{t('sidebar.tasks')}
           </button>
+          <button onClick={() => setActiveTab('my-processes')} className={`nav-item ${activeTab === 'my-processes' ? 'active' : ''}`}>
+            <span className="nav-icon"><i className="fas fa-clipboard-list" /></span>My Tasks
+          </button>
           <button onClick={() => setActiveTab('timesheets')} className={`nav-item ${activeTab === 'timesheets' ? 'active' : ''}`}>
             <span className="nav-icon"><ClockIcon /></span>{t('sidebar.timesheets')}
           </button>
@@ -3710,6 +3919,30 @@ function App() {
               )}
 
               {renderDashboardWidgets()}
+            </div>
+          )}
+
+          {/* SCREEN: MY PROCESSES (My Tasks) */}
+          {activeTab === 'my-processes' && (
+            <div className="space-y-6 p-6" style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '24px', fontFamily: 'ui-sans-serif, system-ui, sans-serif', color: '#000000', backgroundColor: '#ffffff' }}>
+              
+              <div className="task-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ color: '#000000', display: 'flex', alignItems: 'center' }}>
+                    <i className="fas fa-clipboard-list" style={{ fontSize: '24px' }}></i>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <h1 style={{ fontSize: '24px', fontWeight: 700, margin: 0, color: '#000000', lineHeight: '1.2' }}>
+                      {language === 'vi' ? 'Quy trình & Nhiệm vụ của tôi' : 'My Processes & Tasks'}
+                    </h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 400, color: 'rgba(0, 0, 0, 0.7)' }}>
+                      <span>Theo dõi các quy trình onboarding/offboarding bạn tham gia</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {renderProcessTable(getMyProcesses())}
             </div>
           )}
 
@@ -6396,6 +6629,20 @@ function App() {
                   >
                     Sơ đồ Tổ chức
                   </button>
+                  <button 
+                    onClick={() => setActiveDirectorySubTab('onboarding')} 
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      color: activeDirectorySubTab === 'onboarding' ? 'var(--color-text)' : 'var(--color-text-secondary)', 
+                      fontWeight: activeDirectorySubTab === 'onboarding' ? 700 : 500, 
+                      cursor: 'pointer', 
+                      borderBottom: activeDirectorySubTab === 'onboarding' ? '2px solid var(--color-text)' : 'none', 
+                      padding: '4px 8px' 
+                    }}
+                  >
+                    Quy trình Nhận/Nghỉ việc
+                  </button>
                 </div>
               )}
 
@@ -6671,17 +6918,18 @@ function App() {
                     </tbody>
                   </table>
                 </div>
-              ) : activeDirectorySubTab === 'orgchart' ? (
-                <div className="card-spec" style={{ padding: '24px', overflowX: 'auto', backgroundColor: '#fcfcfc' }}>
-                  {orgTreeData.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: '20px' }}>
-                      Chưa có dữ liệu Sơ đồ Tổ chức. Vui lòng thiết lập Vị trí công việc và Cấp trên (Reports To).
-                    </div>
-                  ) : (
-                    <ul className="org-tree" style={{ marginLeft: '-20px' }}>
-                      {orgTreeData.map((root: OrgNodeData) => renderOrgNode(root))}
-                    </ul>
-                  )}
+              ) : activeDirectorySubTab === 'onboarding' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h2 style={{ fontSize: '18px', fontWeight: 600 }}>Quản lý Quy trình Nhận/Nghỉ việc</h2>
+                    {(activeRole === 'Admin' || checkPermission('directory')) && (
+                      <button className="btn-primary" onClick={() => setShowProcessModal(true)}>
+                        <i className="fas fa-plus"></i> Tạo quy trình mới
+                      </button>
+                    )}
+                  </div>
+                  
+                  {renderProcessTable(employeeProcessList)}
                 </div>
               ) : null}
             </div>
@@ -7967,6 +8215,143 @@ function App() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <button type="button" onClick={() => setShowIdpActionModal(false)} className="btn-filled-3">Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showProcessModal && (
+        <div className="modal-overlay" onClick={() => setShowProcessModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>Tạo Quy trình mới</h3>
+            <form onSubmit={handleCreateProcess} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Chọn Nhân viên</label>
+                <select 
+                  value={newProcessEmployeeId} 
+                  onChange={(e) => setNewProcessEmployeeId(e.target.value)} 
+                  className="input-spec" 
+                  required
+                >
+                  <option value="">-- Chọn nhân viên --</option>
+                  {usersList.map(u => (
+                    <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname} ({u.cr5db_email})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Chọn Template Mẫu</label>
+                <select 
+                  value={newProcessTemplateId} 
+                  onChange={(e) => setNewProcessTemplateId(e.target.value)} 
+                  className="input-spec" 
+                  required
+                >
+                  <option value="">-- Chọn template --</option>
+                  {processTemplateList.map(t => (
+                    <option key={t.new_processtemplateid} value={t.new_processtemplateid}>{t.new_name} ({t.new_type})</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                <button type="button" onClick={() => setShowProcessModal(false)} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary" disabled={isLoading}>
+                  {isLoading ? 'Đang tạo...' : 'Tạo'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showProcessDetailModal && selectedProcessId && (
+        <div className="modal-overlay" onClick={() => setShowProcessDetailModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px', width: '90%' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>Chi tiết quy trình</h3>
+            
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{ fontWeight: 600, marginBottom: '8px' }}>Danh sách các bước (Checklist)</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                    <th style={{ padding: '8px', width: '50px' }}>STT</th>
+                    <th style={{ padding: '8px' }}>Tên công việc</th>
+                    <th style={{ padding: '8px' }}>Phân công</th>
+                    <th style={{ padding: '8px' }}>Trạng thái</th>
+                    <th style={{ padding: '8px', textAlign: 'center' }}>Cập nhật</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {processStepList
+                    .filter(s => s._new_processid_value === selectedProcessId)
+                    .sort((a, b) => (a.new_order || 0) - (b.new_order || 0))
+                    .map((step, index) => {
+                      const assignedUser = usersList.find(u => u.cr5db_userid === step._new_assigneduser_value);
+                      const assignedDept = departmentsList.find(d => d.cr5db_departmentid === step._new_assigneddepartment_value);
+                      const assigneeText = assignedUser ? assignedUser.cr5db_fullname : (assignedDept ? `Phòng ${assignedDept.cr5db_departmentname}` : step.new_assigneerole);
+                      
+                      const currentUserPosition = jobPositionsList.find(p => p.cr5db_jobpositionid === currentUserObj?._cr5db_jobposition_value);
+                      const isMyTask = activeRole === 'Admin' || 
+                                       step._new_assigneduser_value === currentUserObj?.cr5db_userid ||
+                                       (step._new_assigneddepartment_value && currentUserPosition?._cr5db_department_value === step._new_assigneddepartment_value) ||
+                                       (step.new_assigneerole && step.new_assigneerole === activeRole);
+
+                      return (
+                        <tr key={step.new_processstepid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <td style={{ padding: '8px' }}>{index + 1}</td>
+                          <td style={{ padding: '8px', fontWeight: 500 }}>
+                            {step.new_name}
+                            {step.new_completeddate && <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Hoàn tất: {new Date(step.new_completeddate).toLocaleString('vi-VN')}</div>}
+                          </td>
+                          <td style={{ padding: '8px' }}>
+                            <span style={{ 
+                              padding: '2px 6px', 
+                              borderRadius: '4px', 
+                              fontSize: '11px',
+                              backgroundColor: '#f3f2f1',
+                              color: '#323130'
+                            }}>
+                              {assigneeText}
+                            </span>
+                          </td>
+                          <td style={{ padding: '8px' }}>
+                            <span style={{ 
+                              padding: '4px 8px', 
+                              borderRadius: '12px', 
+                              fontSize: '11px', 
+                              fontWeight: 600,
+                              backgroundColor: step.new_status === 'Completed' ? 'rgba(16, 124, 65, 0.1)' : 'rgba(0, 120, 212, 0.1)',
+                              color: step.new_status === 'Completed' ? '#107c41' : '#0078d4'
+                            }}>
+                              {step.new_status || 'Pending'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '8px', textAlign: 'center' }}>
+                            {step.new_status !== 'Completed' ? (
+                              <button 
+                                className={isMyTask ? "btn-primary" : "btn-filled-3"} 
+                                style={{ padding: '4px 8px', fontSize: '12px', opacity: isMyTask ? 1 : 0.5, cursor: isMyTask ? 'pointer' : 'not-allowed' }}
+                                onClick={() => {
+                                  if (isMyTask) handleUpdateProcessStep(step.new_processstepid, 'Completed');
+                                }}
+                                disabled={!isMyTask}
+                                title={isMyTask ? "Nhấn để hoàn tất" : "Bạn không có quyền cập nhật task này"}
+                              >
+                                Hoàn tất
+                              </button>
+                            ) : (
+                              <i className="fas fa-check-circle" style={{ color: '#107c41', fontSize: '16px' }}></i>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button type="button" onClick={() => setShowProcessDetailModal(false)} className="btn-filled-3">Đóng</button>
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@ import type { User, Task, HeadcountRequest, KPITarget, Company, PositionCatalog,
 export type ActiveTab =
   | 'dashboard' | 'tasks' | 'timesheets' | 'kpi' | 'performance'
   | 'companies' | 'positions' | 'headcount' | 'requests' | 'directory'
-  | 'roles' | 'resources' | 'routes' | 'kpi-catalog' | 'system-seed';
+  | 'roles' | 'resources' | 'routes' | 'kpi-catalog' | 'system-seed' | 'my-processes';
 
 export type ActiveRole = 'Employee' | 'Admin';
 
@@ -106,6 +106,12 @@ export function useAppState() {
   // IDP states
   const [idpList, setIdpList] = useState<any[]>([]);
   const [idpActionList, setIdpActionList] = useState<any[]>([]);
+
+  // ── Onboarding / Offboarding ─────────────────────────────────────────────
+  const [processTemplateList, setProcessTemplateList] = useState<any[]>([]);
+  const [processTemplateStepList, setProcessTemplateStepList] = useState<any[]>([]);
+  const [employeeProcessList, setEmployeeProcessList] = useState<any[]>([]);
+  const [processStepList, setProcessStepList] = useState<any[]>([]);
   const [showIdpModal, setShowIdpModal] = useState(false);
   const [editingIdp, setEditingIdp] = useState<any>(null);
   const [showIdpActionModal, setShowIdpActionModal] = useState(false);
@@ -116,7 +122,7 @@ export function useAppState() {
   const [kpiTimeRange, setKpiTimeRange] = useState<'week' | 'month' | 'quarter' | 'custom'>('quarter');
 
   // ── Employee Directory ───────────────────────────────────────────────────
-  const [activeDirectorySubTab, setActiveDirectorySubTab] = useState<'view' | 'manage' | 'history' | 'groups' | 'orgchart'>('view');
+  const [activeDirectorySubTab, setActiveDirectorySubTab] = useState<'view' | 'manage' | 'history' | 'groups' | 'orgchart' | 'onboarding'>('view');
   const [expandedOrgNodes, setExpandedOrgNodes] = useState<{ [key: string]: boolean }>({});
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<User | null>(null);
@@ -298,9 +304,17 @@ export function useAppState() {
   const [routeRoutingType, setRouteRoutingType] = useState<number>(1); // Default POSITION_HIERARCHY
   const [routeApproverRole, setRouteApproverRole] = useState('');
   const [routeApproverUserId, setRouteApproverUserId] = useState('');
-  const [routePriority, setRoutePriority] = useState<number>(10);
+  const [routePriority, setRoutePriority] = useState<number>(1);
 
-  // ── Role Gate: redirect to dashboard if tab not permitted ────────────────
+  // ── Onboarding / Offboarding Modals ──────────────────────────────────────
+  const [showProcessModal, setShowProcessModal] = useState(false);
+  const [newProcessEmployeeId, setNewProcessEmployeeId] = useState('');
+  const [newProcessTemplateId, setNewProcessTemplateId] = useState('');
+  
+  const [showProcessDetailModal, setShowProcessDetailModal] = useState(false);
+  const [selectedProcessId, setSelectedProcessId] = useState('');
+
+  // ── Appraisal cycles ───────────────────────────────────────────────────────
   useEffect(() => {
     if (activeRole === 'Admin') return;
     if (usersList.length === 0) return; // Wait for data to load
@@ -339,7 +353,11 @@ export function useAppState() {
     currentUserEmail, setCurrentUserEmail,
     currentUserName, setCurrentUserName,
 
-    // Live Data
+    // Lists
+    processTemplateList, setProcessTemplateList,
+    processTemplateStepList, setProcessTemplateStepList,
+    employeeProcessList, setEmployeeProcessList,
+    processStepList, setProcessStepList,
     usersList, setUsersList,
     departmentsList, setDepartmentsList,
     tasks, setTasks,
@@ -570,6 +588,13 @@ export function useAppState() {
     permissionGroups, setPermissionGroups,
     defaultGroups, setDefaultGroups,
     defaultGroupsDbId, setDefaultGroupsDbId,
+
+    // Onboarding / Offboarding Modals
+    showProcessModal, setShowProcessModal,
+    newProcessEmployeeId, setNewProcessEmployeeId,
+    newProcessTemplateId, setNewProcessTemplateId,
+    showProcessDetailModal, setShowProcessDetailModal,
+    selectedProcessId, setSelectedProcessId,
 
     // Appraisal cycles
     evaluationPeriodsList, setEvaluationPeriodsList,

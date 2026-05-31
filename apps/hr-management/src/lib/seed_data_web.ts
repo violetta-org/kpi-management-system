@@ -764,7 +764,11 @@ import {
   Cr5db_projectissuesService,
   Cr5db_approvaldelegationsService,
   Cr5db_audittraillogsService,
-  Cr5db_changerequestsesService
+  Cr5db_changerequestsesService,
+  New_processtemplateService,
+  New_processtemplatestepService,
+  New_employeeprocessService,
+  New_processstepService
 } from '../generated';
 
 
@@ -1322,6 +1326,69 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
     }
   });
 
+  // 16. Onboarding/Offboarding Templates
+  await tryCall("Tạo mẫu quy trình (Process Templates)...", async () => {
+    guids["templates"] = {};
+    
+    // Onboarding Template
+    const onboardingTpl = await safeCreate('ProcessTemplate[Onboarding Chuẩn]', () => New_processtemplateService.create({
+      new_name: "Quy trình Onboarding Tiêu chuẩn",
+      new_type: "Onboarding"
+    } as any));
+
+    if (onboardingTpl?.new_processtemplateid) {
+      const tplId = onboardingTpl.new_processtemplateid;
+      guids["templates"]["Onboarding"] = tplId;
+
+      const itDeptId = guids["depts"] && guids["depts"]["IT"];
+      const hrDeptId = guids["depts"] && guids["depts"]["HR"];
+
+      const steps = [
+        { new_name: "Chuẩn bị chỗ ngồi & Thiết bị", new_order: 1, ...(itDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", itDeptId) } : { new_assigneerole: "IT" }) },
+        { new_name: "Ký Hợp đồng thử việc", new_order: 2, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", hrDeptId) } : { new_assigneerole: "HR" }) },
+        { new_name: "Đào tạo hội nhập văn hóa", new_order: 3, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", hrDeptId) } : { new_assigneerole: "HR" }) },
+        { new_name: "Giới thiệu đội nhóm", new_assigneerole: "Manager", new_order: 4 },
+        { new_name: "Hoàn tất hồ sơ cá nhân", new_assigneerole: "Employee", new_order: 5 }
+      ];
+
+      for (const step of steps) {
+        await safeCreate(`TemplateStep[${step.new_name}]`, () => New_processtemplatestepService.create({
+          ...step,
+          "new_ProcessTemplate@odata.bind": bindOData("new_processtemplate", tplId)
+        } as any));
+      }
+    }
+
+    // Offboarding Template
+    const offboardingTpl = await safeCreate('ProcessTemplate[Offboarding Chuẩn]', () => New_processtemplateService.create({
+      new_name: "Quy trình Offboarding Tiêu chuẩn",
+      new_type: "Offboarding"
+    } as any));
+
+    if (offboardingTpl?.new_processtemplateid) {
+      const tplId = offboardingTpl.new_processtemplateid;
+      guids["templates"]["Offboarding"] = tplId;
+
+      const itDeptId = guids["depts"] && guids["depts"]["IT"];
+      const hrDeptId = guids["depts"] && guids["depts"]["HR"];
+
+      const steps = [
+        { new_name: "Bàn giao công việc & Tài liệu", new_assigneerole: "Employee", new_order: 1 },
+        { new_name: "Thu hồi thiết bị & Thẻ từ", new_order: 2, ...(itDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", itDeptId) } : { new_assigneerole: "IT" }) },
+        { new_name: "Khóa quyền truy cập hệ thống", new_order: 3, ...(itDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", itDeptId) } : { new_assigneerole: "IT" }) },
+        { new_name: "Thanh toán & Chốt lương", new_order: 4, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", hrDeptId) } : { new_assigneerole: "HR" }) },
+        { new_name: "Exit Interview (Phỏng vấn thôi việc)", new_order: 5, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", hrDeptId) } : { new_assigneerole: "HR" }) }
+      ];
+
+      for (const step of steps) {
+        await safeCreate(`TemplateStep[${step.new_name}]`, () => New_processtemplatestepService.create({
+          ...step,
+          "new_ProcessTemplate@odata.bind": bindOData("new_processtemplate", tplId)
+        } as any));
+      }
+    }
+  });
+
   progressCallback("Hoàn tất Seeding thành công!");
 }
 
@@ -1435,6 +1502,11 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
   await tryDeleteAll("cr5db_audittraillogs", Cr5db_audittraillogsService);
   await tryDeleteAll("cr5db_approvalrouteses", Cr5db_approvalroutesesService);
   await tryDeleteAll("cr5db_changerequestses", Cr5db_changerequestsesService);
+
+  await tryDeleteAll("new_processtemplatestep", New_processtemplatestepService);
+  await tryDeleteAll("new_processtemplate", New_processtemplateService);
+  await tryDeleteAll("new_processstep", New_processstepService);
+  await tryDeleteAll("new_employeeprocess", New_employeeprocessService);
 
   progressCallback("Dọn dẹp hoàn tất thành công!");
 }
