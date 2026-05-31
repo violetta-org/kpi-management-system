@@ -4703,16 +4703,28 @@ function App() {
                                 return (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                     {risks.map(r => {
-                                      // Map numeric OptionSet values to readable labels
-                                      const impactLevelMap: Record<number, string> = { 122650000: 'High', 122650001: 'Medium', 122650002: 'Low' };
-                                      const rawImpact = r.cr5db_impactlevelname || (typeof r.cr5db_impactlevel === 'number' ? impactLevelMap[r.cr5db_impactlevel] : r.cr5db_impactlevel) || r.cr5db_impact || 'Medium';
+                                      // Map numeric OptionSet values to readable labels (support both string and number keys)
+                                      const impactLevelMap: Record<string | number, string> = { 
+                                        122650000: 'High', 
+                                        122650001: 'Medium', 
+                                        122650002: 'Low' 
+                                      };
+                                      const lookupImpact = (r.cr5db_impactlevel !== undefined && r.cr5db_impactlevel !== null) ? impactLevelMap[r.cr5db_impactlevel] : undefined;
+                                      const rawImpact = r.cr5db_impactlevelname || lookupImpact || r.cr5db_impactlevel || r.cr5db_impact || 'Medium';
                                       const impact = typeof rawImpact === 'string' ? rawImpact : String(rawImpact);
-                                      const prob = r.cr5db_probability || r.cr5db_probabilitypercentage || 'Medium';
+                                      
+                                      const probRaw = r.cr5db_probability || r.cr5db_probabilitypercentage || 'Medium';
+                                      const prob = typeof probRaw === 'number' ? `${probRaw}%` : probRaw;
                                       const mitigation = r.cr5db_mitigationplan || 'Chưa lập phương án giảm thiểu.';
                                       
                                       const getBadgeColor = (val: string) => {
-                                        if (val === 'High' || val === '122650000') return { backgroundColor: '#fde7e9', color: '#a80000' };
-                                        if (val === 'Medium' || val === '122650001') return { backgroundColor: '#fffdf6', color: '#e29e2e' };
+                                        const v = val.toLowerCase();
+                                        if (v === 'high' || v === '122650000' || v === '80' || v === '80%') {
+                                          return { backgroundColor: '#fde7e9', color: '#a80000' };
+                                        }
+                                        if (v === 'medium' || v === '122650001' || v === '50' || v === '50%') {
+                                          return { backgroundColor: '#fffdf6', color: '#e29e2e' };
+                                        }
                                         return { backgroundColor: '#dff6dd', color: '#107c41' };
                                       };
 
