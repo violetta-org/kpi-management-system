@@ -202,6 +202,14 @@
           "required": true,
           "maxLength": 100
         },
+        "new_mitigationplan": {
+          "type": "string",
+          "title": "Mitigation Plan",
+          "x-ms-dataverse-attribute": "new_mitigationplan",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "new_MitigationPlan",
+          "maxLength": 4000
+        },
         "new_project": {
           "type": "string",
           "title": "Project",

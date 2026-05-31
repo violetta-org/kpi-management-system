@@ -240,6 +240,30 @@
           "required": true,
           "maxLength": 100
         },
+        "new_parentkpi": {
+          "type": "string",
+          "title": "Parent Kpi",
+          "x-ms-dataverse-attribute": "new_parentkpi",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "new_ParentKpi"
+        },
+        "new_parentkpiname": {
+          "type": "string",
+          "title": "new_parentkpiname",
+          "x-ms-dataverse-attribute": "new_parentkpiname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "new_ParentKpiName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
+        "new_rollupmethod": {
+          "type": "string",
+          "title": "Rollup Method",
+          "x-ms-dataverse-attribute": "new_rollupmethod",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "new_RollupMethod",
+          "maxLength": 100
+        },
         "overriddencreatedon": {
           "type": "string",
           "title": "Record Created On",

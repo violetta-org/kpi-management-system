@@ -130,6 +130,85 @@ import { FEATURE_TABS, hasTabPermission } from './lib/types';
 import type { User, Task, PermissionGroup, EvaluationPeriod } from './lib/types';
 import { getTranslation } from './lib/locales';
 
+function calculateActualValue(
+  k: any,
+  kpiTargets: any[],
+  tasks: any[],
+  timesheets: any[],
+  objectivesList: any[],
+  kpiLibrariesList: any[],
+  evaluationPeriodsList: any[],
+  visited = new Set<string>()
+): number {
+  if (!k) return 0;
+  if (visited.has(k.cr5db_kpitargetid)) return 0; // Prevent infinite loops
+  visited.add(k.cr5db_kpitargetid);
+
+  const rollupMethod = k.cr5db_rollupmethod;
+  if (rollupMethod === 'Sum' || rollupMethod === 'Average') {
+    const children = kpiTargets.filter(child => child._cr5db_parentkpi_value === k.cr5db_kpitargetid);
+    if (children.length > 0) {
+      let sum = 0;
+      children.forEach(child => {
+        sum += calculateActualValue(child, kpiTargets, tasks, timesheets, objectivesList, kpiLibrariesList, evaluationPeriodsList, visited);
+      });
+      return rollupMethod === 'Sum' ? sum : sum / children.length;
+    }
+  }
+
+  const kpiName = k.cr5db_kpiname || '';
+  const kpiCode = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value)?.cr5db_kpicatalogcode || '';
+  const email = k.cr5db_user_email || '';
+  
+  if (kpiName.includes('#TASKS_ON_TIME') || kpiCode.includes('#TASKS_ON_TIME')) {
+    const userTasks = tasks.filter(t => t.cr5db_assignee_email?.toLowerCase() === email.toLowerCase());
+    if (userTasks.length === 0) return 0;
+    
+    const kpiObjective = objectivesList.find(o => o.cr5db_objectiveid === k._cr5db_parentobjective_value);
+    const kpiPeriodName = kpiObjective?.cr5db_periodnamename || k.cr5db_period || '';
+    
+    const periodTasks = userTasks.filter(t => {
+      if (!t._cr5db_objectivename_value) return false;
+      const tObj = objectivesList.find(o => o.cr5db_objectiveid === t._cr5db_objectivename_value);
+      return (tObj?.cr5db_periodnamename || '') === kpiPeriodName;
+    });
+    
+    const relevantTasks = periodTasks.length > 0 ? periodTasks : userTasks;
+    const completedOnTime = relevantTasks.filter(t => {
+      const isCompleted = t.cr5db_status === 'Completed';
+      const compareDate = isCompleted 
+        ? (t.cr5db_completeddate ? new Date(t.cr5db_completeddate) : new Date(t.modifiedon || Date.now()))
+        : new Date();
+      const isOverdue = t.cr5db_due_date && new Date(t.cr5db_due_date) < compareDate;
+      return isCompleted && !isOverdue;
+    });
+    return Math.round((completedOnTime.length / relevantTasks.length) * 100);
+  }
+  
+  if (kpiName.includes('#HOURS_LOGGED') || kpiCode.includes('#HOURS_LOGGED')) {
+    const userTimesheets = timesheets.filter(ts => ts.cr5db_username?.toLowerCase() === email.toLowerCase() && ts.statuscode === 2 && !ts.cr5db_timesheetlog1?.startsWith('[Từ chối]'));
+    
+    const kpiObjective = objectivesList.find(o => o.cr5db_objectiveid === k._cr5db_parentobjective_value);
+    const kpiPeriodName = kpiObjective?.cr5db_periodnamename || k.cr5db_period || '';
+    const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === kpiPeriodName);
+    
+    const start = periodObj?.cr5db_startdate ? new Date(periodObj.cr5db_startdate) : null;
+    const end = periodObj?.cr5db_enddate ? new Date(periodObj.cr5db_enddate) : null;
+    
+    const periodTimesheets = userTimesheets.filter(ts => {
+      if (!ts.cr5db_logdate) return false;
+      const d = new Date(ts.cr5db_logdate);
+      if (start && d < start) return false;
+      if (end && d > end) return false;
+      return true;
+    });
+    
+    return periodTimesheets.reduce((sum, ts) => sum + (ts.cr5db_actualhoursworked || 0), 0);
+  }
+  
+  return k.cr5db_actualvalue || 0;
+}
+
 function App() {
   // ── Hooks ────────────────────────────────────────────────────────────────
   const [showDashboardSettingsModal, setShowDashboardSettingsModal] = React.useState(false);
@@ -422,79 +501,15 @@ function App() {
     newAppraisalEvaluatorId, setNewAppraisalEvaluatorId,
     newAppraisalPeriodId, setNewAppraisalPeriodId,
     language, toggleLanguage,
+    kpiParentKpiId, setKpiParentKpiId,
+    kpiRollupMethod, setKpiRollupMethod,
   } = s;
 
   const t = (key: string) => getTranslation(key, language);
 
   const resolveKpiActualValue = React.useCallback((k: any, visited = new Set<string>()): number => {
-    if (!k) return 0;
-    if (visited.has(k.cr5db_kpitargetid)) return 0; // Prevent infinite loops
-    visited.add(k.cr5db_kpitargetid);
-
-    const rollupMethod = k.cr5db_rollupmethod;
-    if (rollupMethod === 'Sum' || rollupMethod === 'Average') {
-      const children = kpiTargets.filter(child => child._cr5db_parentkpi_value === k.cr5db_kpitargetid);
-      if (children.length > 0) {
-        let sum = 0;
-        children.forEach(child => {
-          sum += resolveKpiActualValue(child, visited);
-        });
-        return rollupMethod === 'Sum' ? sum : sum / children.length;
-      }
-    }
-
-    const kpiName = k.cr5db_kpiname || '';
-    const kpiCode = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value)?.cr5db_kpicatalogcode || '';
-    const email = k.cr5db_user_email || '';
-    
-    if (kpiName.includes('#TASKS_ON_TIME') || kpiCode.includes('#TASKS_ON_TIME')) {
-      const userTasks = tasks.filter(t => t.cr5db_assignee_email?.toLowerCase() === email.toLowerCase());
-      if (userTasks.length === 0) return 0;
-      
-      const kpiObjective = objectivesList.find(o => o.cr5db_objectiveid === k._cr5db_parentobjective_value);
-      const kpiPeriodName = kpiObjective?.cr5db_periodnamename || k.cr5db_period || '';
-      
-      const periodTasks = userTasks.filter(t => {
-        if (!t._cr5db_objectivename_value) return false;
-        const tObj = objectivesList.find(o => o.cr5db_objectiveid === t._cr5db_objectivename_value);
-        return (tObj?.cr5db_periodnamename || '') === kpiPeriodName;
-      });
-      
-      const relevantTasks = periodTasks.length > 0 ? periodTasks : userTasks;
-      const completedOnTime = relevantTasks.filter(t => {
-        const isCompleted = t.cr5db_status === 'Completed';
-        const compareDate = isCompleted 
-          ? (t.cr5db_completeddate ? new Date(t.cr5db_completeddate) : new Date(t.modifiedon || Date.now()))
-          : new Date();
-        const isOverdue = t.cr5db_due_date && new Date(t.cr5db_due_date) < compareDate;
-        return isCompleted && !isOverdue;
-      });
-      return Math.round((completedOnTime.length / relevantTasks.length) * 100);
-    }
-    
-    if (kpiName.includes('#HOURS_LOGGED') || kpiCode.includes('#HOURS_LOGGED')) {
-      const userTimesheets = timesheets.filter(ts => ts.cr5db_username?.toLowerCase() === email.toLowerCase() && ts.statuscode === 2 && !ts.cr5db_timesheetlog1?.startsWith('[Từ chối]'));
-      
-      const kpiObjective = objectivesList.find(o => o.cr5db_objectiveid === k._cr5db_parentobjective_value);
-      const kpiPeriodName = kpiObjective?.cr5db_periodnamename || k.cr5db_period || '';
-      const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === kpiPeriodName);
-      
-      const start = periodObj?.cr5db_startdate ? new Date(periodObj.cr5db_startdate) : null;
-      const end = periodObj?.cr5db_enddate ? new Date(periodObj.cr5db_enddate) : null;
-      
-      const periodTimesheets = userTimesheets.filter(ts => {
-        if (!ts.cr5db_logdate) return false;
-        const d = new Date(ts.cr5db_logdate);
-        if (start && d < start) return false;
-        if (end && d > end) return false;
-        return true;
-      });
-      
-      return periodTimesheets.reduce((sum, ts) => sum + (ts.cr5db_actualhoursworked || 0), 0);
-    }
-    
-    return k.cr5db_actualvalue || 0;
-  }, [tasks, timesheets, objectivesList, kpiLibrariesList, evaluationPeriodsList, kpiTargets]);
+    return calculateActualValue(k, kpiTargets, tasks, timesheets, objectivesList, kpiLibrariesList, evaluationPeriodsList, visited);
+  }, [kpiTargets, tasks, timesheets, objectivesList, kpiLibrariesList, evaluationPeriodsList]);
 
   // Widgets registry
   const widgetsRegistry: { [key: string]: { title: string; size: 'small' | 'medium' | 'large'; roles: string[]; render: () => React.ReactNode } } = {
@@ -624,7 +639,7 @@ function App() {
           let count = 0;
           compKpis.forEach(k => {
             const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-            totalRate += calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+            totalRate += calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
             count++;
           });
           
@@ -679,7 +694,7 @@ function App() {
           
         const risks = myKpis.map(k => {
           const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-          const rate = calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+          const rate = calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
           return { k, rate };
         }).filter(item => item.rate < 100);
         
@@ -738,7 +753,7 @@ function App() {
               let kpiCount = 0;
               objKpis.forEach(k => {
                 const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                totalRate += calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+                totalRate += calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
                 kpiCount++;
               });
               const avgRate = kpiCount > 0 ? Math.round(totalRate / kpiCount) : 0;
@@ -797,7 +812,7 @@ function App() {
         let totalKpiRate = 0;
         myKpis.forEach(k => {
           const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-          totalKpiRate += calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+          totalKpiRate += calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
         });
         const kpiRate = myKpis.length > 0 ? Math.round(totalKpiRate / myKpis.length) : 0;
         
@@ -857,7 +872,7 @@ function App() {
         const myKpis = kpiTargets.filter(k => k.cr5db_user_email?.toLowerCase() === currentUserEmail.toLowerCase());
         const attentionKpis = myKpis.filter(k => {
           const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-          return calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction) < 100;
+          return calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction) < 100;
         });
         
         return (
@@ -901,7 +916,7 @@ function App() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '110px', overflowY: 'auto' }}>
                 {attentionKpis.slice(0, 2).map((k, idx) => {
                   const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                  const rate = calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+                  const rate = calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
                   return (
                     <div key={idx} style={{ fontSize: '11.5px', padding: '4px', backgroundColor: '#fafafa', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100px' }}>{k.cr5db_kpiname}</span>
@@ -1727,7 +1742,7 @@ function App() {
     let breakdownLines: string[] = [];
 
     employeeKpis.forEach((k, idx) => {
-      const target = k.cr5db_targetvalue || 100;
+      const target = k.cr5db_targetvalue ?? 100;
       const actual = k.cr5db_actualvalue || 0;
       const weight = k.cr5db_weightpercentage || 0;
       const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
@@ -3377,8 +3392,13 @@ function App() {
         cr5db_projectrisk1: newRiskName,
         cr5db_impactlevel: newRiskImpact === 'High' ? 122650000 : newRiskImpact === 'Medium' ? 122650001 : 122650002,
         cr5db_probabilitypercentage: newRiskProbability === 'High' ? 80 : newRiskProbability === 'Medium' ? 50 : 20,
-        cr5db_mitigationplan: newRiskMitigation
+        new_mitigationplan: newRiskMitigation
       };
+
+      // DEBUG: Log payload keys to verify no old field names
+      console.log('[DEBUG handleSaveRisk] Payload keys:', Object.keys(payload));
+      console.log('[DEBUG handleSaveRisk] Full payload:', JSON.stringify(payload, null, 2));
+      alert('[DEBUG] Payload keys: ' + Object.keys(payload).join(', '));
 
       if (editingRisk) {
         // Update existing risk
@@ -6161,6 +6181,7 @@ function App() {
                     <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
                       <th style={{ padding: '14px 20px' }}>Position Name</th>
                       <th style={{ padding: '14px 20px' }}>Phòng ban</th>
+                      <th style={{ padding: '14px 20px' }}>Báo cáo cho (Reports To)</th>
                       <th style={{ padding: '14px 20px' }}>Quota</th>
                       <th style={{ padding: '14px 20px' }}>Actual</th>
                       <th style={{ padding: '14px 20px' }}>Trạng thái</th>
@@ -6170,7 +6191,7 @@ function App() {
                   <tbody>
                     {jobPositionsList.length === 0 ? (
                       <tr>
-                        <td colSpan={6} style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                        <td colSpan={7} style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                             <span style={{ fontSize: '28px' }}>📋</span>
                             <span style={{ fontWeight: 600 }}>Chưa có dữ liệu định biên</span>
@@ -6180,6 +6201,11 @@ function App() {
                       </tr>
                     ) : jobPositionsList.map(pos => {
                       const dept = departmentsList.find(d => d.cr5db_departmentid === pos._cr5db_department_value);
+                      const company = dept ? companiesList.find(c => c.cr5db_companyid === dept._cr5db_companyid_value) : null;
+                      const deptName = dept?.cr5db_departmentname || 'Dùng chung (Toàn hệ thống)';
+                      const displayDept = company ? `${deptName} - ${company.cr5db_companyname}` : deptName;
+                      const parentPosition = pos._cr5db_reportstopositionid_value ? jobPositionsList.find(p => p.cr5db_jobpositionid === pos._cr5db_reportstopositionid_value) : null;
+                      const reportsToDisplay = parentPosition ? parentPosition.cr5db_positionname : '-';
                       const quota = pos.cr5db_headcountquota || 0;
                       const actual = pos.cr5db_actualheadcount ? Number(pos.cr5db_actualheadcount) : 0;
                       let statusText = 'At Quota';
@@ -6189,7 +6215,8 @@ function App() {
                       return (
                         <tr key={pos.cr5db_jobpositionid} style={{ borderBottom: '1px solid var(--color-border)' }}>
                           <td style={{ padding: '14px 20px', fontWeight: 600 }}>{pos.cr5db_positionname}</td>
-                          <td style={{ padding: '14px 20px' }}>{dept?.cr5db_departmentname || 'Chung'}</td>
+                          <td style={{ padding: '14px 20px' }}>{displayDept}</td>
+                          <td style={{ padding: '14px 20px', color: 'var(--color-text-secondary)', fontStyle: parentPosition ? 'normal' : 'italic' }}>{reportsToDisplay}</td>
                           <td style={{ padding: '14px 20px' }}>{quota}</td>
                           <td style={{ padding: '14px 20px' }}>{actual}</td>
                           <td style={{ padding: '14px 20px', fontWeight: 700, color: statusColor }}>{statusText}</td>
@@ -6422,12 +6449,17 @@ function App() {
                         Chưa có đề xuất định biên nào được tạo.
                       </div>
                     ) : (
-                      headcountRequests.map(r => (
+                      headcountRequests.map(r => {
+                        const dept = departmentsList.find(d => d.cr5db_departmentid === r._cr5db_department_value);
+                        const company = dept ? companiesList.find(c => c.cr5db_companyid === dept._cr5db_companyid_value) : null;
+                        const deptName = r.cr5db_departmentname || 'Chung';
+                        const displayDept = company ? `${deptName} (${company.cr5db_companyname})` : deptName;
+                        return (
                         <div key={r.cr5db_headcountrequestid} className="card-spec" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px 24px', gap: '12px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <span style={{ fontWeight: 700, fontSize: '15px' }}>{r.cr5db_requestname}</span>
-                              <span style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid var(--color-border)', borderRadius: '2px' }}>{r.cr5db_departmentname}</span>
+                              <span style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid var(--color-border)', borderRadius: '2px' }}>{displayDept}</span>
                               <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#FAF9F9', border: '1px solid var(--color-border)', borderRadius: '2px' }}>{r.cr5db_requesttype}</span>
                             </div>
                             <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>Vị trí: {r.cr5db_positiontitle} | Số lượng: {r.cr5db_requestedquantity}</p>
@@ -6481,7 +6513,8 @@ function App() {
                             </div>
                           </div>
                         </div>
-                      ))
+                      );
+                    })
                     )}
                   </div>
                 </div>
@@ -7071,7 +7104,7 @@ function App() {
                                       
                                       const probRaw = r.cr5db_probability || r.cr5db_probabilitypercentage || 'Medium';
                                       const prob = typeof probRaw === 'number' ? `${probRaw}%` : probRaw;
-                                      const mitigation = r.cr5db_mitigationplan || 'Chưa lập phương án giảm thiểu.';
+                                      const mitigation = r.new_mitigationplan || 'Chưa lập phương án giảm thiểu.';
                                       
                                       const getBadgeColor = (val: string) => {
                                         const v = val.toLowerCase();
@@ -7111,7 +7144,7 @@ function App() {
                                                       probRaw === 80 || probRaw === '80' || probRaw === 'High' ? 'High' :
                                                       probRaw === 20 || probRaw === '20' || probRaw === 'Low' ? 'Low' : 'Medium'
                                                     );
-                                                    setNewRiskMitigation(r.cr5db_mitigationplan || '');
+                                                    setNewRiskMitigation(r.new_mitigationplan || '');
                                                     setShowRiskModal(true);
                                                   }}
                                                   className="btn-filled-3"
@@ -8314,17 +8347,23 @@ function App() {
                 </div>
                 <div>
                   <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Phòng ban</label>
-                  <select value={newReqDeptId} onChange={(e) => setNewReqDeptId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
-                    {departmentsList.map(d => (
-                      <option key={d.cr5db_departmentid} value={d.cr5db_departmentid}>{d.cr5db_departmentname}</option>
-                    ))}
+                  <select required value={newReqDeptId} onChange={(e) => setNewReqDeptId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
+                    <option value="" disabled>-- Chọn phòng ban --</option>
+                    {departmentsList.map(d => {
+                      const company = companiesList.find(c => c.cr5db_companyid === d._cr5db_companyid_value);
+                      const displayLabel = company ? `${d.cr5db_departmentname} (${company.cr5db_companyname})` : d.cr5db_departmentname;
+                      return (
+                        <option key={d.cr5db_departmentid} value={d.cr5db_departmentid}>{displayLabel}</option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Chức danh (Catalog)</label>
-                  <select value={newReqCatalogId} onChange={(e) => setNewReqCatalogId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
+                  <select required value={newReqCatalogId} onChange={(e) => setNewReqCatalogId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
+                    <option value="" disabled>-- Chọn chức danh gốc --</option>
                     {positionCatalogList.map(c => (
                       <option key={c.cr5db_positioncatalogid} value={c.cr5db_positioncatalogid}>{c.cr5db_positioncatalog1}</option>
                     ))}
@@ -8339,9 +8378,16 @@ function App() {
                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Quản lý trực tiếp (Reports To)</label>
                 <select value={newReqReportsToId} onChange={(e) => setNewReqReportsToId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
                   <option value="">Không có / Vị trí cấp cao nhất</option>
-                  {jobPositionsList.map(pos => (
-                    <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>{pos.cr5db_positionname}</option>
-                  ))}
+                  {jobPositionsList.map(pos => {
+                    const dept = departmentsList.find(d => d.cr5db_departmentid === pos._cr5db_department_value);
+                    const company = dept ? companiesList.find(c => c.cr5db_companyid === dept._cr5db_companyid_value) : null;
+                    const deptPart = dept ? dept.cr5db_departmentname : '';
+                    const compPart = company ? ` - ${company.cr5db_companyname}` : '';
+                    const displayLabel = deptPart || compPart ? `${pos.cr5db_positionname} (${deptPart}${compPart})` : pos.cr5db_positionname;
+                    return (
+                      <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>{displayLabel}</option>
+                    );
+                  })}
                 </select>
               </div>
               <div>
@@ -9093,15 +9139,21 @@ function App() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Phòng ban</label>
-                  <select value={newJobPosDeptId} onChange={(e) => setNewJobPosDeptId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
-                    {departmentsList.map(d => (
-                      <option key={d.cr5db_departmentid} value={d.cr5db_departmentid}>{d.cr5db_departmentname}</option>
-                    ))}
+                  <select required value={newJobPosDeptId} onChange={(e) => setNewJobPosDeptId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
+                    <option value="" disabled>-- Chọn phòng ban --</option>
+                    {departmentsList.map(d => {
+                      const company = companiesList.find(c => c.cr5db_companyid === d._cr5db_companyid_value);
+                      const displayLabel = company ? `${d.cr5db_departmentname} (${company.cr5db_companyname})` : d.cr5db_departmentname;
+                      return (
+                        <option key={d.cr5db_departmentid} value={d.cr5db_departmentid}>{displayLabel}</option>
+                      );
+                    })}
                   </select>
                 </div>
                 <div>
                   <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Chức danh gốc (Catalog)</label>
-                  <select value={newJobPosCatalogId} onChange={(e) => setNewJobPosCatalogId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
+                  <select required value={newJobPosCatalogId} onChange={(e) => setNewJobPosCatalogId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
+                    <option value="" disabled>-- Chọn chức danh gốc --</option>
                     {positionCatalogList.map(pc => (
                       <option key={pc.cr5db_positioncatalogid} value={pc.cr5db_positioncatalogid}>{pc.cr5db_positioncatalog1}</option>
                     ))}
@@ -9119,9 +9171,16 @@ function App() {
                     <option value="">Không có</option>
                     {jobPositionsList
                       .filter(pos => !editingJobPosition || pos.cr5db_jobpositionid !== editingJobPosition.cr5db_jobpositionid)
-                      .map(pos => (
-                        <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>{pos.cr5db_positionname}</option>
-                      ))}
+                      .map(pos => {
+                        const dept = departmentsList.find(d => d.cr5db_departmentid === pos._cr5db_department_value);
+                        const company = dept ? companiesList.find(c => c.cr5db_companyid === dept._cr5db_companyid_value) : null;
+                        const deptPart = dept ? dept.cr5db_departmentname : '';
+                        const compPart = company ? ` - ${company.cr5db_companyname}` : '';
+                        const displayLabel = deptPart || compPart ? `${pos.cr5db_positionname} (${deptPart}${compPart})` : pos.cr5db_positionname;
+                        return (
+                          <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>{displayLabel}</option>
+                        );
+                      })}
                   </select>
                 </div>
               </div>
@@ -9252,11 +9311,18 @@ function App() {
                   style={{ height: '38px', padding: '6px 12px' }}
                 >
                   <option value="">-- Chưa phân công --</option>
-                  {jobPositionsList.map(pos => (
-                    <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>
-                      {pos.cr5db_positionname}
-                    </option>
-                  ))}
+                  {jobPositionsList.map(pos => {
+                    const dept = departmentsList.find(d => d.cr5db_departmentid === pos._cr5db_department_value);
+                    const company = dept ? companiesList.find(c => c.cr5db_companyid === dept._cr5db_companyid_value) : null;
+                    const deptPart = dept ? dept.cr5db_departmentname : 'Dùng chung';
+                    const compPart = company ? ` - ${company.cr5db_companyname}` : '';
+                    const displayLabel = `${pos.cr5db_positionname} (${deptPart}${compPart})`;
+                    return (
+                      <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>
+                        {displayLabel}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

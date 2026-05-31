@@ -241,6 +241,13 @@
           "required": true,
           "maxLength": 100
         },
+        "new_actualheadcount": {
+          "type": "string",
+          "title": "ActualHeadcount",
+          "x-ms-dataverse-attribute": "new_actualheadcount",
+          "x-ms-dataverse-type": "IntegerType",
+          "x-ms-schema-name": "new_ActualHeadcount"
+        },
         "overriddencreatedon": {
           "type": "string",
           "title": "Record Created On",

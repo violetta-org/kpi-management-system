@@ -21,6 +21,7 @@ export interface Cr5db_jobpositionsBase {
   cr5db_positionname: string;
   "cr5db_ReportsToPositionID@odata.bind"?: string;
   importsequencenumber?: number;
+  new_actualheadcount?: number;
   overriddencreatedon?: string;
   ownerid: string;
   owneridtype: string;

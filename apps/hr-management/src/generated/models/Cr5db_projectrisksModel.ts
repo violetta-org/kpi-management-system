@@ -25,6 +25,7 @@ export interface Cr5db_projectrisksBase {
   cr5db_projectrisk1: string;
   cr5db_projectriskid: string;
   importsequencenumber?: number;
+  new_mitigationplan?: string;
   "new_Project@odata.bind"?: string;
   overriddencreatedon?: string;
   ownerid: string;
