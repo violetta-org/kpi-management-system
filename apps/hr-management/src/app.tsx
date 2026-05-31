@@ -149,6 +149,20 @@ import { getTranslation } from './lib/locales';
 
 function App() {
   // ── Hooks ────────────────────────────────────────────────────────────────
+  const [showDashboardSettingsModal, setShowDashboardSettingsModal] = React.useState(false);
+  const [enabledWidgets, setEnabledWidgets] = React.useState<string[]>(() => {
+    const saved = localStorage.getItem('dashboard_enabled_widgets');
+    return saved ? JSON.parse(saved) : [
+      'headcount_metrics', 'headcount_by_company', 'bell_curve', 'strategic_alignment', 'risk_alerts', 'dept_performance', 'shortcuts',
+      'employee_metrics', 'my_progress_rings', 'integrated_action_panel', 'goal_alignment_tree', 'weekly_progress'
+    ];
+  });
+
+  const saveEnabledWidgets = (widgets: string[]) => {
+    setEnabledWidgets(widgets);
+    localStorage.setItem('dashboard_enabled_widgets', JSON.stringify(widgets));
+  };
+
   const s = useAppState();
 
   // Resource Allocation Modal local states
@@ -359,6 +373,578 @@ function App() {
 
   const t = (key: string) => getTranslation(key, language);
 
+  const resolveKpiActualValue = React.useCallback((k: any): number => {
+    if (!k) return 0;
+    const kpiName = k.cr5db_kpiname || '';
+    const kpiCode = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value)?.cr5db_kpicatalogcode || '';
+    const email = k.cr5db_user_email || '';
+    
+    if (kpiName.includes('#TASKS_ON_TIME') || kpiCode.includes('#TASKS_ON_TIME')) {
+      const userTasks = tasks.filter(t => t.cr5db_assignee_email?.toLowerCase() === email.toLowerCase());
+      if (userTasks.length === 0) return 100;
+      
+      const kpiObjective = objectivesList.find(o => o.cr5db_objectiveid === k._cr5db_parentobjective_value);
+      const kpiPeriodName = kpiObjective?.cr5db_periodnamename || k.cr5db_period || '';
+      
+      const periodTasks = userTasks.filter(t => {
+        if (!t._cr5db_objectivename_value) return false;
+        const tObj = objectivesList.find(o => o.cr5db_objectiveid === t._cr5db_objectivename_value);
+        return (tObj?.cr5db_periodnamename || '') === kpiPeriodName;
+      });
+      
+      const relevantTasks = periodTasks.length > 0 ? periodTasks : userTasks;
+      const completedOnTime = relevantTasks.filter(t => {
+        const isCompleted = t.cr5db_status === 'Completed';
+        const isOverdue = t.cr5db_due_date && new Date(t.cr5db_due_date) < new Date(t.modifiedon || Date.now());
+        return isCompleted && !isOverdue;
+      });
+      return Math.round((completedOnTime.length / relevantTasks.length) * 100);
+    }
+    
+    if (kpiName.includes('#HOURS_LOGGED') || kpiCode.includes('#HOURS_LOGGED')) {
+      const userTimesheets = timesheets.filter(ts => ts.cr5db_username?.toLowerCase() === email.toLowerCase());
+      
+      const kpiObjective = objectivesList.find(o => o.cr5db_objectiveid === k._cr5db_parentobjective_value);
+      const kpiPeriodName = kpiObjective?.cr5db_periodnamename || k.cr5db_period || '';
+      const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === kpiPeriodName);
+      
+      const start = periodObj?.cr5db_startdate ? new Date(periodObj.cr5db_startdate) : null;
+      const end = periodObj?.cr5db_enddate ? new Date(periodObj.cr5db_enddate) : null;
+      
+      const periodTimesheets = userTimesheets.filter(ts => {
+        if (!ts.cr5db_logdate) return false;
+        const d = new Date(ts.cr5db_logdate);
+        if (start && d < start) return false;
+        if (end && d > end) return false;
+        return true;
+      });
+      
+      return periodTimesheets.reduce((sum, ts) => sum + (ts.cr5db_actualhoursworked || 0), 0);
+    }
+    
+    return k.cr5db_actualvalue || 0;
+  }, [tasks, timesheets, objectivesList, kpiLibrariesList, evaluationPeriodsList]);
+
+  // Widgets registry
+  const widgetsRegistry: { [key: string]: { title: string; size: 'small' | 'medium' | 'large'; roles: string[]; render: () => React.ReactNode } } = {
+    compliance_metric: {
+      title: language === 'vi' ? 'Tiến độ đánh giá nhân sự (Compliance)' : 'Evaluation Compliance Progress',
+      size: 'medium',
+      roles: ['Admin'],
+      render: () => {
+        const totalAp = appraisals.length;
+        const submittedAp = appraisals.filter(ap => ap.statecode === 1 || ap.statuscode === 2).length;
+        const evaluatedAp = appraisals.filter(ap => ap.cr5db_finalscore !== null && ap.cr5db_finalscore > 0).length;
+        
+        const subRate = totalAp > 0 ? Math.round((submittedAp / totalAp) * 100) : 0;
+        const evalRate = totalAp > 0 ? Math.round((evaluatedAp / totalAp) * 100) : 0;
+        
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '10px 0' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+                <span>{language === 'vi' ? 'Nhân sự đã nộp tự đánh giá' : 'Employees self-submitted'}</span>
+                <span>{submittedAp} / {totalAp} ({subRate}%)</span>
+              </div>
+              <div style={{ height: '10px', backgroundColor: '#f0f0f0', borderRadius: '5px', overflow: 'hidden' }}>
+                <div style={{ width: `${subRate}%`, height: '100%', backgroundColor: 'var(--color-primary)' }} />
+              </div>
+            </div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
+                <span>{language === 'vi' ? 'Quản lý đã đánh giá chung cuộc' : 'Managers evaluated'}</span>
+                <span>{evaluatedAp} / {totalAp} ({evalRate}%)</span>
+              </div>
+              <div style={{ height: '10px', backgroundColor: '#f0f0f0', borderRadius: '5px', overflow: 'hidden' }}>
+                <div style={{ width: `${evalRate}%`, height: '100%', backgroundColor: '#742774' }} />
+              </div>
+            </div>
+          </div>
+        );
+      }
+    },
+    bell_curve: {
+      title: language === 'vi' ? 'Biểu đồ phân phối điểm (Bell Curve)' : 'Score Distribution Bell Curve',
+      size: 'medium',
+      roles: ['Admin'],
+      render: () => {
+        const outstanding = appraisals.filter(ap => ap.cr5db_finalscore >= 90).length;
+        const exceeds = appraisals.filter(ap => ap.cr5db_finalscore >= 80 && ap.cr5db_finalscore < 90).length;
+        const meets = appraisals.filter(ap => ap.cr5db_finalscore >= 70 && ap.cr5db_finalscore < 80).length;
+        const improvement = appraisals.filter(ap => ap.cr5db_finalscore >= 50 && ap.cr5db_finalscore < 70).length;
+        const unsatisfactory = appraisals.filter(ap => ap.cr5db_finalscore > 0 && ap.cr5db_finalscore < 50).length;
+        
+        const data = [unsatisfactory, improvement, meets, exceeds, outstanding];
+        const labels = ['<50', '50-69', '70-79', '80-89', '>=90'];
+        const maxVal = Math.max(...data, 1);
+        
+        const width = 360;
+        const height = 150;
+        const padding = 20;
+        
+        const points = data.map((val, idx) => {
+          const x = padding + (idx * (width - 2 * padding) / 4);
+          const y = height - padding - (val * (height - 2 * padding) / maxVal);
+          return { x, y, val };
+        });
+        
+        let pathD = `M ${points[0].x} ${points[0].y}`;
+        for (let i = 0; i < points.length - 1; i++) {
+          const p0 = points[i];
+          const p1 = points[i+1];
+          const cpX1 = p0.x + (p1.x - p0.x) / 2;
+          const cpY1 = p0.y;
+          const cpX2 = p0.x + (p1.x - p0.x) / 2;
+          const cpY2 = p1.y;
+          pathD += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`;
+        }
+        
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+            <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
+              <defs>
+                <linearGradient id="curveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+              <path d={`${pathD} L ${points[points.length-1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`} fill="url(#curveGrad)" />
+              <path d={pathD} fill="none" stroke="var(--color-primary)" strokeWidth="3" />
+              {points.map((p, idx) => (
+                <g key={idx}>
+                  <circle cx={p.x} cy={p.y} r="5" fill="#ffffff" stroke="var(--color-primary)" strokeWidth="2" />
+                  <text x={p.x} y={p.y - 10} textAnchor="middle" fontSize="11px" fontWeight="bold" fill="var(--color-text)">
+                    {p.val}
+                  </text>
+                  <text x={p.x} y={height - 2} textAnchor="middle" fontSize="10px" fill="var(--color-text-secondary)">
+                    {labels[idx]}
+                  </text>
+                </g>
+              ))}
+            </svg>
+            <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '8px', textAlign: 'center' }}>
+              {language === 'vi' ? 'Số lượng nhân sự phân bố theo khung điểm đánh giá' : 'Number of staff distributed by rating scores'}
+            </div>
+          </div>
+        );
+      }
+    },
+    department_performance: {
+      title: language === 'vi' ? 'Hiệu suất theo công ty (Average Rate)' : 'Performance by Company',
+      size: 'medium',
+      roles: ['Admin'],
+      render: () => {
+        const getUserCompany = (u: any): string => {
+          if (!u._cr5db_jobposition_value) return '';
+          const pos = jobPositionsList.find(p => p.cr5db_jobpositionid === u._cr5db_jobposition_value);
+          if (!pos) return '';
+          const dept = departmentsList.find(d => d.cr5db_departmentid === pos._cr5db_department_value);
+          if (!dept) return '';
+          const company = companiesList.find(c => c.cr5db_companyid === dept._cr5db_companyid_value);
+          return company ? company.cr5db_companyname : '';
+        };
+
+        const companyPerformance = companiesList.map(c => {
+          const compUsers = usersList.filter(u => getUserCompany(u) === c.cr5db_companyname);
+          const compEmails = compUsers.map(u => u.cr5db_email?.toLowerCase()).filter(Boolean);
+          const compKpis = kpiTargets.filter(k => compEmails.includes(k.cr5db_user_email?.toLowerCase()));
+          
+          let totalRate = 0;
+          let count = 0;
+          compKpis.forEach(k => {
+            const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
+            totalRate += calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+            count++;
+          });
+          
+          const avgRate = count > 0 ? Math.round(totalRate / count) : 0;
+          
+          const compTasks = tasks.filter(t => compEmails.includes(t.cr5db_assignee_email?.toLowerCase()));
+          const completed = compTasks.filter(t => t.cr5db_status === 'Completed').length;
+          const taskRate = compTasks.length > 0 ? Math.round((completed / compTasks.length) * 100) : 0;
+          
+          return { company: c.cr5db_companyname, kpiRate: avgRate, taskRate };
+        });
+        
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {companyPerformance.map(cp => (
+              <div key={cp.company} style={{ borderBottom: '1px solid var(--color-border-light)', paddingBottom: '8px' }}>
+                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px' }}>{cp.company}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                      <span>KPI Achievement</span>
+                      <span>{cp.kpiRate}%</span>
+                    </div>
+                    <div style={{ height: '6px', backgroundColor: '#f0f0f0', borderRadius: '3px' }}>
+                      <div style={{ width: `${cp.kpiRate}%`, height: '100%', backgroundColor: '#107C41' }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                      <span>Task Completion</span>
+                      <span>{cp.taskRate}%</span>
+                    </div>
+                    <div style={{ height: '6px', backgroundColor: '#f0f0f0', borderRadius: '3px' }}>
+                      <div style={{ width: `${cp.taskRate}%`, height: '100%', backgroundColor: '#E29E2E' }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      }
+    },
+    risk_alerts: {
+      title: language === 'vi' ? 'Cảnh báo rủi ro KPI (Risk Assessment)' : 'KPI Risk Alerts',
+      size: 'medium',
+      roles: ['Admin', 'Employee'],
+      render: () => {
+        const myKpis = activeRole === 'Employee' 
+          ? kpiTargets.filter(k => k.cr5db_user_email?.toLowerCase() === currentUserEmail.toLowerCase())
+          : kpiTargets;
+          
+        const risks = myKpis.map(k => {
+          const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
+          const rate = calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+          return { k, rate };
+        }).filter(item => item.rate < 100);
+        
+        const behind = risks.filter(item => item.rate < 50);
+        const atRisk = risks.filter(item => item.rate >= 50 && item.rate < 100);
+        
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <div style={{ flex: 1, backgroundColor: '#FFF4CE', border: '1px solid #795B00', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: '#795B00' }}>{atRisk.length}</div>
+                <div style={{ fontSize: '11px', color: '#795B00', fontWeight: 600 }}>At Risk (50-99%)</div>
+              </div>
+              <div style={{ flex: 1, backgroundColor: '#FDE7E9', border: '1px solid #A80000', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: '#A80000' }}>{behind.length}</div>
+                <div style={{ fontSize: '11px', color: '#A80000', fontWeight: 600 }}>Behind (&lt;50%)</div>
+              </div>
+            </div>
+            
+            <div style={{ maxHeight: '120px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {risks.slice(0, 3).map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '6px', borderBottom: '1px solid var(--color-border-light)' }}>
+                  <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>{item.k.cr5db_kpiname}</span>
+                  <span style={{ fontWeight: 700, color: item.rate < 50 ? '#A80000' : '#795B00' }}>{item.rate}%</span>
+                </div>
+              ))}
+              {risks.length > 3 && (
+                <div style={{ fontSize: '11px', textAlign: 'center', color: 'var(--color-text-secondary)', cursor: 'pointer' }} onClick={() => setActiveTab('kpi')}>
+                  {language === 'vi' ? `Xem thêm ${risks.length - 3} cảnh báo...` : `View ${risks.length - 3} more alerts...`}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+    },
+    strategic_alignment: {
+      title: language === 'vi' ? 'Bản đồ căn chỉnh mục tiêu chiến lược' : 'Strategic Goal Alignment Map',
+      size: 'large',
+      roles: ['Admin', 'Employee'],
+      render: () => {
+        const myObjectives = activeRole === 'Employee'
+          ? objectivesList.filter(o => {
+              const personalKpis = kpiTargets.filter(k => k.cr5db_user_email?.toLowerCase() === currentUserEmail.toLowerCase() && k._cr5db_parentobjective_value === o.cr5db_objectiveid);
+              return personalKpis.length > 0;
+            })
+          : objectivesList;
+          
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {myObjectives.slice(0, 3).map(obj => {
+              const objKpis = kpiTargets.filter(k => k._cr5db_parentobjective_value === obj.cr5db_objectiveid);
+              const objTasks = tasks.filter(t => t._cr5db_objectivename_value === obj.cr5db_objectiveid);
+              
+              let totalRate = 0;
+              let kpiCount = 0;
+              objKpis.forEach(k => {
+                const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
+                totalRate += calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+                kpiCount++;
+              });
+              const avgRate = kpiCount > 0 ? Math.round(totalRate / kpiCount) : 0;
+              
+              return (
+                <div key={obj.cr5db_objectiveid} style={{ border: '1px solid var(--color-border)', borderRadius: '8px', padding: '16px', backgroundColor: '#fafafa' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-primary)' }}>🎯 {obj.cr5db_objective1}</div>
+                    <span style={{ fontSize: '12px', fontWeight: 700, padding: '2px 8px', backgroundColor: '#e2e8f0', borderRadius: '4px' }}>
+                      Progress: {avgRate}%
+                    </span>
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>KPI Targets ({objKpis.length})</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {objKpis.slice(0, 2).map((k, idx) => (
+                          <div key={idx} style={{ fontSize: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>• {k.cr5db_kpiname}</span>
+                            <span style={{ fontWeight: 600 }}>{resolveKpiActualValue(k)}/{k.cr5db_targetvalue}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>Tasks ({objTasks.length})</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {objTasks.slice(0, 2).map((t, idx) => (
+                          <div key={idx} style={{ fontSize: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>• {t.cr5db_taskname}</span>
+                            <span style={{ color: t.cr5db_status === 'Completed' ? '#107C41' : '#E29E2E', fontWeight: 600 }}>{t.cr5db_status}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {myObjectives.length > 3 && (
+              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
+                And {myObjectives.length - 3} more strategic objectives linked to your performance scope.
+              </div>
+            )}
+          </div>
+        );
+      }
+    },
+    my_progress_rings: {
+      title: language === 'vi' ? 'Tiến độ làm việc của tôi' : 'My Work Progress Rings',
+      size: 'medium',
+      roles: ['Employee', 'Admin'],
+      render: () => {
+        const myKpis = kpiTargets.filter(k => k.cr5db_user_email?.toLowerCase() === currentUserEmail.toLowerCase());
+        let totalKpiRate = 0;
+        myKpis.forEach(k => {
+          const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
+          totalKpiRate += calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+        });
+        const kpiRate = myKpis.length > 0 ? Math.round(totalKpiRate / myKpis.length) : 0;
+        
+        const myTasks = tasks.filter(t => t.cr5db_assignee_email?.toLowerCase() === currentUserEmail.toLowerCase());
+        const completedTasks = myTasks.filter(t => t.cr5db_status === 'Completed').length;
+        const taskRate = myTasks.length > 0 ? Math.round((completedTasks / myTasks.length) * 100) : 0;
+        
+        const timesheetRate = Math.min(100, Math.round((totalHoursThisWeek / 40) * 100));
+        
+        const ringData = [
+          { label: 'KPIs', val: kpiRate, color: '#107C41' },
+          { label: 'Tasks', val: taskRate, color: '#b6393a' },
+          { label: 'Hours', val: timesheetRate, color: '#742774' }
+        ];
+        
+        return (
+          <div style={{ display: 'flex', justifyContent: 'space-around', padding: '10px 0' }}>
+            {ringData.map((r, idx) => {
+              const radius = 32;
+              const circ = 2 * Math.PI * radius;
+              const strokeDashoffset = circ - (r.val / 100) * circ;
+              return (
+                <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                  <svg width="84" height="84" viewBox="0 0 84 84">
+                    <circle cx="42" cy="42" r={radius} fill="none" stroke="#f3f2f1" strokeWidth="6" />
+                    <circle 
+                      cx="42" 
+                      cy="42" 
+                      r={radius} 
+                      fill="none" 
+                      stroke={r.color} 
+                      strokeWidth="6" 
+                      strokeDasharray={circ} 
+                      strokeDashoffset={strokeDashoffset} 
+                      strokeLinecap="round"
+                      transform="rotate(-90 42 42)"
+                    />
+                    <text x="42" y="46" textAnchor="middle" fontSize="15px" fontWeight="bold" fill="var(--color-text)">
+                      {r.val}%
+                    </text>
+                  </svg>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>{r.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
+    },
+    integrated_action_panel: {
+      title: language === 'vi' ? 'Bảng hành động tích hợp' : 'Integrated Action Panel',
+      size: 'large',
+      roles: ['Employee', 'Admin'],
+      render: () => {
+        const myTasks = tasks.filter(t => t.cr5db_assignee_email?.toLowerCase() === currentUserEmail.toLowerCase() && t.cr5db_status !== 'Completed');
+        const myTimesheets = timesheets.filter(ts => ts.cr5db_username?.toLowerCase() === currentUserEmail.toLowerCase() && ts.cr5db_status === 'Draft');
+        const myKpis = kpiTargets.filter(k => k.cr5db_user_email?.toLowerCase() === currentUserEmail.toLowerCase());
+        const attentionKpis = myKpis.filter(k => {
+          const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
+          return calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction) < 100;
+        });
+        
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+            <div style={{ borderRight: '1px solid var(--color-border-light)', paddingRight: '12px' }}>
+              <div style={{ fontWeight: 700, fontSize: '12px', color: 'var(--color-primary)', textTransform: 'uppercase', marginBottom: '8px' }}>
+                📋 Tasks To Complete ({myTasks.length})
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '110px', overflowY: 'auto' }}>
+                {myTasks.slice(0, 2).map((t, idx) => (
+                  <div key={idx} style={{ fontSize: '11.5px', padding: '4px', backgroundColor: '#fafafa', borderRadius: '4px' }}>
+                    <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.cr5db_taskname}</div>
+                    <div style={{ color: 'var(--color-text-secondary)', fontSize: '10.5px' }}>
+                      Due: {t.cr5db_due_date ? new Date(t.cr5db_due_date).toLocaleDateString() : 'N/A'}
+                    </div>
+                  </div>
+                ))}
+                {myTasks.length === 0 && <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>All clear!</span>}
+              </div>
+            </div>
+            
+            <div style={{ borderRight: '1px solid var(--color-border-light)', paddingRight: '12px', paddingLeft: '4px' }}>
+              <div style={{ fontWeight: 700, fontSize: '12px', color: '#742774', textTransform: 'uppercase', marginBottom: '8px' }}>
+                ⏰ Timesheets (Draft) ({myTimesheets.length})
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '110px', overflowY: 'auto' }}>
+                {myTimesheets.slice(0, 2).map((ts, idx) => (
+                  <div key={idx} style={{ fontSize: '11.5px', padding: '4px', backgroundColor: '#fafafa', borderRadius: '4px' }}>
+                    <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ts.cr5db_timesheetlog1}</div>
+                    <div style={{ color: 'var(--color-text-secondary)', fontSize: '10.5px' }}>{ts.cr5db_actualhoursworked} hours logged</div>
+                  </div>
+                ))}
+                {myTimesheets.length === 0 && <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>No draft timesheets.</span>}
+              </div>
+            </div>
+            
+            <div style={{ paddingLeft: '4px' }}>
+              <div style={{ fontWeight: 700, fontSize: '12px', color: '#107C41', textTransform: 'uppercase', marginBottom: '8px' }}>
+                🎯 KPIs to Improve ({attentionKpis.length})
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '110px', overflowY: 'auto' }}>
+                {attentionKpis.slice(0, 2).map((k, idx) => {
+                  const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
+                  const rate = calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+                  return (
+                    <div key={idx} style={{ fontSize: '11.5px', padding: '4px', backgroundColor: '#fafafa', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100px' }}>{k.cr5db_kpiname}</span>
+                      <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{rate}%</span>
+                    </div>
+                  );
+                })}
+                {attentionKpis.length === 0 && <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>All KPIs achieved!</span>}
+              </div>
+            </div>
+          </div>
+        );
+      }
+    },
+    status_tracker: {
+      title: language === 'vi' ? 'Tiến độ chu kỳ đánh giá cá nhân' : 'Personal Appraisal Cycle Tracker',
+      size: 'large',
+      roles: ['Employee', 'Admin'],
+      render: () => {
+        const activePeriod = evaluationPeriodsList.find(p => !p.cr5db_islocked);
+        const myAppraisal = appraisals.find(ap => 
+          ap.cr5db_employeeemail?.toLowerCase() === currentUserEmail.toLowerCase() && 
+          ap.cr5db_periodname === activePeriod?.cr5db_evaluationperiod1
+        );
+        
+        const isSubmitted = myAppraisal?.statecode === 1 || myAppraisal?.statuscode === 2;
+        const isManagerReviewed = myAppraisal?.cr5db_finalscore !== null && myAppraisal?.cr5db_finalscore > 0;
+        const isLocked = activePeriod?.cr5db_islocked;
+        
+        const steps = [
+          { label: 'Draft', completed: true },
+          { label: language === 'vi' ? 'Đã Nộp' : 'Submitted', completed: isSubmitted || isManagerReviewed || isLocked },
+          { label: language === 'vi' ? 'Đã Duyệt' : 'Reviewed', completed: isManagerReviewed || isLocked },
+          { label: language === 'vi' ? 'Hoàn tất' : 'Finalized', completed: isLocked }
+        ];
+        
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+              {language === 'vi' ? 'Chu kỳ hiện tại: ' : 'Active Period: '} <strong>{activePeriod?.cr5db_evaluationperiod1 || 'N/A'}</strong>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', padding: '10px 0' }}>
+              <div style={{ position: 'absolute', top: '24px', left: '20px', right: '20px', height: '3px', backgroundColor: '#e5e7eb', zIndex: 1 }} />
+              
+              {steps.map((st, idx) => (
+                <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2, position: 'relative', width: '60px' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    backgroundColor: st.completed ? 'var(--color-primary)' : '#e5e7eb',
+                    color: st.completed ? '#ffffff' : 'var(--color-text-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    border: '3px solid #ffffff',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                  }}>
+                    {st.completed ? '✓' : idx + 1}
+                  </div>
+                  <span style={{ fontSize: '11px', marginTop: '6px', fontWeight: 600, color: st.completed ? 'var(--color-text)' : 'var(--color-text-secondary)' }}>{st.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+    }
+  };
+
+  const renderDashboardWidgets = () => {
+    const visibleWidgets = Object.entries(widgetsRegistry)
+      .filter(([id, w]) => w.roles.includes(activeRole) && enabledWidgets.includes(id));
+      
+    if (visibleWidgets.length === 0) {
+      return (
+        <div style={{ textAlign: 'center', padding: '60px 20px', border: '1px dashed var(--color-border)', borderRadius: '8px' }}>
+          <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '12px' }}>Không có widget nào được kích hoạt.</div>
+          <button onClick={() => setShowDashboardSettingsModal(true)} className="btn-filled-2" style={{ padding: '6px 16px' }}>Cấu hình Widget</button>
+        </div>
+      );
+    }
+    
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+        {visibleWidgets.map(([id, w]) => {
+          const isLarge = w.size === 'large';
+          return (
+            <div 
+              key={id} 
+              className="card-spec" 
+              style={{ 
+                gridColumn: isLarge ? '1 / -1' : 'span 1',
+                padding: '20px 24px',
+                minHeight: '220px'
+              }}
+            >
+              <h3 style={{ fontSize: '15px', fontWeight: 700, borderBottom: '1px solid var(--color-border-light)', paddingBottom: '12px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>{w.title}</span>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', backgroundColor: '#f3f4f6', padding: '2px 6px', borderRadius: '4px' }}>
+                  {w.size === 'small' ? 'Small' : w.size === 'medium' ? 'Medium' : 'Large'}
+                </span>
+              </h3>
+              {w.render()}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   // ── Live Data ─────────────────────────────────────────────────────────────
   const { fetchLiveValues } = useLiveData({
     setIsLoading, setErrorMsg,
@@ -400,12 +986,43 @@ function App() {
     return hasTabPermission(currentUserObj, tabId, permissionGroups);
   };
 
+  // ── Evaluation Period Lock Helpers ─────────────────────────────────────────
+  const getObjectivePeriodLockStatus = (objectiveId?: string) => {
+    if (!objectiveId) return false;
+    const obj = objectivesList.find(o => o.cr5db_objectiveid === objectiveId);
+    if (!obj) return false;
+    const periodId = obj._cr5db_periodname_value;
+    if (!periodId) return false;
+    const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiodid === periodId);
+    return !!periodObj?.cr5db_islocked;
+  };
+
+  const isDateInLockedPeriod = (dateString: string) => {
+    if (!dateString) return false;
+    const targetDate = new Date(dateString);
+    return evaluationPeriodsList.some(p => {
+      if (!p.cr5db_islocked) return false;
+      const start = p.cr5db_startdate ? new Date(p.cr5db_startdate) : null;
+      const end = p.cr5db_enddate ? new Date(p.cr5db_enddate) : null;
+      return (!start || targetDate >= start) && (!end || targetDate <= end);
+    });
+  };
+
   // ── CRUD API Calls ───────────────────────────────────────────────────────
 
   // Tasks CRUD
   const handleSaveTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskName.trim()) return;
+
+    if (editingTask && getObjectivePeriodLockStatus(editingTask._cr5db_objectivename_value)) {
+      alert("Công việc này thuộc chu kỳ đánh giá đã bị khóa. Không thể cập nhật.");
+      return;
+    }
+    if (!editingTask && newTaskObjectiveId && getObjectivePeriodLockStatus(newTaskObjectiveId)) {
+      alert("Mục tiêu được chọn thuộc chu kỳ đánh giá đã bị khóa. Không thể tạo công việc mới.");
+      return;
+    }
     try {
       setIsLoading(true);
       const payload: any = {
@@ -497,11 +1114,15 @@ function App() {
   };
 
   const handleDeleteTask = async (taskId: string) => {
+    const targetTask = tasks.find(t => t.cr5db_taskid === taskId);
+    if (targetTask && getObjectivePeriodLockStatus(targetTask._cr5db_objectivename_value)) {
+      alert("Công việc này thuộc chu kỳ đánh giá đã bị khóa. Không thể xóa.");
+      return;
+    }
     const confirmDelete = window.confirm("Bạn có chắc chắn muốn xóa công việc này không?");
     if (!confirmDelete) return;
     try {
       setIsLoading(true);
-      const targetTask = tasks.find(t => t.cr5db_taskid === taskId);
       await executeCrudWithApproval("Tasks", "Delete", null, taskId, `Xóa công việc: ${targetTask?.cr5db_taskname || taskId}`, targetTask);
       
       const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
@@ -521,6 +1142,11 @@ function App() {
   };
 
   const handleUpdateTaskStatus = async (id: string, _status: any) => {
+    const targetTask = tasks.find(t => t.cr5db_taskid === id);
+    if (targetTask && getObjectivePeriodLockStatus(targetTask._cr5db_objectivename_value)) {
+      alert("Công việc này thuộc chu kỳ đánh giá đã bị khóa. Không thể cập nhật trạng thái.");
+      return;
+    }
     try {
       setIsLoading(true);
       await Cr5db_tasksService.update(id, { statecode: 1 });
@@ -536,13 +1162,25 @@ function App() {
   const handleAddTimesheet = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTimesheetDesc.trim()) return;
+    const tsDate = newTimesheetDate || new Date().toISOString().split('T')[0];
+    if (isDateInLockedPeriod(tsDate)) {
+      alert("Không thể ghi nhận giờ làm việc cho ngày thuộc chu kỳ đánh giá đã bị khóa.");
+      return;
+    }
+    if (newTimesheetTaskId) {
+      const taskObj = tasks.find(t => t.cr5db_taskid === newTimesheetTaskId);
+      if (taskObj && getObjectivePeriodLockStatus(taskObj._cr5db_objectivename_value)) {
+        alert("Nhiệm vụ được chọn thuộc chu kỳ đánh giá đã bị khóa. Không thể ghi nhận giờ.");
+        return;
+      }
+    }
     try {
       setIsLoading(true);
       const matchedUser = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       const record = {
         cr5db_timesheetlog1: newTimesheetDesc,
         cr5db_actualhoursworked: Number(newTimesheetHours),
-        cr5db_logdate: newTimesheetDate || new Date().toISOString().split('T')[0],
+        cr5db_logdate: tsDate,
         "cr5db_UserID@odata.bind": matchedUser ? `/cr5db_users(${matchedUser.cr5db_userid})` : undefined,
         "cr5db_TaskID@odata.bind": newTimesheetTaskId ? `/cr5db_tasks(${newTimesheetTaskId})` : undefined,
         statecode: 0
@@ -560,6 +1198,11 @@ function App() {
   };
 
   const handleApproveTimesheet = async (id: string) => {
+    const tsRecord = timesheets.find(t => t.cr5db_timesheetlogid === id);
+    if (tsRecord && isDateInLockedPeriod(tsRecord.cr5db_logdate)) {
+      alert("Không thể phê duyệt timesheet thuộc chu kỳ đánh giá đã bị khóa.");
+      return;
+    }
     try {
       setIsLoading(true);
       // statecode:1 = Inactive (closed), statuscode:2 = Inactive (database approved)
@@ -573,6 +1216,12 @@ function App() {
   };
 
   const handleUpdateAppraisalScore = async (id: string, score: number) => {
+    const ap = appraisals.find(a => a.cr5db_performanceappraisalid === id);
+    const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === ap?.cr5db_periodname);
+    if (periodObj?.cr5db_islocked) {
+      alert("Không thể cập nhật điểm đánh giá vì chu kỳ đã bị khóa.");
+      return;
+    }
     try {
       setIsLoading(true);
       await Cr5db_performanceappraisalsService.update(id, { cr5db_finalscore: score });
@@ -585,6 +1234,16 @@ function App() {
   };
 
   const handleUpdateSelfAppraisalScore = async (id: string, score: number) => {
+    const ap = appraisals.find(a => a.cr5db_performanceappraisalid === id);
+    const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === ap?.cr5db_periodname);
+    if (periodObj?.cr5db_islocked) {
+      alert("Không thể cập nhật điểm tự đánh giá vì chu kỳ đã bị khóa.");
+      return;
+    }
+    if (ap?.statecode === 1 || ap?.statuscode === 2) {
+      alert("Bản tự đánh giá này đã được nộp và không thể chỉnh sửa.");
+      return;
+    }
     try {
       setIsLoading(true);
       await Cr5db_performanceappraisalsService.update(id, { cr5db_selfscore: score });
@@ -596,8 +1255,37 @@ function App() {
     }
   };
 
+  const handleSubmitAppraisal = async (id: string) => {
+    const ap = appraisals.find(a => a.cr5db_performanceappraisalid === id);
+    const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === ap?.cr5db_periodname);
+    if (periodObj?.cr5db_islocked) {
+      alert("Không thể nộp bản đánh giá vì chu kỳ đã bị khóa.");
+      return;
+    }
+    const confirmSubmit = window.confirm("Bạn có chắc chắn muốn nộp bản tự đánh giá này không? Sau khi nộp, bạn sẽ không thể chỉnh sửa điểm tự chấm.");
+    if (!confirmSubmit) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_performanceappraisalsService.update(id, { 
+        statecode: 1, // Inactive
+        statuscode: 2 // Inactive
+      } as any);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể nộp bản đánh giá.");
+      setIsLoading(false);
+    }
+  };
+
   const handleAutoCalculateAppraisal = async (id: string, email: string) => {
     if (!email) return;
+    const ap = appraisals.find(a => a.cr5db_performanceappraisalid === id);
+    const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === ap?.cr5db_periodname);
+    if (periodObj?.cr5db_islocked) {
+      alert("Không thể tự động tính toán điểm vì chu kỳ đã bị khóa.");
+      return;
+    }
     const employeeKpis = kpiTargets.filter(k => k.cr5db_user_email.toLowerCase() === email.toLowerCase());
     if (employeeKpis.length === 0) {
       alert("Không tìm thấy dữ liệu KPI nào được gán cho nhân sự này để tự động tính điểm.");
@@ -659,9 +1347,13 @@ function App() {
   const handleRejectTimesheetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rejectionReason.trim()) return;
+    const tsRecord = timesheets.find(t => t.cr5db_timesheetlogid === timesheetToRejectId);
+    if (tsRecord && isDateInLockedPeriod(tsRecord.cr5db_logdate)) {
+      alert("Không thể từ chối timesheet thuộc chu kỳ đánh giá đã bị khóa.");
+      return;
+    }
     try {
       setIsLoading(true);
-      const tsRecord = timesheets.find(t => t.cr5db_timesheetlogid === timesheetToRejectId);
       const originalDesc = tsRecord?.cr5db_timesheetlog1 || '';
       const prefix = `[Từ chối] ${rejectionReason.trim()} | `;
       const newDesc = originalDesc.startsWith('[Từ chối]') ? originalDesc : (prefix + originalDesc);
@@ -694,6 +1386,10 @@ function App() {
   const handleSavePeriod = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPeriodName.trim()) return;
+    if (editingPeriod && editingPeriod.cr5db_islocked) {
+      alert("Chu kỳ đang khóa. Vui lòng mở khóa chu kỳ trước khi sửa thông tin.");
+      return;
+    }
     try {
       setIsLoading(true);
       if (editingPeriod) {
@@ -724,6 +1420,11 @@ function App() {
   };
 
   const handleDeletePeriod = async (id: string) => {
+    const targetPeriod = evaluationPeriodsList.find(p => p.cr5db_evaluationperiodid === id);
+    if (targetPeriod && targetPeriod.cr5db_islocked) {
+      alert("Chu kỳ đang khóa. Vui lòng mở khóa chu kỳ trước khi xóa.");
+      return;
+    }
     if (!window.confirm("Bạn có chắc chắn muốn xóa chu kỳ đánh giá này không?")) return;
     try {
       setIsLoading(true);
@@ -964,6 +1665,17 @@ function App() {
   const handleSaveObjective = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!objectiveName.trim()) return;
+    if (editingObjective && getObjectivePeriodLockStatus(editingObjective.cr5db_objectiveid)) {
+      alert("Mục tiêu này thuộc chu kỳ đánh giá đã bị khóa. Không thể cập nhật.");
+      return;
+    }
+    if (objectivePeriodId) {
+      const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiodid === objectivePeriodId);
+      if (periodObj?.cr5db_islocked) {
+        alert("Chu kỳ đánh giá được chọn đã bị khóa. Không thể tạo mục tiêu mới thuộc chu kỳ này.");
+        return;
+      }
+    }
     try {
       setIsLoading(true);
       const payload: any = {
@@ -992,6 +1704,14 @@ function App() {
   };
 
   const handleDeleteObjective = async (id: string) => {
+    const targetObj = objectivesList.find(o => o.cr5db_objectiveid === id);
+    if (targetObj && targetObj._cr5db_periodname_value) {
+      const pObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiodid === targetObj._cr5db_periodname_value);
+      if (pObj?.cr5db_islocked) {
+        alert("Không thể xóa mục tiêu vì thuộc chu kỳ đánh giá đã bị khóa.");
+        return;
+      }
+    }
     if (!window.confirm('Xoa muc tieu nay?')) return;
     try {
       setIsLoading(true);
@@ -2109,6 +2829,10 @@ function App() {
     e.preventDefault();
     if (activeRole === 'Employee') {
       if (!editingKpi) return;
+      if (getObjectivePeriodLockStatus(editingKpi._cr5db_parentobjective_value)) {
+        alert("KPI này thuộc chu kỳ đánh giá đã bị khóa. Không thể cập nhật.");
+        return;
+      }
       try {
         setIsLoading(true);
         const payload = {
@@ -2145,6 +2869,14 @@ function App() {
     // Manager / Admin CRUD
     if (!kpiTargetName.trim() || !kpiEmployeeId || !kpiObjectiveId || !kpiLibraryId) {
       alert("Vui lòng nhập đầy đủ tên mục tiêu, người thực hiện, mục tiêu chung và mã KPI.");
+      return;
+    }
+    if (editingKpi && getObjectivePeriodLockStatus(editingKpi._cr5db_parentobjective_value)) {
+      alert("KPI này thuộc chu kỳ đánh giá đã bị khóa. Không thể cập nhật.");
+      return;
+    }
+    if (kpiObjectiveId && getObjectivePeriodLockStatus(kpiObjectiveId)) {
+      alert("Mục tiêu được chọn thuộc chu kỳ đánh giá đã bị khóa. Không thể gán KPI mới.");
       return;
     }
 
@@ -2216,10 +2948,14 @@ function App() {
   };
 
   const handleDeleteKpi = async (id: string) => {
+    const targetKpi = kpiTargets.find(k => k.cr5db_kpitargetid === id);
+    if (targetKpi && getObjectivePeriodLockStatus(targetKpi._cr5db_parentobjective_value)) {
+      alert("KPI này thuộc chu kỳ đánh giá đã bị khóa. Không thể xóa.");
+      return;
+    }
     if (!window.confirm("Bạn có chắc chắn muốn xóa vĩnh viễn KPI này khỏi hệ thống?")) return;
     try {
       setIsLoading(true);
-      const targetKpi = kpiTargets.find(k => k.cr5db_kpitargetid === id);
       await executeCrudWithApproval(
         "KPITargets",
         "Delete",
@@ -2332,12 +3068,19 @@ function App() {
       executeCrudWithApproval,
       handleApproveChangeRequest,
       handleRejectChangeRequest,
-      handleSubmittingApprovalRequest
+      handleSubmittingApprovalRequest,
+      dueTodayTasksCount,
+      companyHeadcounts,
+      totalQuotaCount,
+      totalActualCount,
+      overQuotaCount,
+      underQuotaCount,
+      pendingRequestCount
     };
     if (typeof dummy.executeCrudWithApproval === 'function') {
       // Diagnostic read
     }
-  }, [showApprovalModal, executeCrudWithApproval, handleApproveChangeRequest, handleRejectChangeRequest, handleSubmittingApprovalRequest]);
+  }, [showApprovalModal, executeCrudWithApproval, handleApproveChangeRequest, handleRejectChangeRequest, handleSubmittingApprovalRequest, dueTodayTasksCount, companyHeadcounts, totalQuotaCount, totalActualCount, overQuotaCount, underQuotaCount, pendingRequestCount]);
 
   if (isLoading) {
     return (
@@ -2566,233 +3309,42 @@ function App() {
         <div className="main-scroll-area">
           {/* SCREEN 1: DASHBOARD */}
           {activeTab === 'dashboard' && (
-            <>
-              {checkPermission('headcount') ? (
-                // HR / Admin Dashboard
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                  <div>
-                    <h1 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '6px' }}>{t('dashboard.title')}</h1>
-                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '15px' }}>{t('dashboard.subtitle')}</p>
-                  </div>
-
-                  <div className="metrics-grid">
-                    <div className="metric-card">
-                      <span className="metric-value">{totalQuotaCount}</span>
-                      <span className="metric-label">{t('dashboard.totalQuota')}</span>
-                    </div>
-                    <div className="metric-card">
-                      <span className="metric-value">{totalActualCount}</span>
-                      <span className="metric-label">{t('dashboard.currentHeadcount')}</span>
-                    </div>
-                    <div className="metric-card" style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}>
-                      <span className="metric-value">{overQuotaCount}</span>
-                      <span className="metric-label">{t('dashboard.overQuota')}</span>
-                    </div>
-                    <div className="metric-card" style={{ borderColor: '#E29E2E', color: '#E29E2E' }}>
-                      <span className="metric-value">{underQuotaCount}</span>
-                      <span className="metric-label">{t('dashboard.underQuota')}</span>
-                    </div>
-                    <div className="metric-card" style={{ borderColor: '#742774', color: '#742774' }}>
-                      <span className="metric-value">{pendingRequestCount}</span>
-                      <span className="metric-label">{t('dashboard.pendingApproval')}</span>
-                    </div>
-                  </div>
-
-                  {/* Quota vs Actual Chart */}
-                  <div className="large-card" style={{ padding: '24px' }}>
-                    <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px' }}>Headcount by Company (Quota vs Actual)</h3>
-                    {companyHeadcounts.length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>No headcount configurations loaded.</div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {companyHeadcounts.map(ch => {
-                          const maxVal = Math.max(...companyHeadcounts.map(x => Math.max(x.quota, x.actual, 1)));
-                          const qPercent = (ch.quota / maxVal) * 100;
-                          const aPercent = (ch.actual / maxVal) * 100;
-                          return (
-                            <div key={ch.company} style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                              <span style={{ width: '150px', fontSize: '13px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ch.company}</span>
-                              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                {/* Quota bar */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <div style={{ width: `${qPercent}%`, height: '14px', backgroundColor: 'var(--color-primary)', borderRadius: '2px' }} />
-                                  <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Quota: {ch.quota}</span>
-                                </div>
-                                {/* Actual bar */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <div style={{ width: `${aPercent}%`, height: '14px', backgroundColor: '#742774', borderRadius: '2px' }} />
-                                  <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Actual: {ch.actual}</span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="features-grid">
-                    <div className="feature-card">
-                      <span className="feature-title">Companies Setup</span>
-                      <span className="feature-desc">{companiesList.length} companies configured</span>
-                      <button onClick={() => setActiveTab('companies')} className="feature-link">Manage Setup ➔</button>
-                    </div>
-                    <div className="feature-card">
-                      <span className="feature-title">Position Catalog</span>
-                      <span className="feature-desc">{positionCatalogList.length} standardized titles</span>
-                      <button onClick={() => setActiveTab('positions')} className="feature-link">View Catalog ➔</button>
-                    </div>
-                    <div className="feature-card">
-                      <span className="feature-title">Job Positions</span>
-                      <span className="feature-desc">{jobPositionsList.length} total job records</span>
-                      <button onClick={() => setActiveTab('headcount')} className="feature-link">Manage Headcount ➔</button>
-                    </div>
-                  </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <h1 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '6px' }}>
+                    {language === 'vi' 
+                      ? `Chào buổi sáng, ${currentUserName.trim().split(' ').pop() || currentUserName}!` 
+                      : `Good morning, ${currentUserName.trim().split(' ').pop() || currentUserName}!`}
+                  </h1>
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '15px' }}>
+                    {language === 'vi' 
+                      ? 'Hệ thống đánh giá hiệu năng & Quản lý KPI căn chỉnh' 
+                      : "Performance Review & Goal-Aligned KPI Management"}
+                  </p>
                 </div>
-              ) : (
-                // Employee / PM Dashboard
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                  <div>
-                    <h1 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '6px' }}>
-                      {language === 'vi' 
-                        ? `Chào buổi sáng, ${currentUserName.trim().split(' ').pop() || currentUserName}!` 
-                        : `Good morning, ${currentUserName.trim().split(' ').pop() || currentUserName}!`}
-                    </h1>
-                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '15px' }}>
-                      {language === 'vi' 
-                        ? 'Dưới đây là tổng hợp công việc của bạn trong tuần này' 
-                        : "Here's what's happening with your work this week"}
-                    </p>
-                  </div>
+                
+                <button 
+                  onClick={() => setShowDashboardSettingsModal(true)}
+                  className="btn-filled-3"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontWeight: 600 }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                  {language === 'vi' ? 'Cấu hình Dashboard' : 'Configure Layout'}
+                </button>
+              </div>
 
-                  {/* Overdue Task Banner */}
-                  {hasOverdueTasks && (
-                    <div style={{ padding: '16px 20px', backgroundColor: '#FDF3F3', border: '1px solid var(--color-primary)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-primary)' }}>Bạn đang có các công việc trễ hạn! Vui lòng hoàn thành sớm.</span>
-                      <button onClick={() => setActiveTab('tasks')} className="btn-filled-2" style={{ padding: '6px 12px' }}>Xem công việc</button>
-                    </div>
-                  )}
-
-                  <div className="metrics-grid">
-                    <div className="metric-card" style={{ gap: '8px', padding: '20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ color: 'var(--color-text)', display: 'flex', alignItems: 'center' }}><TaskIcon /></span>
-                        <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700 }}>{dueTodayTasksCount}</span>
-                      </div>
-                      <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
-                        {language === 'vi' ? 'Việc cần làm hôm nay' : 'Tasks Due Today'}
-                      </span>
-                    </div>
-                    <div className="metric-card" style={{ gap: '8px', padding: '20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ color: 'var(--color-text)', display: 'flex', alignItems: 'center' }}><ClockIcon /></span>
-                        <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700 }}>{totalHoursThisWeek.toFixed(1)}h</span>
-                      </div>
-                      <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
-                        {language === 'vi' ? 'Số giờ làm tuần này' : 'Hours This Week'}
-                      </span>
-                    </div>
-                    <div className="metric-card" style={{ gap: '8px', padding: '20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ color: 'var(--color-text)', display: 'flex', alignItems: 'center' }}><TargetIcon /></span>
-                        <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700 }}>{kpiTargets.length}</span>
-                      </div>
-                      <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
-                        {language === 'vi' ? 'KPI đang thực hiện' : 'KPIs On Track'}
-                      </span>
-                    </div>
-                    <div className="metric-card" style={{ gap: '8px', padding: '20px', borderColor: '#E29E2E' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ 
-                          color: '#E29E2E', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center',
-                          backgroundColor: '#FFF9E6',
-                          borderRadius: '50%',
-                          width: '28px',
-                          height: '28px'
-                        }}>
-                          <BellIcon />
-                        </span>
-                        <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: '#E29E2E' }}>
-                          {(activeRole === 'Admin' || checkPermission('resources')) ? pendingApprovalsTimesheets.length : pendingCount}
-                        </span>
-                      </div>
-                      <span className="metric-label" style={{ fontSize: '12px', color: '#E29E2E', fontWeight: 500 }}>
-                        {language === 'vi' ? 'Chờ duyệt' : 'Pending Approvals'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="features-grid">
-                    <div className="feature-card" style={{ padding: '20px', minHeight: '150px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                        <span style={{ display: 'flex', alignItems: 'center' }}><TaskIcon /></span>
-                        <span className="feature-title" style={{ fontSize: '15px', fontWeight: 700 }}>{t('sidebar.tasks')}</span>
-                      </div>
-                      <span className="feature-desc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                        {tasks.filter(t => t.cr5db_assignee_email.toLowerCase() === currentUserEmail.toLowerCase()).length} {language === 'vi' ? 'công việc tổng cộng' : 'total tasks'}, {filteredTasks.filter(t => t.cr5db_status !== 'Completed').length} {language === 'vi' ? 'đang thực hiện' : 'upcoming'}
-                      </span>
-                      <button onClick={() => setActiveTab('tasks')} className="feature-link">{language === 'vi' ? 'Xem công việc ➔' : 'View Tasks ➔'}</button>
-                    </div>
-                    <div className="feature-card" style={{ padding: '20px', minHeight: '150px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                        <span style={{ display: 'flex', alignItems: 'center' }}><ClockIcon /></span>
-                        <span className="feature-title" style={{ fontSize: '15px', fontWeight: 700 }}>{t('sidebar.timesheets')}</span>
-                      </div>
-                      <span className="feature-desc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                        {totalEntries} {language === 'vi' ? 'lượt chấm tuần này' : 'entries logged this week'}
-                      </span>
-                      <button onClick={() => setActiveTab('timesheets')} className="feature-link">{language === 'vi' ? 'Báo cáo công ➔' : 'Log Time ➔'}</button>
-                    </div>
-                    <div className="feature-card" style={{ padding: '20px', minHeight: '150px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                        <span style={{ display: 'flex', alignItems: 'center' }}><TargetIcon /></span>
-                        <span className="feature-title" style={{ fontSize: '15px', fontWeight: 700 }}>{t('sidebar.kpi')}</span>
-                      </div>
-                      <span className="feature-desc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                        {kpiTargets.length} {language === 'vi' ? 'chỉ tiêu' : 'targets'}, {kpiTargets.filter(k => {
-                          const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                          return calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.new_direction) >= 100;
-                        }).length} {language === 'vi' ? 'đạt mục tiêu' : 'on track'}
-                      </span>
-                      <button onClick={() => setActiveTab('kpi')} className="feature-link">{language === 'vi' ? 'Xem chỉ số ➔' : 'View KPIs ➔'}</button>
-                    </div>
-                  </div>
-
-                  <div className="large-card" style={{ padding: '24px' }}>
-                    <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '4px' }}>Weekly Progress</h3>
-                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginBottom: '16px' }}>May 25 - May 31, 2026</p>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      {/* Hours logged bar */}
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
-                          <span>Hours logged</span>
-                          <span>{totalHoursThisWeek.toFixed(1)} / 40h</span>
-                        </div>
-                        <div style={{ height: '12px', backgroundColor: '#f0f0f0', borderRadius: '6px', overflow: 'hidden' }}>
-                          <div style={{ width: `${Math.min(100, (totalHoursThisWeek / 40) * 100)}%`, height: '100%', backgroundColor: 'var(--color-primary)' }} />
-                        </div>
-                      </div>
-
-                      {/* Extra metadata items below bar */}
-                      <div style={{ display: 'flex', gap: '24px', fontSize: '13px', color: 'var(--color-text-secondary)', fontWeight: 500, marginTop: '4px' }}>
-                        <div>
-                          <span style={{ fontWeight: 700, color: 'var(--color-text)' }}>
-                            {tasks.filter(t => t.cr5db_assignee_email.toLowerCase() === currentUserEmail.toLowerCase() && t.cr5db_status === 'Completed').length}
-                          </span> tasks
-                        </div>
-                        <div>
-                          <span style={{ fontWeight: 700, color: 'var(--color-text)' }}>{totalEntries}</span> entries
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+              {activeRole === 'Employee' && hasOverdueTasks && (
+                <div style={{ padding: '16px 20px', backgroundColor: '#FDF3F3', border: '1px solid var(--color-primary)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-primary)' }}>Bạn đang có các công việc trễ hạn! Vui lòng hoàn thành sớm.</span>
+                  <button onClick={() => setActiveTab('tasks')} className="btn-filled-2" style={{ padding: '6px 12px' }}>Xem công việc</button>
                 </div>
               )}
-            </>
+
+              {renderDashboardWidgets()}
+            </div>
           )}
 
           {/* SCREEN 2: TASKS */}
@@ -2910,69 +3462,78 @@ function App() {
 
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {queryFiltered.map(task => (
-                      <div key={task.cr5db_taskid} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', border: '1px solid #000000', borderRadius: '8px', backgroundColor: '#ffffff', boxSizing: 'border-box' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <span style={{ fontWeight: 700, fontSize: '16px', color: '#000000' }}>{task.cr5db_taskname}</span>
-                            <span style={{ fontSize: '12px', fontWeight: 500, padding: '2px 8px', border: '1px solid #000000', borderRadius: '6px', color: '#000000', backgroundColor: '#ffffff' }}>
-                              {task.cr5db_project_name || (language === 'vi' ? 'Không thuộc dự án' : 'No Project')}
+                    {queryFiltered.map(task => {
+                      const isTaskLocked = getObjectivePeriodLockStatus(task._cr5db_objectivename_value);
+                      return (
+                        <div key={task.cr5db_taskid} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', border: '1px solid #000000', borderRadius: '8px', backgroundColor: '#ffffff', boxSizing: 'border-box' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <span style={{ fontWeight: 700, fontSize: '16px', color: '#000000', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {task.cr5db_taskname}
+                                {isTaskLocked && <span style={{ color: '#a80000' }} title="Chu kỳ đã bị khóa">🔒</span>}
+                              </span>
+                              <span style={{ fontSize: '12px', fontWeight: 500, padding: '2px 8px', border: '1px solid #000000', borderRadius: '6px', color: '#000000', backgroundColor: '#ffffff' }}>
+                                {task.cr5db_project_name || (language === 'vi' ? 'Không thuộc dự án' : 'No Project')}
+                              </span>
+                            </div>
+                            <p style={{ fontSize: '14px', fontWeight: 400, color: 'rgba(0, 0, 0, 0.7)', margin: 0 }}>{task.cr5db_description}</p>
+                            <span style={{ fontSize: '12px', color: 'rgba(0, 0, 0, 0.7)' }}>
+                              {language === 'vi' ? 'Hạn:' : 'Due:'} {task.cr5db_due_date ? new Date(task.cr5db_due_date).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US') : (language === 'vi' ? 'Không giới hạn' : 'No limit')} | {language === 'vi' ? 'Phân công:' : 'Assignee:'} {task.cr5db_assignee_name}
                             </span>
                           </div>
-                          <p style={{ fontSize: '14px', fontWeight: 400, color: 'rgba(0, 0, 0, 0.7)', margin: 0 }}>{task.cr5db_description}</p>
-                          <span style={{ fontSize: '12px', color: 'rgba(0, 0, 0, 0.7)' }}>
-                            {language === 'vi' ? 'Hạn:' : 'Due:'} {task.cr5db_due_date ? new Date(task.cr5db_due_date).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US') : (language === 'vi' ? 'Không giới hạn' : 'No limit')} | {language === 'vi' ? 'Phân công:' : 'Assignee:'} {task.cr5db_assignee_name}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                          <span style={{ fontSize: '14px', fontWeight: 700, color: task.cr5db_status === 'Completed' ? '#107C41' : 'var(--color-primary)' }}>
-                            {task.cr5db_status === 'Completed' 
-                              ? (language === 'vi' ? 'Đã hoàn thành' : 'Completed') 
-                              : task.cr5db_status === 'In Progress' 
-                                ? (language === 'vi' ? 'Đang thực hiện' : 'In Progress') 
-                                : (language === 'vi' ? 'Chưa bắt đầu' : 'Not Started')}
-                          </span>
-                          {task.cr5db_status !== 'Completed' && (
-                            <button 
-                              onClick={() => handleUpdateTaskStatus(task.cr5db_taskid, 'Completed')} 
-                              style={{ height: '36px', borderRadius: '6px', border: '1px solid #000000', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: 'transparent', color: '#000000', cursor: 'pointer', transition: 'background-color 0.2s', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                            >
-                              {language === 'vi' ? 'Hoàn tất' : 'Complete'}
-                            </button>
-                          )}
-                          
-                          {(activeRole === 'Admin' || checkPermission('resources')) && (
-                            <div style={{ display: 'inline-flex', gap: '8px' }}>
-                              <button
-                                onClick={() => {
-                                  const phase = projectPhases.find(p => p.cr5db_projectphaseid === task._cr5db_projectphaseid_value);
-                                  setEditingTask(task);
-                                  setNewTaskName(task.cr5db_taskname);
-                                  setNewTaskDesc(task.cr5db_description);
-                                  setNewTaskProjectId(phase?._cr5db_projectid_value || '');
-                                  setNewTaskPhaseId(task._cr5db_projectphaseid_value || '');
-                                  setNewTaskObjectiveId(task._cr5db_objectivename_value || '');
-                                  setNewTaskParentId(task._cr5db_parenttask_value || '');
-                                  setNewTaskAssigneeId(task._cr5db_assigneeid_value || '');
-                                  setNewTaskDueDate(task.cr5db_due_date ? new Date(task.cr5db_due_date).toISOString().split('T')[0] : '');
-                                  setNewTaskStatus(task.cr5db_status);
-                                  setShowTaskModal(true);
-                                }}
-                                style={{ height: '36px', borderRadius: '6px', border: '1px solid #742774', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: 'transparent', color: '#742774', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <span style={{ fontSize: '14px', fontWeight: 700, color: task.cr5db_status === 'Completed' ? '#107C41' : 'var(--color-primary)' }}>
+                              {task.cr5db_status === 'Completed' 
+                                ? (language === 'vi' ? 'Đã hoàn thành' : 'Completed') 
+                                : task.cr5db_status === 'In Progress' 
+                                  ? (language === 'vi' ? 'Đang thực hiện' : 'In Progress') 
+                                  : (language === 'vi' ? 'Chưa bắt đầu' : 'Not Started')}
+                            </span>
+                            {task.cr5db_status !== 'Completed' && (
+                              <button 
+                                onClick={() => handleUpdateTaskStatus(task.cr5db_taskid, 'Completed')} 
+                                disabled={isTaskLocked}
+                                style={{ height: '36px', borderRadius: '6px', border: '1px solid #000000', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: 'transparent', color: '#000000', cursor: isTaskLocked ? 'not-allowed' : 'pointer', transition: 'background-color 0.2s', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', opacity: isTaskLocked ? 0.5 : 1 }}
                               >
-                                {t('common.edit')}
+                                {language === 'vi' ? 'Hoàn tất' : 'Complete'}
                               </button>
-                              <button
-                                onClick={() => handleDeleteTask(task.cr5db_taskid)}
-                                style={{ height: '36px', borderRadius: '6px', border: '1px solid #a80000', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: 'transparent', color: '#a80000', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                              >
-                                {t('common.delete')}
-                              </button>
-                            </div>
-                          )}
+                            )}
+                            
+                            {(activeRole === 'Admin' || checkPermission('resources')) && (
+                              <div style={{ display: 'inline-flex', gap: '8px' }}>
+                                <button
+                                  onClick={() => {
+                                    const phase = projectPhases.find(p => p.cr5db_projectphaseid === task._cr5db_projectphaseid_value);
+                                    setEditingTask(task);
+                                    setNewTaskName(task.cr5db_taskname);
+                                    setNewTaskDesc(task.cr5db_description);
+                                    setNewTaskProjectId(phase?._cr5db_projectid_value || '');
+                                    setNewTaskPhaseId(task._cr5db_projectphaseid_value || '');
+                                    setNewTaskObjectiveId(task._cr5db_objectivename_value || '');
+                                    setNewTaskParentId(task._cr5db_parenttask_value || '');
+                                    setNewTaskAssigneeId(task._cr5db_assigneeid_value || '');
+                                    setNewTaskDueDate(task.cr5db_due_date ? new Date(task.cr5db_due_date).toISOString().split('T')[0] : '');
+                                    setNewTaskStatus(task.cr5db_status);
+                                    setShowTaskModal(true);
+                                  }}
+                                  disabled={isTaskLocked}
+                                  style={{ height: '36px', borderRadius: '6px', border: '1px solid #742774', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: 'transparent', color: '#742774', cursor: isTaskLocked ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', opacity: isTaskLocked ? 0.5 : 1 }}
+                                >
+                                  {t('common.edit')}
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTask(task.cr5db_taskid)}
+                                  disabled={isTaskLocked}
+                                  style={{ height: '36px', borderRadius: '6px', border: '1px solid #a80000', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: 'transparent', color: '#a80000', cursor: isTaskLocked ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', opacity: isTaskLocked ? 0.5 : 1 }}
+                                >
+                                  {t('common.delete')}
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })()}
@@ -3156,23 +3717,39 @@ function App() {
                           </tr>
                         </thead>
                         <tbody>
-                          {pendingApprovalsTimesheets.map(ts => (
-                            <tr key={ts.cr5db_timesheetlogid} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                              <td style={{ padding: '12px', fontWeight: 600 }}>{ts.cr5db_username}</td>
-                              <td style={{ padding: '12px' }}>{ts.cr5db_logdate ? new Date(ts.cr5db_logdate).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US') : ''}</td>
-                              <td style={{ padding: '12px' }}>{ts.cr5db_taskname}</td>
-                              <td style={{ padding: '12px' }}>{ts.cr5db_timesheetlog1}</td>
-                              <td style={{ padding: '12px', fontWeight: 600 }}>{ts.cr5db_actualhoursworked}h</td>
-                              <td style={{ padding: '12px', display: 'flex', gap: '8px' }}>
-                                <button onClick={() => handleApproveTimesheet(ts.cr5db_timesheetlogid)} className="btn-filled-2" style={{ padding: '4px 8px' }}>
-                                  {language === 'vi' ? 'Duyệt' : 'Approve'}
-                                </button>
-                                <button onClick={() => { setTimesheetToRejectId(ts.cr5db_timesheetlogid); setShowRejectionModal(true); }} className="btn-filled-3" style={{ padding: '4px 8px', color: '#a80000' }}>
-                                  {language === 'vi' ? 'Từ chối' : 'Reject'}
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
+                          {pendingApprovalsTimesheets.map(ts => {
+                            const isTsLocked = isDateInLockedPeriod(ts.cr5db_logdate);
+                            return (
+                              <tr key={ts.cr5db_timesheetlogid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                <td style={{ padding: '12px', fontWeight: 600 }}>{ts.cr5db_username}</td>
+                                <td style={{ padding: '12px' }}>
+                                  {ts.cr5db_logdate ? new Date(ts.cr5db_logdate).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US') : ''}
+                                  {isTsLocked && <span style={{ marginLeft: '6px', color: '#a80000' }} title="Chu kỳ đã bị khóa">🔒</span>}
+                                </td>
+                                <td style={{ padding: '12px' }}>{ts.cr5db_taskname}</td>
+                                <td style={{ padding: '12px' }}>{ts.cr5db_timesheetlog1}</td>
+                                <td style={{ padding: '12px', fontWeight: 600 }}>{ts.cr5db_actualhoursworked}h</td>
+                                <td style={{ padding: '12px', display: 'flex', gap: '8px' }}>
+                                  <button 
+                                    onClick={() => handleApproveTimesheet(ts.cr5db_timesheetlogid)} 
+                                    disabled={isTsLocked}
+                                    className="btn-filled-2" 
+                                    style={{ padding: '4px 8px', opacity: isTsLocked ? 0.5 : 1, cursor: isTsLocked ? 'not-allowed' : 'pointer' }}
+                                  >
+                                    {language === 'vi' ? 'Duyệt' : 'Approve'}
+                                  </button>
+                                  <button 
+                                    onClick={() => { setTimesheetToRejectId(ts.cr5db_timesheetlogid); setShowRejectionModal(true); }} 
+                                    disabled={isTsLocked}
+                                    className="btn-filled-3" 
+                                    style={{ padding: '4px 8px', color: '#a80000', opacity: isTsLocked ? 0.5 : 1, cursor: isTsLocked ? 'not-allowed' : 'pointer' }}
+                                  >
+                                    {language === 'vi' ? 'Từ chối' : 'Reject'}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     )}
@@ -3422,9 +3999,13 @@ function App() {
                                 const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
                                 const rate = calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.new_direction);
                                 const employeeName = usersList.find(u => u.cr5db_userid === k._cr5db_employeeid_value)?.cr5db_fullname || k.cr5db_user_email.split('@')[0];
+                                const isLocked = getObjectivePeriodLockStatus(k._cr5db_parentobjective_value);
                                 return (
                                   <tr key={k.cr5db_kpitargetid} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                    <td style={{ padding: '14px 20px', fontWeight: 600 }}>{k.cr5db_kpiname}</td>
+                                    <td style={{ padding: '14px 20px', fontWeight: 600 }}>
+                                      {k.cr5db_kpiname}
+                                      {isLocked && <span style={{ marginLeft: '6px', color: '#a80000' }} title="Chu kỳ đã bị khóa">🔒</span>}
+                                    </td>
                                     {activeRole !== 'Employee' && <td style={{ padding: '14px 20px' }}>{employeeName}</td>}
                                     <td style={{ padding: '14px 20px' }}>{k.cr5db_objective_name || 'Chưa liên kết'}</td>
                                     <td style={{ padding: '14px 20px' }}>{k.cr5db_period}</td>
@@ -3458,7 +4039,8 @@ function App() {
                                               setShowKpiModal(true);
                                             }}
                                             className="btn-filled-3"
-                                            style={{ padding: '4px 8px', fontSize: '12px' }}
+                                            disabled={isLocked}
+                                            style={{ padding: '4px 8px', fontSize: '12px', opacity: isLocked ? 0.5 : 1, cursor: isLocked ? 'not-allowed' : 'pointer' }}
                                           >
                                             Cập nhật thực tế
                                           </button>
@@ -3479,14 +4061,16 @@ function App() {
                                                 setShowKpiModal(true);
                                               }}
                                               className="btn-filled-3"
-                                              style={{ padding: '4px 8px', fontSize: '12px' }}
+                                              disabled={isLocked}
+                                              style={{ padding: '4px 8px', fontSize: '12px', opacity: isLocked ? 0.5 : 1, cursor: isLocked ? 'not-allowed' : 'pointer' }}
                                             >
                                               Sửa
                                             </button>
                                             <button
                                               onClick={() => handleDeleteKpi(k.cr5db_kpitargetid)}
                                               className="btn-filled-3"
-                                              style={{ padding: '4px 8px', fontSize: '12px', color: '#a80000', borderColor: '#fde7e9' }}
+                                              disabled={isLocked}
+                                              style={{ padding: '4px 8px', fontSize: '12px', color: '#a80000', borderColor: '#fde7e9', opacity: isLocked ? 0.5 : 1, cursor: isLocked ? 'not-allowed' : 'pointer' }}
                                             >
                                               Xóa
                                             </button>
@@ -3797,34 +4381,45 @@ function App() {
                         </tr>
                       </thead>
                       <tbody>
-                        {appraisals.filter(ap => ap.cr5db_employeeemail?.toLowerCase() === currentUserEmail.toLowerCase()).map(ap => (
-                          <tr key={ap.cr5db_performanceappraisalid} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                            <td style={{ padding: '14px 20px', fontWeight: 600 }}>{ap.cr5db_performanceappraisal1}</td>
-                            <td style={{ padding: '14px 20px' }}>{ap.cr5db_evaluatorname}</td>
-                            <td style={{ padding: '14px 20px' }}>
-                              {(() => {
-                                const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === ap.cr5db_periodname);
-                                const isLocked = !!periodObj?.cr5db_islocked;
-                                return (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <input 
-                                      type="number" 
-                                      min={0} 
-                                      max={100}
-                                      defaultValue={ap.cr5db_selfscore}
-                                      onBlur={(e) => handleUpdateSelfAppraisalScore(ap.cr5db_performanceappraisalid, Number(e.target.value))}
-                                      style={{ width: '60px', padding: '4px 8px', border: '1px solid var(--color-border)', borderRadius: '4px', backgroundColor: isLocked ? '#F3F2F1' : 'white' }}
-                                      disabled={isLocked}
-                                    />
-                                    <span style={{ fontSize: '13px' }}>/100</span>
-                                    {isLocked && <span style={{ fontSize: '11px', color: '#ff8c00', fontWeight: 600, marginLeft: '6px' }}>(Đã khóa)</span>}
-                                  </div>
-                                );
-                              })()}
-                            </td>
-                            <td style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-primary)' }}>{ap.cr5db_finalscore}/100</td>
-                          </tr>
-                        ))}
+                        {appraisals.filter(ap => ap.cr5db_employeeemail?.toLowerCase() === currentUserEmail.toLowerCase()).map(ap => {
+                          const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === ap.cr5db_periodname);
+                          const isLocked = !!periodObj?.cr5db_islocked;
+                          const isSubmitted = ap.statecode === 1 || ap.statuscode === 2;
+                          return (
+                            <tr key={ap.cr5db_performanceappraisalid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                              <td style={{ padding: '14px 20px', fontWeight: 600 }}>{ap.cr5db_performanceappraisal1}</td>
+                              <td style={{ padding: '14px 20px' }}>{ap.cr5db_evaluatorname}</td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <input 
+                                    type="number" 
+                                    min={0} 
+                                    max={100}
+                                    defaultValue={ap.cr5db_selfscore}
+                                    onBlur={(e) => handleUpdateSelfAppraisalScore(ap.cr5db_performanceappraisalid, Number(e.target.value))}
+                                    style={{ width: '60px', padding: '4px 8px', border: '1px solid var(--color-border)', borderRadius: '4px', backgroundColor: (isLocked || isSubmitted) ? '#F3F2F1' : 'white' }}
+                                    disabled={isLocked || isSubmitted}
+                                  />
+                                  <span style={{ fontSize: '13px' }}>/100</span>
+                                  {isLocked ? (
+                                    <span style={{ fontSize: '11px', color: '#ff8c00', fontWeight: 600, marginLeft: '6px' }}>(Đã khóa)</span>
+                                  ) : isSubmitted ? (
+                                    <span style={{ fontSize: '11.5px', color: '#107C41', fontWeight: 600, backgroundColor: '#DFF6DD', padding: '2px 6px', borderRadius: '4px' }}>Đã nộp</span>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleSubmitAppraisal(ap.cr5db_performanceappraisalid)}
+                                      className="btn-filled-2"
+                                      style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 600 }}
+                                    >
+                                      Nộp
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-primary)' }}>{ap.cr5db_finalscore}/100</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -3841,33 +4436,50 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {appraisals.map(ap => (
-                        <tr key={ap.cr5db_performanceappraisalid} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                          <td style={{ padding: '14px 20px', fontWeight: 600 }}>{ap.cr5db_employeename}</td>
-                          <td style={{ padding: '14px 20px' }}>{ap.cr5db_performanceappraisal1}</td>
-                          <td style={{ padding: '14px 20px' }}>{ap.cr5db_selfscore}/100</td>
-                          <td style={{ padding: '14px 20px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <input 
-                                type="number" 
-                                min={0} 
-                                max={100}
-                                defaultValue={ap.cr5db_finalscore}
-                                onBlur={(e) => handleUpdateAppraisalScore(ap.cr5db_performanceappraisalid, Number(e.target.value))}
-                                style={{ width: '60px', padding: '4px 8px', border: '1px solid var(--color-border)', borderRadius: '4px' }}
-                              />
-                              <span style={{ fontSize: '13px' }}>/100</span>
-                              <button 
-                                onClick={() => handleAutoCalculateAppraisal(ap.cr5db_performanceappraisalid, ap.cr5db_employeeemail)}
-                                className="btn-filled-3"
-                                style={{ padding: '4px 8px', fontSize: '11px' }}
-                              >
-                                Tự tính
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                      {appraisals.map(ap => {
+                        const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === ap.cr5db_periodname);
+                        const isLocked = !!periodObj?.cr5db_islocked;
+                        const isSubmitted = ap.statecode === 1 || ap.statuscode === 2;
+                        return (
+                          <tr key={ap.cr5db_performanceappraisalid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '14px 20px', fontWeight: 600 }}>{ap.cr5db_employeename}</td>
+                            <td style={{ padding: '14px 20px' }}>{ap.cr5db_performanceappraisal1}</td>
+                            <td style={{ padding: '14px 20px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>{ap.cr5db_selfscore}/100</span>
+                                {isSubmitted ? (
+                                  <span style={{ fontSize: '11px', color: '#107C41', backgroundColor: '#DFF6DD', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>Đã nộp</span>
+                                ) : (
+                                  <span style={{ fontSize: '11px', color: '#E29E2E', backgroundColor: '#FFF9E6', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>Chưa nộp</span>
+                                )}
+                              </div>
+                            </td>
+                            <td style={{ padding: '14px 20px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <input 
+                                  type="number" 
+                                  min={0} 
+                                  max={100}
+                                  defaultValue={ap.cr5db_finalscore}
+                                  onBlur={(e) => handleUpdateAppraisalScore(ap.cr5db_performanceappraisalid, Number(e.target.value))}
+                                  style={{ width: '60px', padding: '4px 8px', border: '1px solid var(--color-border)', borderRadius: '4px', backgroundColor: isLocked ? '#F3F2F1' : 'white' }}
+                                  disabled={isLocked}
+                                />
+                                <span style={{ fontSize: '13px' }}>/100</span>
+                                <button 
+                                  onClick={() => handleAutoCalculateAppraisal(ap.cr5db_performanceappraisalid, ap.cr5db_employeeemail)}
+                                  className="btn-filled-3"
+                                  disabled={isLocked}
+                                  style={{ padding: '4px 8px', fontSize: '11px', opacity: isLocked ? 0.5 : 1, cursor: isLocked ? 'not-allowed' : 'pointer' }}
+                                >
+                                  Tự tính
+                                </button>
+                                {isLocked && <span style={{ fontSize: '11.5px', color: '#ff8c00', fontWeight: 600, marginLeft: '6px' }}>🔒 Đã khóa</span>}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -5659,35 +6271,53 @@ function App() {
                           </tr>
                         </thead>
                         <tbody>
-                          {objectivesList.map((obj: any) => (
-                            <tr key={obj.cr5db_objectiveid} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
-                              <td style={{ padding: '14px 16px' }}>
-                                <div style={{ fontWeight: 600, color: 'var(--color-text)' }}>{obj.cr5db_objective1}</div>
-                                {obj.cr5db_periodnamename && (
-                                  <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>Ky: {obj.cr5db_periodnamename}</div>
-                                )}
-                              </td>
-                              <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 700, color: 'var(--color-primary)', fontSize: '16px' }}>
-                                {obj.cr5db_targetvalue ?? '--'}
-                              </td>
-                              <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                                <span style={{ background: '#ede9fe', color: '#7c3aed', borderRadius: '12px', padding: '3px 12px', fontSize: '12px', fontWeight: 700 }}>
-                                  {kpiTargets.filter((k: any) => k._cr5db_parentobjective_value === obj.cr5db_objectiveid).length}
-                                </span>
-                              </td>
-                              <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                                <span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: '12px', padding: '3px 12px', fontSize: '12px', fontWeight: 700 }}>
-                                  {tasks.filter((t: any) => t._cr5db_objectivename_value === obj.cr5db_objectiveid).length}
-                                </span>
-                              </td>
-                              <td style={{ padding: '14px 16px' }}>
-                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                  <button onClick={() => { setEditingObjective(obj); setObjectiveName(obj.cr5db_objective1); setObjectiveTarget(obj.cr5db_targetvalue ?? 100); setObjectivePeriodId(obj._cr5db_periodname_value || ''); setShowObjectiveModal(true); }} style={{ padding: '5px 12px', fontSize: '12px', border: '1px solid var(--color-border)', borderRadius: '6px', cursor: 'pointer', background: 'transparent', fontWeight: 600 }}>Sua</button>
-                                  <button onClick={() => handleDeleteObjective(obj.cr5db_objectiveid)} style={{ padding: '5px 12px', fontSize: '12px', border: '1px solid #fca5a5', borderRadius: '6px', cursor: 'pointer', background: 'transparent', color: '#dc2626', fontWeight: 600 }}>Xoa</button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
+                          {objectivesList.map((obj: any) => {
+                             const isObjLocked = !!evaluationPeriodsList.find(p => p.cr5db_evaluationperiodid === obj._cr5db_periodname_value)?.cr5db_islocked;
+                             return (
+                               <tr key={obj.cr5db_objectiveid} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+                                 <td style={{ padding: '14px 16px' }}>
+                                   <div style={{ fontWeight: 600, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                     {obj.cr5db_objective1}
+                                     {isObjLocked && <span style={{ color: '#a80000' }} title="Chu kỳ đã bị khóa">🔒</span>}
+                                   </div>
+                                   {obj.cr5db_periodnamename && (
+                                     <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>Ky: {obj.cr5db_periodnamename}</div>
+                                   )}
+                                 </td>
+                                 <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 700, color: 'var(--color-primary)', fontSize: '16px' }}>
+                                   {obj.cr5db_targetvalue ?? '--'}
+                                 </td>
+                                 <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                   <span style={{ background: '#ede9fe', color: '#7c3aed', borderRadius: '12px', padding: '3px 12px', fontSize: '12px', fontWeight: 700 }}>
+                                     {kpiTargets.filter((k: any) => k._cr5db_parentobjective_value === obj.cr5db_objectiveid).length}
+                                   </span>
+                                 </td>
+                                 <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                   <span style={{ background: '#dcfce7', color: '#16a34a', borderRadius: '12px', padding: '3px 12px', fontSize: '12px', fontWeight: 700 }}>
+                                     {tasks.filter((t: any) => t._cr5db_objectivename_value === obj.cr5db_objectiveid).length}
+                                   </span>
+                                 </td>
+                                 <td style={{ padding: '14px 16px' }}>
+                                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                     <button 
+                                       onClick={() => { setEditingObjective(obj); setObjectiveName(obj.cr5db_objective1); setObjectiveTarget(obj.cr5db_targetvalue ?? 100); setObjectivePeriodId(obj._cr5db_periodname_value || ''); setShowObjectiveModal(true); }} 
+                                       disabled={isObjLocked}
+                                       style={{ padding: '5px 12px', fontSize: '12px', border: '1px solid var(--color-border)', borderRadius: '6px', cursor: isObjLocked ? 'not-allowed' : 'pointer', background: 'transparent', fontWeight: 600, opacity: isObjLocked ? 0.5 : 1 }}
+                                     >
+                                       Sua
+                                     </button>
+                                     <button 
+                                       onClick={() => handleDeleteObjective(obj.cr5db_objectiveid)} 
+                                       disabled={isObjLocked}
+                                       style={{ padding: '5px 12px', fontSize: '12px', border: '1px solid #fca5a5', borderRadius: '6px', cursor: isObjLocked ? 'not-allowed' : 'pointer', background: 'transparent', color: '#dc2626', fontWeight: 600, opacity: isObjLocked ? 0.5 : 1 }}
+                                     >
+                                       Xoa
+                                     </button>
+                                   </div>
+                                 </td>
+                               </tr>
+                             );
+                           })}
                         </tbody>
                       </table>
                     </div>
@@ -7691,6 +8321,61 @@ function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Dashboard Settings Modal */}
+      {showDashboardSettingsModal && (
+        <div className="modal-overlay" style={{ display: 'flex' }}>
+          <div className="modal-content" style={{ width: '480px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Cấu hình Dashboard Widgets</h3>
+              <button 
+                onClick={() => setShowDashboardSettingsModal(false)}
+                style={{ background: 'transparent', border: 'none', fontSize: '18px', cursor: 'pointer', fontWeight: 700 }}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
+              Lựa chọn các widget hiển thị trên Dashboard chính của bạn:
+            </p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto', marginBottom: '20px', paddingRight: '8px' }}>
+              {Object.entries(widgetsRegistry)
+                .filter(([_, w]) => w.roles.includes(activeRole))
+                .map(([id, w]) => {
+                  const isChecked = enabledWidgets.includes(id);
+                  return (
+                    <label key={id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', border: '1px solid var(--color-border-light)', borderRadius: '6px', cursor: 'pointer', transition: 'background-color 0.2s' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={isChecked}
+                        onChange={() => {
+                          if (isChecked) {
+                            saveEnabledWidgets(enabledWidgets.filter(x => x !== id));
+                          } else {
+                            saveEnabledWidgets([...enabledWidgets, id]);
+                          }
+                        }}
+                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                      />
+                      <div>
+                        <div style={{ fontSize: '13.5px', fontWeight: 600 }}>{w.title}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Kích thước: {w.size === 'small' ? 'Nhỏ' : w.size === 'medium' ? 'Trung bình' : 'Lớn'}</div>
+                      </div>
+                    </label>
+                  );
+                })}
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowDashboardSettingsModal(false)} className="btn-filled-2" style={{ padding: '8px 20px', borderRadius: '4px' }}>
+                Hoàn tất
+              </button>
+            </div>
           </div>
         </div>
       )}

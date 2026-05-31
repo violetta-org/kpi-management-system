@@ -430,11 +430,48 @@ export function useLiveData(setters: LiveDataSetters) {
         const employee = allUsers.find((u: User) => u.cr5db_userid === k._cr5db_employeeid_value);
         const libraryItem = rawKpiLibraries.find((lib: any) => lib.cr5db_kpilibraryid === k._cr5db_kpicode_value);
         const parentObjective = mappedObjectives.find((obj: any) => obj.cr5db_objectiveid === k._cr5db_parentobjective_value);
+        let dynamicActual = k.cr5db_actualvalue || 0;
+        if (libraryItem?.cr5db_formula) {
+          const formula = libraryItem.cr5db_formula.trim();
+          if (formula === '#TASKS_ON_TIME') {
+            const userObjTasks = rawTasks.filter((t: any) => 
+              t._cr5db_assigneeid_value === k._cr5db_employeeid_value &&
+              t._cr5db_objectivename_value === k._cr5db_parentobjective_value
+            );
+            if (userObjTasks.length > 0) {
+              const completedTasks = userObjTasks.filter((t: any) => t.statecode === 1);
+              dynamicActual = Math.round((completedTasks.length / userObjTasks.length) * 100);
+            } else {
+              const userTasks = rawTasks.filter((t: any) => t._cr5db_assigneeid_value === k._cr5db_employeeid_value);
+              if (userTasks.length > 0) {
+                const completedTasks = userTasks.filter((t: any) => t.statecode === 1);
+                dynamicActual = Math.round((completedTasks.length / userTasks.length) * 100);
+              } else {
+                dynamicActual = 100;
+              }
+            }
+          } else if (formula === '#HOURS_LOGGED') {
+            const userTimesheets = rawTimesheets.filter((ts: any) => ts._cr5db_userid_value === k._cr5db_employeeid_value);
+            const period = rawEvaluationPeriods.find((ep: any) => ep.cr5db_evaluationperiodid === parentObjective?._cr5db_periodname_value);
+            if (period) {
+              const start = period.cr5db_startdate ? new Date(period.cr5db_startdate) : null;
+              const end = period.cr5db_enddate ? new Date(period.cr5db_enddate) : null;
+              const filteredTs = userTimesheets.filter((ts: any) => {
+                if (!ts.cr5db_logdate) return false;
+                const d = new Date(ts.cr5db_logdate);
+                return (!start || d >= start) && (!end || d <= end);
+              });
+              dynamicActual = filteredTs.reduce((sum: number, ts: any) => sum + (ts.cr5db_actualhoursworked || 0), 0);
+            } else {
+              dynamicActual = userTimesheets.reduce((sum: number, ts: any) => sum + (ts.cr5db_actualhoursworked || 0), 0);
+            }
+          }
+        }
         return {
           cr5db_kpitargetid: k.cr5db_kpitargetid,
           cr5db_kpiname: k.cr5db_kpitarget1 || libraryItem?.cr5db_kpiname || 'Mục tiêu KPI',
           cr5db_targetvalue: k.cr5db_targetvalue || 100,
-          cr5db_actualvalue: k.cr5db_actualvalue || 0,
+          cr5db_actualvalue: dynamicActual,
           cr5db_unit: libraryItem?.cr5db_unit || '%',
           cr5db_weightpercentage: k.cr5db_weightpercentage || 0,
           cr5db_user_email: employee?.cr5db_email || '',

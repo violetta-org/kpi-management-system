@@ -25,6 +25,8 @@ export interface Task {
   _cr5db_assigneeid_value?: string;
   createdbyname?: string;
   _createdby_value?: string;
+  modifiedon?: string;
+  createdon?: string;
 }
 
 export interface HeadcountRequest {
