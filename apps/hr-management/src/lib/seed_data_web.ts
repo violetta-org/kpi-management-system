@@ -1137,7 +1137,7 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
           if (uId) {
             const allocData = await safeCreate(`ResourceAllocation[${email.split('@')[0]}]`, () => Cr5db_resourceallocationsService.create({
               cr5db_resourceallocation1: `Allocation for ${email.split('@')[0]}`,
-              cr5db_allocationpercentage: 100,
+              cr5db_allocationpercentage: email === "dev2@company.com" ? 150 : 100, // Charlie = 150% for overloaded demo
               "cr5db_UserID@odata.bind": bindOData("cr5db_users", uId),
               "cr5db_ProjectTeamID@odata.bind": bindOData("cr5db_projectteams", teamId)
             } as any));
@@ -1227,6 +1227,18 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
         "cr5db_TaskID@odata.bind": bindOData("cr5db_tasks", taskId)
       } as any));
     }
+
+    // Seed 5 active tasks for Charlie (Flight Risk/Workload Demo)
+    const charlieId = guids["users"]["dev2@company.com"];
+    for (let i = 1; i <= 5; i++) {
+      await safeCreate(`Task[Charlie Active Task ${i}]`, () => Cr5db_tasksService.create({
+        cr5db_taskname: `Nhiệm vụ chưa hoàn thành ${i} của Charlie`,
+        cr5db_description: `Demo Overloaded: Đây là task đang active số ${i}`,
+        cr5db_duedate: "2026-06-15T17:00:00Z",
+        cr5db_status: "In Progress",
+        "cr5db_AssigneeID@odata.bind": bindOData("cr5db_users", charlieId)
+      } as any));
+    }
   });
 
   // 13. Appraisals
@@ -1248,6 +1260,30 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
         cr5db_comment: "Nhân sự hoàn thành xuất sắc nhiệm vụ và đóng góp tích cực vào tiến trình thiết lập hệ thống.",
         "cr5db_AppraisalName@odata.bind": bindOData("cr5db_performanceappraisals", appraisalId),
         "cr5db_TargetId@odata.bind": bindOData("cr5db_kpitargets", guids["kpitarget"])
+      } as any));
+    }
+
+    // Seed low appraisal for Charlie (Flight Risk Demo)
+    const charlieId = guids["users"]["dev2@company.com"];
+    await safeCreate('PerformanceAppraisal[Charlie]', () => Cr5db_performanceappraisalsService.create({
+      cr5db_performanceappraisal1: "Đánh giá hiệu suất Charlie Q2/2026",
+      cr5db_selfscore: 70,
+      cr5db_finalscore: 55, // Low score < 60
+      "cr5db_EmployeeID@odata.bind": bindOData("cr5db_users", charlieId),
+      "cr5db_PeriodID@odata.bind": bindOData("cr5db_evaluationperiods", guids["periods"]?.[0])
+    } as any));
+  });
+
+  // 13.5. Leave Requests
+  await tryCall("Tạo dữ liệu Nghỉ phép (Leave Requests)...", async () => {
+    // Seed 2 Sick Leaves for Charlie (Flight Risk Demo)
+    const charlieId = guids["users"]["dev2@company.com"];
+    for (let i = 1; i <= 2; i++) {
+      await safeCreate(`LeaveRequest[Sick Leave ${i} Charlie]`, () => New_leaverequestService.create({
+        new_leaverequest1: `Nghỉ ốm lần ${i}`,
+        new_leavetype: "Sick Leave",
+        new_status: "Approved",
+        "new_EmployeeID@odata.bind": bindOData("cr5db_users", charlieId)
       } as any));
     }
   });

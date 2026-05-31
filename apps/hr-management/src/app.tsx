@@ -2268,6 +2268,182 @@ function App() {
 
   const handleSavePeriod = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newLeaveStartDate || !newLeaveEndDate || !newLeaveReason.trim()) {
+      alert('Vui lòng điền đầy đủ thông tin (Ngày bắt đầu, kết thúc, lý do).');
+      return;
+    }
+    const days = calculateWorkingDays(newLeaveStartDate, newLeaveEndDate);
+    if (days <= 0) {
+      alert('Khoảng thời gian không hợp lệ hoặc không có ngày làm việc.');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await New_leaverequestService.create({
+        new_name: `Nghỉ ${newLeaveType} - ${currentUserName}`,
+        new_leavetype: newLeaveType,
+        new_startdate: new Date(newLeaveStartDate).toISOString(),
+        new_enddate: new Date(newLeaveEndDate).toISOString(),
+        new_durationdays: days,
+        new_reason: newLeaveReason,
+        new_status: 'Pending',
+        "_new_employeeid_value@odata.bind": `/cr5db_userses(${currentUserId})`
+      } as any);
+      setShowLeaveModal(false);
+      setNewLeaveStartDate('');
+      setNewLeaveEndDate('');
+      setNewLeaveReason('');
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi gửi đơn xin nghỉ phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleApproveLeave = async (leaveId: string) => {
+    try {
+      setIsLoading(true);
+      const leave = leaveRequestsList.find(lr => lr.new_leaverequestid === leaveId);
+      if (leave) {
+        await New_leaverequestService.update(leaveId, {
+          new_status: 'Approved'
+        });
+        if (leave.new_leavetype === 'Annual Leave') {
+          // Trừ vào quỹ phép (cộng vào số ngày đã dùng)
+          const balance = leaveBalancesList.find(lb => lb._new_employeeid_value === leave._new_employeeid_value && lb.new_year === new Date(leave.new_startdate).getFullYear());
+          if (balance) {
+            await New_leavebalanceService.update(balance.new_leavebalanceid, {
+              new_useddays: (balance.new_useddays || 0) + leave.new_durationdays
+            });
+          }
+        }
+      }
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi duyệt phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleRejectLeave = async (leaveId: string) => {
+    try {
+      setIsLoading(true);
+      await New_leaverequestService.update(leaveId, {
+        new_status: 'Rejected'
+      });
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi từ chối phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveLeaveBalance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLeaveBalance) return;
+    try {
+      setIsLoading(true);
+      await New_leavebalanceService.update(editingLeaveBalance.new_leavebalanceid, {
+        new_totalentitlement: parseInt(newBalanceEntitlement) || 0,
+        new_carriedover: parseInt(newBalanceCarriedOver) || 0,
+        new_useddays: parseInt(newBalanceUsedDays) || 0
+      });
+      setShowLeaveBalanceModal(false);
+      setEditingLeaveBalance(null);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi cập nhật quỹ phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleHolidaySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newHolidayName.trim() || !newHolidayDate) return;
+    try {
+      setIsLoading(true);
+      await New_holidayService.create({
+        new_name: newHolidayName,
+        new_date: new Date(newHolidayDate).toISOString()
+      });
+      setShowHolidayModal(false);
+      setNewHolidayName('');
+      setNewHolidayDate('');
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi thêm ngày lễ.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleOvertimeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOtDate || !newOtStartTime || !newOtEndTime || !newOtHours || !newOtReason.trim()) {
+      alert('Vui lòng điền đầy đủ thông tin OT.');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await New_overtimerequestService.create({
+        new_name: `OT ${newOtDate} - ${currentUserName}`,
+        new_date: new Date(newOtDate).toISOString(),
+        new_starttime: newOtStartTime,
+        new_endtime: newOtEndTime,
+        new_hours: parseFloat(newOtHours),
+        new_ottype: newOtType,
+        new_reason: newOtReason,
+        new_status: 'Pending',
+        "_new_employeeid_value@odata.bind": `/cr5db_userses(${currentUserId})`
+      } as any);
+      setShowOvertimeModal(false);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi gửi đơn OT.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleApproveOtSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otToApproveId) return;
+    try {
+      setIsLoading(true);
+      await New_overtimerequestService.update(otToApproveId, {
+        new_status: 'Approved',
+        new_approvedhours: parseFloat(otApprovedHours) || 0
+      });
+      setShowOtApprovalModal(false);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi duyệt OT.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleRejectOt = async (otId: string) => {
+    try {
+      setIsLoading(true);
+      await New_overtimerequestService.update(otId, {
+        new_status: 'Rejected',
+        new_approvedhours: 0
+      });
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi từ chối OT.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleSavePeriod = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!newPeriodName.trim()) return;
     if (editingPeriod && editingPeriod.cr5db_islocked) {
       alert("Chu kỳ đang khóa. Vui lòng mở khóa chu kỳ trước khi sửa thông tin.");
@@ -3809,6 +3985,39 @@ function App() {
           return userPos?._cr5db_department_value === currentUserDeptId;
         });
       }
+    }
+    
+    const scoredUsers = pool.map(u => {
+      // 1. Calculate Availability
+      const userAllocations = resourceAllocationsList.filter(a => a._cr5db_userid_value === u.cr5db_userid);
+      const totalAllocation = userAllocations.reduce((sum, a) => sum + (Number(a.cr5db_allocationpercentage) || 0), 0);
+      const availability = Math.max(0, 100 - totalAllocation);
+      
+      // 2. Skill Match (Deterministic pseudo-random 40-95 for demo)
+      const emailLen = u.cr5db_email ? u.cr5db_email.length : 10;
+      const skillMatch = 40 + ((emailLen * 13) % 55); 
+      
+      // 3. Combine: 60% Skill Match + 40% Availability
+      const fitScore = Math.round((skillMatch * 0.6) + (availability * 0.4));
+      
+      return {
+        user: u,
+        availability,
+        skillMatch,
+        fitScore
+      };
+    });
+    
+    scoredUsers.sort((a, b) => b.fitScore - a.fitScore);
+    setAiSuggestions(scoredUsers.slice(0, 3));
+    setShowAiSuggestions(true);
+  };
+
+  const handleSaveAllocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!allocationUser || !allocationProject) {
+      alert("Vui lòng chọn đầy đủ nhân sự và dự án.");
+      return;
     }
     
     const scoredUsers = pool.map(u => {
@@ -5426,6 +5635,199 @@ function App() {
               ) : null}
             </div>
           )}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
+                    {myLeaveBalances.map(lb => (
+                      <div key={lb.new_leavebalanceid} className="metric-card" style={{ gap: '12px', padding: '20px', borderLeft: '4px solid #107C41' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 600 }}>{lb.new_name} ({lb.new_year})</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                          <span>Tổng cộng: <strong style={{ color: '#107C41' }}>{lb.new_totalentitlement + lb.new_carriedover} ngày</strong></span>
+                          <span>Đã dùng: <strong style={{ color: '#E29E2E' }}>{lb.new_useddays} ngày</strong></span>
+                          <span>Còn lại: <strong>{(lb.new_totalentitlement + lb.new_carriedover) - lb.new_useddays} ngày</strong></span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {myLeaves.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', background: '#FAF9F9', borderRadius: '8px' }}>
+                      Chưa có đơn xin nghỉ phép nào.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '12px' }}>Loại phép</th>
+                          <th style={{ padding: '12px' }}>Bắt đầu</th>
+                          <th style={{ padding: '12px' }}>Kết thúc</th>
+                          <th style={{ padding: '12px' }}>Số ngày</th>
+                          <th style={{ padding: '12px' }}>Lý do</th>
+                          <th style={{ padding: '12px' }}>Trạng thái</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {myLeaves.map(lr => (
+                          <tr key={lr.new_leaverequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{lr.new_leavetype}</td>
+                            <td style={{ padding: '12px' }}>{new Date(lr.new_startdate).toLocaleDateString('vi-VN')}</td>
+                            <td style={{ padding: '12px' }}>{new Date(lr.new_enddate).toLocaleDateString('vi-VN')}</td>
+                            <td style={{ padding: '12px' }}>{lr.new_durationdays}</td>
+                            <td style={{ padding: '12px' }}>{lr.new_reason}</td>
+                            <td style={{ padding: '12px' }}>
+                              <span className={
+                                lr.new_status === 'Pending' ? 'status-pending'
+                                : lr.new_status === 'Rejected' ? 'status-rejected'
+                                : 'status-approved'
+                              }>
+                                {lr.new_status === 'Pending' ? 'Chờ duyệt' : lr.new_status === 'Rejected' ? 'Từ chối' : 'Đã duyệt'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ) : activeTimesheetSubTab === 'approvals' ? (
+                <>
+                  <div className="large-card" style={{ padding: '24px' }}>
+                    {pendingApprovalsTimesheets.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+                        {language === 'vi' ? 'Không có timesheet nào đang chờ phê duyệt.' : 'No timesheets awaiting review.'}
+                      </div>
+                    ) : (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Nhân viên' : 'Employee'}</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Ngày ghi nhận' : 'Log Date'}</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Nhiệm vụ' : 'Task'}</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Mô tả' : 'Description'}</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Số giờ' : 'Hours'}</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Thao tác' : 'Actions'}</th>
+              ) : activeTimesheetSubTab === 'leave-approvals' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '24px' }}>Đơn xin nghỉ chờ duyệt</h3>
+                  {pendingLeaveApprovals.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', background: '#FAF9F9', borderRadius: '8px' }}>
+                      Không có đơn xin nghỉ phép nào đang chờ duyệt.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '12px' }}>Nhân viên</th>
+                          <th style={{ padding: '12px' }}>Loại phép</th>
+                          <th style={{ padding: '12px' }}>Từ ngày</th>
+                          <th style={{ padding: '12px' }}>Đến ngày</th>
+                          <th style={{ padding: '12px' }}>Số ngày</th>
+                          <th style={{ padding: '12px' }}>Lý do</th>
+                          <th style={{ padding: '12px' }}>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingLeaveApprovals.map(lr => {
+                          const emp = usersList.find(u => u.cr5db_userid === lr._new_employeeid_value);
+                          return (
+                            <tr key={lr.new_leaverequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                              <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                              <td style={{ padding: '12px' }}>{lr.new_leavetype}</td>
+                              <td style={{ padding: '12px' }}>{new Date(lr.new_startdate).toLocaleDateString('vi-VN')}</td>
+                              <td style={{ padding: '12px' }}>{new Date(lr.new_enddate).toLocaleDateString('vi-VN')}</td>
+                              <td style={{ padding: '12px', fontWeight: 600 }}>{lr.new_durationdays}</td>
+                              <td style={{ padding: '12px' }}>{lr.new_reason}</td>
+                              <td style={{ padding: '12px', display: 'flex', gap: '8px' }}>
+                                <button onClick={() => handleApproveLeave(lr.new_leaverequestid)} className="btn-filled-2" style={{ padding: '4px 8px' }}>Duyệt</button>
+                                <button onClick={() => handleRejectLeave(lr.new_leaverequestid)} className="btn-filled-3" style={{ padding: '4px 8px', color: '#a80000' }}>Từ chối</button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ) : activeTimesheetSubTab === 'leave-balances' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Quản lý Quỹ phép (Admin)</h3>
+                    <button className="btn-filled-3" style={{ fontSize: '13px', fontWeight: 600 }}>+ Cấp phép mới</button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Nhân viên</th>
+                        <th style={{ padding: '12px' }}>Năm</th>
+                        <th style={{ padding: '12px' }}>Phép chuẩn</th>
+                        <th style={{ padding: '12px' }}>Tồn năm trước</th>
+                        <th style={{ padding: '12px' }}>Đã dùng</th>
+                        <th style={{ padding: '12px' }}>Còn lại</th>
+                        <th style={{ padding: '12px' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leaveBalancesList.map(lb => {
+                        const emp = usersList.find(u => u.cr5db_userid === lb._new_employeeid_value);
+                        return (
+                          <tr key={lb.new_leavebalanceid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_year}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_totalentitlement}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_carriedover}</td>
+                            <td style={{ padding: '12px', color: '#E29E2E' }}>{lb.new_useddays}</td>
+                            <td style={{ padding: '12px', fontWeight: 600, color: '#107C41' }}>{(lb.new_totalentitlement + lb.new_carriedover) - lb.new_useddays}</td>
+                            <td style={{ padding: '12px' }}>
+                              <button
+                                className="btn-filled-2"
+                                style={{ padding: '4px 8px' }}
+                                onClick={() => {
+                                  setEditingLeaveBalance(lb);
+                                  setNewBalanceEntitlement(lb.new_totalentitlement.toString());
+                                  setNewBalanceCarriedOver(lb.new_carriedover.toString());
+                                  setNewBalanceUsedDays((lb.new_useddays || 0).toString());
+                                  setShowLeaveBalanceModal(true);
+                                }}
+                              >
+                                Cập nhật
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : activeTimesheetSubTab === 'holidays' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Cấu hình Ngày Lễ</h3>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>Danh sách các ngày nghỉ Lễ, Tết (Tự động trừ vào logic nghỉ phép)</p>
+                    </div>
+                    <button 
+                      className="btn-primary" 
+                      style={{ fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px' }}
+                      onClick={() => {
+                        setNewHolidayName('');
+                        setNewHolidayDate('');
+                        setShowHolidayModal(true);
+                      }}
+                    >
+                      + Thêm Ngày Lễ
+                    </button>
+                  </div>
+                </>
+              ) : activeTimesheetSubTab === 'my-leaves' ? (
+                <div className="card-spec" style={{ padding: '32px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Phép của tôi</h3>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '2px' }}>Quản lý ngày phép và đơn xin nghỉ</p>
+                    </div>
+                    <button onClick={() => setShowLeaveModal(true)} className="btn-filled-3" style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>+</span> Xin nghỉ phép
+                    </button>
+                  </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
                     {myLeaveBalances.map(lb => (
