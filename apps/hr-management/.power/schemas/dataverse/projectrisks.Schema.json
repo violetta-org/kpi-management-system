@@ -245,6 +245,13 @@
           "required": true,
           "maxLength": 100
         },
+        "cr5db_ProjectID": {
+          "type": "string",
+          "title": "Project",
+          "x-ms-dataverse-attribute": "cr5db_projectid",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "cr5db_ProjectID"
+        },
         "owningbusinessunit": {
           "type": "string",
           "title": "Owning Business Unit",

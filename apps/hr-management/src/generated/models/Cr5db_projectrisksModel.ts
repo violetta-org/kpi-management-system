@@ -32,6 +32,7 @@ export interface Cr5db_projectrisksBase {
   statuscode?: Cr5db_projectrisksstatuscode;
   timezoneruleversionnumber?: number;
   utcconversiontimezonecode?: number;
+  "cr5db_ProjectID@odata.bind"?: string;
 }
 
 export interface Cr5db_projectrisks extends Cr5db_projectrisksBase {

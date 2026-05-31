@@ -1728,6 +1728,44 @@ function App() {
     if (!activeProjectDetails || !newPhaseName.trim()) return;
     try {
       setIsLoading(true);
+
+      // Validate Phase Dates are within Project Dates
+      if (newPhaseStartDate && activeProjectDetails.cr5db_startdate) {
+        const phaseStart = new Date(newPhaseStartDate);
+        const projStart = new Date(activeProjectDetails.cr5db_startdate);
+        phaseStart.setHours(0,0,0,0);
+        projStart.setHours(0,0,0,0);
+        if (phaseStart < projStart) {
+          alert(`Ngày bắt đầu của giai đoạn không được trước ngày bắt đầu của dự án (${projStart.toLocaleDateString('vi-VN')}).`);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      if (newPhaseEndDate && activeProjectDetails.cr5db_enddate) {
+        const phaseEnd = new Date(newPhaseEndDate);
+        const projEnd = new Date(activeProjectDetails.cr5db_enddate);
+        phaseEnd.setHours(0,0,0,0);
+        projEnd.setHours(0,0,0,0);
+        if (phaseEnd > projEnd) {
+          alert(`Ngày kết thúc của giai đoạn không được sau ngày kết thúc của dự án (${projEnd.toLocaleDateString('vi-VN')}).`);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      if (newPhaseStartDate && newPhaseEndDate) {
+        const phaseStart = new Date(newPhaseStartDate);
+        const phaseEnd = new Date(newPhaseEndDate);
+        phaseStart.setHours(0,0,0,0);
+        phaseEnd.setHours(0,0,0,0);
+        if (phaseStart > phaseEnd) {
+          alert("Ngày bắt đầu của giai đoạn không được sau ngày kết thúc của giai đoạn.");
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const statusVal = newPhaseStatus === 'Completed' ? 122650002 : newPhaseStatus === 'In Progress' ? 122650001 : 122650000;
       await Cr5db_projectphasesService.create({
         cr5db_phasename: newPhaseName,
@@ -1757,9 +1795,8 @@ function App() {
       setIsLoading(true);
       await Cr5db_projectrisksService.create({
         cr5db_projectrisk1: newRiskName,
-        cr5db_impact: newRiskImpact,
-        cr5db_probability: newRiskProbability,
-        cr5db_mitigationplan: newRiskMitigation,
+        cr5db_impactlevel: newRiskImpact === 'High' ? 122650000 : newRiskImpact === 'Medium' ? 122650001 : 122650002,
+        cr5db_probabilitypercentage: newRiskProbability === 'High' ? 80 : newRiskProbability === 'Medium' ? 50 : 20,
         "cr5db_ProjectID@odata.bind": `/cr5db_projects(${activeProjectDetails.cr5db_projectid})`
       } as any);
 
@@ -4218,6 +4255,16 @@ function App() {
                     });
                   };
 
+                  const getProjectStatusValue = (projId: string): number => {
+                    const phasesForProj = projectPhases.filter(ph => ph._cr5db_projectid_value === projId);
+                    if (phasesForProj.length === 0) return 122650000; // Not Started
+                    const allCompleted = phasesForProj.every(ph => ph.new_status === 122650002 || ph.statecode === 1);
+                    if (allCompleted) return 122650002; // Completed
+                    const anyInProgressOrCompleted = phasesForProj.some(ph => ph.new_status === 122650001 || ph.new_status === 122650002 || ph.statecode === 1);
+                    if (anyInProgressOrCompleted) return 122650001; // In Progress
+                    return 122650000; // Not Started
+                  };
+
                   // Map OData status codes to labels and styles
                   // In handleSaveProject: statusVal = Completed ? 122650002 : In Progress ? 122650001 : 122650000
                   const getProjectStatusLabel = (statusCode: number | undefined) => {
@@ -4280,7 +4327,7 @@ function App() {
                           ) : (
                             projects.map(p => {
                               const isSelected = currentActiveProject?.cr5db_projectid === p.cr5db_projectid;
-                              const statusLabel = getProjectStatusLabel(p.cr5db_status || p.cr5db_projectstatus);
+                              const statusLabel = getProjectStatusLabel(getProjectStatusValue(p.cr5db_projectid));
                               const statusStyle = getProjectStatusStyle(statusLabel);
                               
                               // Count phases
@@ -4352,7 +4399,8 @@ function App() {
                                           setProjectStartDate(p.cr5db_startdate ? p.cr5db_startdate.substring(0, 10) : '');
                                           setProjectEndDate(p.cr5db_enddate ? p.cr5db_enddate.substring(0, 10) : '');
                                           
-                                          const statusStr = p.cr5db_status === 122650002 ? 'Completed' : p.cr5db_status === 122650001 ? 'In Progress' : 'Not Started';
+                                          const computedStatusVal = getProjectStatusValue(p.cr5db_projectid);
+                                          const statusStr = computedStatusVal === 122650002 ? 'Completed' : computedStatusVal === 122650001 ? 'In Progress' : 'Not Started';
                                           setProjectStatus(statusStr);
                                           setShowProjectModal(true);
                                         }} 
@@ -4410,9 +4458,9 @@ function App() {
                                   fontSize: '11px', 
                                   fontWeight: 600, 
                                   marginLeft: '4px',
-                                  ...getProjectStatusStyle(getProjectStatusLabel(currentActiveProject.cr5db_status || currentActiveProject.cr5db_projectstatus))
+                                  ...getProjectStatusStyle(getProjectStatusLabel(getProjectStatusValue(currentActiveProject.cr5db_projectid)))
                                 }}>
-                                  {getProjectStatusLabel(currentActiveProject.cr5db_status || currentActiveProject.cr5db_projectstatus)}
+                                  {getProjectStatusLabel(getProjectStatusValue(currentActiveProject.cr5db_projectid))}
                                 </span>
                               </div>
                             </div>
@@ -6337,16 +6385,13 @@ function App() {
               </div>
               <div>
                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Trạng thái</label>
-                <select 
-                  value={projectStatus} 
-                  onChange={(e) => setProjectStatus(e.target.value)} 
+                <input 
+                  type="text" 
+                  value={projectStatus === 'Completed' ? 'Đã hoàn thành (Tự động tính theo Giai đoạn)' : projectStatus === 'In Progress' ? 'Đang thực hiện (Tự động tính theo Giai đoạn)' : 'Chưa bắt đầu (Tự động tính theo Giai đoạn)'} 
+                  disabled 
                   className="input-spec"
-                  style={{ height: '38px', padding: '6px 12px' }}
-                >
-                  <option value="Not Started">Chưa bắt đầu</option>
-                  <option value="In Progress">Đang thực hiện</option>
-                  <option value="Completed">Đã hoàn thành</option>
-                </select>
+                  style={{ height: '38px', padding: '6px 12px', backgroundColor: '#f3f2f1', color: '#605e5c', cursor: 'not-allowed' }}
+                />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
                 <button 
@@ -6618,29 +6663,53 @@ function App() {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div>
-                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Liên kết mục tiêu chung (Objective)</label>
+                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Chu kỳ đánh giá (Period)</label>
                       <select 
-                        value={kpiObjectiveId} 
-                        onChange={(e) => setKpiObjectiveId(e.target.value)} 
+                        value={kpiPeriod} 
+                        onChange={(e) => {
+                          const newPeriod = e.target.value;
+                          setKpiPeriod(newPeriod);
+                          const firstObj = objectivesList.find(o => o.cr5db_periodnamename === newPeriod);
+                          if (firstObj) {
+                            setKpiObjectiveId(firstObj.cr5db_objectiveid);
+                          } else {
+                            setKpiObjectiveId('');
+                          }
+                        }} 
                         className="input-spec"
                         style={{ height: '38px', padding: '6px 12px' }}
                         required
                       >
-                        {objectivesList.map(o => (
-                          <option key={o.cr5db_objectiveid} value={o.cr5db_objectiveid}>{o.cr5db_objective1}</option>
+                        {evaluationPeriodsList.map(ep => (
+                          <option key={ep.cr5db_evaluationperiodid} value={ep.cr5db_evaluationperiod1}>
+                            {ep.cr5db_evaluationperiod1}
+                          </option>
                         ))}
                       </select>
                     </div>
                     <div>
-                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Chu kỳ đánh giá (Period)</label>
-                      <input 
-                        type="text" 
-                        value={kpiPeriod} 
-                        onChange={(e) => setKpiPeriod(e.target.value)} 
-                        className="input-spec" 
-                        required 
-                        placeholder="Ví dụ: Q2/2026" 
-                      />
+                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Liên kết mục tiêu chung (Objective)</label>
+                      <select 
+                        value={kpiObjectiveId} 
+                        onChange={(e) => {
+                          const objId = e.target.value;
+                          setKpiObjectiveId(objId);
+                          const matchedObj = objectivesList.find(o => o.cr5db_objectiveid === objId);
+                          if (matchedObj && matchedObj.cr5db_periodnamename) {
+                            setKpiPeriod(matchedObj.cr5db_periodnamename);
+                          }
+                        }} 
+                        className="input-spec"
+                        style={{ height: '38px', padding: '6px 12px' }}
+                        required
+                      >
+                        {objectivesList.filter(o => !kpiPeriod || o.cr5db_periodnamename === kpiPeriod).map(o => (
+                          <option key={o.cr5db_objectiveid} value={o.cr5db_objectiveid}>{o.cr5db_objective1}</option>
+                        ))}
+                        {objectivesList.filter(o => !kpiPeriod || o.cr5db_periodnamename === kpiPeriod).length === 0 && (
+                          <option value="">Không có mục tiêu nào trong chu kỳ này</option>
+                        )}
+                      </select>
                     </div>
                   </div>
 
