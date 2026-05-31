@@ -4793,6 +4793,9 @@ function App() {
                       </tr>
                     ) : jobPositionsList.map(pos => {
                       const dept = departmentsList.find(d => d.cr5db_departmentid === pos._cr5db_department_value);
+                      const company = dept ? companiesList.find(c => c.cr5db_companyid === dept._cr5db_companyid_value) : null;
+                      const deptName = dept?.cr5db_departmentname || 'Chung';
+                      const displayDept = company ? `${deptName} (${company.cr5db_companyname})` : deptName;
                       const quota = pos.cr5db_headcountquota || 0;
                       const actual = usersList.filter(u => u._cr5db_jobposition_value === pos.cr5db_jobpositionid && u.cr5db_isactive !== false).length;
                       let statusText = 'At Quota';
@@ -4802,7 +4805,7 @@ function App() {
                       return (
                         <tr key={pos.cr5db_jobpositionid} style={{ borderBottom: '1px solid var(--color-border)' }}>
                           <td style={{ padding: '14px 20px', fontWeight: 600 }}>{pos.cr5db_positionname}</td>
-                          <td style={{ padding: '14px 20px' }}>{dept?.cr5db_departmentname || 'Chung'}</td>
+                          <td style={{ padding: '14px 20px' }}>{displayDept}</td>
                           <td style={{ padding: '14px 20px' }}>{quota}</td>
                           <td style={{ padding: '14px 20px' }}>{actual}</td>
                           <td style={{ padding: '14px 20px', fontWeight: 700, color: statusColor }}>{statusText}</td>
@@ -5012,12 +5015,17 @@ function App() {
                         Chưa có đề xuất định biên nào được tạo.
                       </div>
                     ) : (
-                      headcountRequests.map(r => (
+                      headcountRequests.map(r => {
+                        const dept = departmentsList.find(d => d.cr5db_departmentid === r._cr5db_department_value);
+                        const company = dept ? companiesList.find(c => c.cr5db_companyid === dept._cr5db_companyid_value) : null;
+                        const deptName = r.cr5db_departmentname || 'Chung';
+                        const displayDept = company ? `${deptName} (${company.cr5db_companyname})` : deptName;
+                        return (
                         <div key={r.cr5db_headcountrequestid} className="card-spec" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px 24px', gap: '12px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <span style={{ fontWeight: 700, fontSize: '15px' }}>{r.cr5db_requestname}</span>
-                              <span style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid var(--color-border)', borderRadius: '2px' }}>{r.cr5db_departmentname}</span>
+                              <span style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid var(--color-border)', borderRadius: '2px' }}>{displayDept}</span>
                               <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#FAF9F9', border: '1px solid var(--color-border)', borderRadius: '2px' }}>{r.cr5db_requesttype}</span>
                             </div>
                             <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>Vị trí: {r.cr5db_positiontitle} | Số lượng: {r.cr5db_requestedquantity}</p>
@@ -5071,7 +5079,8 @@ function App() {
                             </div>
                           </div>
                         </div>
-                      ))
+                      );
+                    })
                     )}
                   </div>
                 </div>
