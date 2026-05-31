@@ -29,6 +29,10 @@ import { New_jobcompetencyService } from '../generated/services/New_jobcompetenc
 import { New_competencyassessmentService } from '../generated/services/New_competencyassessmentService';
 import { New_idpService } from '../generated/services/New_idpService';
 import { New_idpactionService } from '../generated/services/New_idpactionService';
+import { New_processtemplateService } from '../generated/services/New_processtemplateService';
+import { New_processtemplatestepService } from '../generated/services/New_processtemplatestepService';
+import { New_employeeprocessService } from '../generated/services/New_employeeprocessService';
+import { New_processstepService } from '../generated/services/New_processstepService';
 import type { User, Task, HeadcountRequest, KPITarget, PermissionGroup, EvaluationPeriod, BonusMatrix } from '../lib/types';
 
 /** All setters useLiveData needs to push fetched data into shared state */
@@ -67,6 +71,10 @@ export interface LiveDataSetters {
   setCompetencyAssessmentsList: (v: any[]) => void;
   setIdpList: (v: any[]) => void;
   setIdpActionList: (v: any[]) => void;
+  setProcessTemplateList: (v: any[]) => void;
+  setProcessTemplateStepList: (v: any[]) => void;
+  setEmployeeProcessList: (v: any[]) => void;
+  setProcessStepList: (v: any[]) => void;
   setDefaultGroups: (v: string) => void;
   setDefaultGroupsDbId: (v: string) => void;
   // Default select setters populated on first load
@@ -163,7 +171,11 @@ export function useLiveData(setters: LiveDataSetters) {
         rawJobCompetencies,
         rawCompetencyAssessments,
         rawIdps,
-        rawIdpActions
+        rawIdpActions,
+        rawProcessTemplates,
+        rawProcessTemplateSteps,
+        rawEmployeeProcesses,
+        rawProcessSteps
       ] = await Promise.all([
         safeGet<User>('Users', Cr5db_usersService.getAll),
         safeGet('Departments', Cr5db_departmentsService.getAll),
@@ -193,7 +205,11 @@ export function useLiveData(setters: LiveDataSetters) {
         safeGet('Job Competencies', New_jobcompetencyService.getAll),
         safeGet('Competency Assessments', New_competencyassessmentService.getAll),
         safeGet('IDPs', New_idpService.getAll),
-        safeGet('IDP Actions', New_idpactionService.getAll)
+        safeGet('IDP Actions', New_idpactionService.getAll),
+        safeGet('Process Templates', New_processtemplateService.getAll),
+        safeGet('Process Template Steps', New_processtemplatestepService.getAll),
+        safeGet('Employee Processes', New_employeeprocessService.getAll),
+        safeGet('Process Steps', New_processstepService.getAll)
       ]);
 
       if (loadErrors.length > 0) {
@@ -557,6 +573,10 @@ export function useLiveData(setters: LiveDataSetters) {
       setters.setEvaluationPeriodsList(mappedPeriods);
       setters.setIdpList(rawIdps);
       setters.setIdpActionList(rawIdpActions);
+      setters.setProcessTemplateList(rawProcessTemplates);
+      setters.setProcessTemplateStepList(rawProcessTemplateSteps);
+      setters.setEmployeeProcessList(rawEmployeeProcesses);
+      setters.setProcessStepList(rawProcessSteps);
 
     } catch (err: any) {
       console.error('Initialization error: ', err);
