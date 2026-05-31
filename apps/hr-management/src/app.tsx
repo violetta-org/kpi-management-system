@@ -6370,6 +6370,31 @@ function App() {
                               </div>
                             </div>
 
+                            {/* Nested Section: AI Task Breakdown */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid var(--color-border-light)', paddingTop: '16px', marginBottom: '20px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <h4 style={{ fontSize: '13px', fontWeight: 700 }}>🪄 AI Đề xuất Công việc</h4>
+                                {canManageProject && (
+                                  <AIGenerateButton 
+                                    label="Xé nhỏ dự án"
+                                    onClick={async () => {
+                                      const pName = currentActiveProject.cr5db_projectname || 'Dự án';
+                                      const existingTasks = tasks.filter(t => t._cr5db_project_value === currentActiveProject.cr5db_projectid).map(t => t.cr5db_taskname || '');
+                                      return await AIService.breakdownProjectTasks(pName, existingTasks);
+                                    }}
+                                    onSuccess={(text) => {
+                                      // Render the response nicely in an alert or we could build a modal. For simplicity, alert works or prompt them to copy.
+                                      alert("✨ AI Đề xuất Task cho dự án:\n\n" + text + "\n\n(Bạn có thể copy thông tin này để tạo Task mới)");
+                                    }}
+                                    style={{ padding: '4px 10px', fontSize: '11px' }}
+                                  />
+                                )}
+                              </div>
+                              <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontStyle: 'italic', margin: 0 }}>
+                                {language === 'vi' ? 'Nhờ AI phân tích và tự động xé nhỏ dự án này thành các Task con.' : 'Ask AI to analyze and breakdown this project into sub-tasks.'}
+                              </p>
+                            </div>
+
                             {/* Nested Section: Project PHASES */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid var(--color-border-light)', paddingTop: '16px', marginBottom: '20px' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
