@@ -107,9 +107,17 @@ export function useLiveData(setters: LiveDataSetters) {
       setters.setCurrentUserName(authenticatedName || authenticatedEmail.split('@')[0]);
 
       // 2. Fetch all tables in parallel (isolated — one failure won't block others)
-      const safeGet = async <T,>(fn: () => Promise<{ data?: T[] }>): Promise<T[]> => {
-        try { return (await fn()).data || []; }
-        catch (e) { console.warn('Dataverse fetch failed:', e); return []; }
+      const loadErrors: { table: string; error: string }[] = [];
+      const safeGet = async <T,>(tableName: string, fn: () => Promise<{ data?: T[] }>): Promise<T[]> => {
+        try {
+          const res = await fn();
+          return res.data || [];
+        } catch (e: any) {
+          const errMsg = e?.message || e?.error?.message || (typeof e === 'object' ? JSON.stringify(e) : String(e));
+          console.error(`[Dataverse Load Error] Table: ${tableName}. Details:`, e);
+          loadErrors.push({ table: tableName, error: errMsg });
+          return [];
+        }
       };
 
       const [
@@ -136,29 +144,65 @@ export function useLiveData(setters: LiveDataSetters) {
         rawParams,
         rawEvaluationPeriods
       ] = await Promise.all([
-        safeGet<User>(Cr5db_usersService.getAll),
-        safeGet(Cr5db_departmentsService.getAll),
-        safeGet(Cr5db_tasksService.getAll),
-        safeGet(Cr5db_headcountrequestsService.getAll),
-        safeGet(Cr5db_kpitargetsService.getAll),
-        safeGet(Cr5db_timesheetlogsService.getAll),
-        safeGet(Cr5db_projectsService.getAll),
-        safeGet(Cr5db_performanceappraisalsService.getAll),
-        safeGet(Cr5db_companiesService.getAll),
-        safeGet(Cr5db_positioncatalogsService.getAll),
-        safeGet(Cr5db_jobpositionsService.getAll),
-        safeGet(Cr5db_audittraillogsService.getAll),
-        safeGet(Cr5db_resourceallocationsService.getAll),
-        safeGet(Cr5db_objectivesService.getAll),
-        safeGet(Cr5db_systemnotificationsService.getAll),
-        safeGet(Cr5db_projectphasesService.getAll),
-        safeGet(Cr5db_projectrisksService.getAll),
-        safeGet(Cr5db_kpilibrariesService.getAll),
-        safeGet(Cr5db_approvalroutesesService.getAll),
-        safeGet(Cr5db_changerequestsesService.getAll),
-        safeGet(Cr5db_systemparametersService.getAll),
-        safeGet(Cr5db_evaluationperiodsService.getAll)
+        safeGet<User>('Users', Cr5db_usersService.getAll),
+        safeGet('Departments', Cr5db_departmentsService.getAll),
+        safeGet('Tasks', Cr5db_tasksService.getAll),
+        safeGet('Headcount Requests', Cr5db_headcountrequestsService.getAll),
+        safeGet('KPI Targets', Cr5db_kpitargetsService.getAll),
+        safeGet('Timesheet Logs', Cr5db_timesheetlogsService.getAll),
+        safeGet('Projects', Cr5db_projectsService.getAll),
+        safeGet('Performance Appraisals', Cr5db_performanceappraisalsService.getAll),
+        safeGet('Companies', Cr5db_companiesService.getAll),
+        safeGet('Position Catalogs', Cr5db_positioncatalogsService.getAll),
+        safeGet('Job Positions', Cr5db_jobpositionsService.getAll),
+        safeGet('Audit Trail Logs', Cr5db_audittraillogsService.getAll),
+        safeGet('Resource Allocations', Cr5db_resourceallocationsService.getAll),
+        safeGet('Objectives', Cr5db_objectivesService.getAll),
+        safeGet('System Notifications', Cr5db_systemnotificationsService.getAll),
+        safeGet('Project Phases', Cr5db_projectphasesService.getAll),
+        safeGet('Project Risks', Cr5db_projectrisksService.getAll),
+        safeGet('KPI Libraries', Cr5db_kpilibrariesService.getAll),
+        safeGet('Approval Routes', Cr5db_approvalroutesesService.getAll),
+        safeGet('Change Requests', Cr5db_changerequestsesService.getAll),
+        safeGet('System Parameters', Cr5db_systemparametersService.getAll),
+        safeGet('Evaluation Periods', Cr5db_evaluationperiodsService.getAll)
       ]);
+
+      if (loadErrors.length > 0) {
+        console.error('[Dataverse Load Summary] Failed tables:', loadErrors);
+        const errDetails = loadErrors.map(err => `- Bảng ${err.table}: ${err.error}`).join('\n');
+        alert(`Không thể tải một số bảng dữ liệu từ Dataverse:\n${errDetails}`);
+      }
+
+      console.log('[Dataverse Load Summary] Fetched record counts:', {
+        Users: allUsers.length,
+        Departments: allDepts.length,
+        Tasks: rawTasks.length,
+        HeadcountRequests: rawHeadcount.length,
+        KPITargets: rawKpi.length,
+        TimesheetLogs: rawTimesheets.length,
+        Projects: rawProjects.length,
+        Appraisals: rawAppraisals.length,
+        Companies: allCompanies.length,
+        PositionCatalogs: allCatalogs.length,
+        JobPositions: allJobPositions.length,
+        AuditLogs: allAuditLogs.length,
+        ResourceAllocations: rawAllocations.length,
+        Objectives: rawObjectives.length,
+        Notifications: rawNotifications.length,
+        ProjectPhases: rawProjectPhases.length,
+        ProjectRisks: rawProjectRisks.length,
+        KPILibraries: rawKpiLibraries.length,
+        ApprovalRoutes: rawRoutes.length,
+        ChangeRequests: rawRequests.length,
+        SystemParameters: rawParams.length,
+        EvaluationPeriods: rawEvaluationPeriods.length,
+        LoadErrors: loadErrors.length
+      });
+      // Log first raw risk record if any to debug field names
+      if (rawProjectRisks.length > 0) {
+        console.log('[Dataverse] First rawProjectRisk sample:', JSON.stringify(rawProjectRisks[0], null, 2));
+      }
 
       const parsedGroups: PermissionGroup[] = [];
       let defaultGroupsStr = '';

@@ -190,6 +190,7 @@ function App() {
     projectStatus, setProjectStatus,
     activeProjectDetails, setActiveProjectDetails,
     showPhaseModal, setShowPhaseModal,
+    editingPhase, setEditingPhase,
     newPhaseName, setNewPhaseName,
     newPhaseStatus, setNewPhaseStatus,
     newPhaseStartDate, setNewPhaseStartDate,
@@ -1772,15 +1773,28 @@ function App() {
       }
 
       const statusVal = newPhaseStatus === 'Completed' ? 122650002 : newPhaseStatus === 'In Progress' ? 122650001 : 122650000;
-      await Cr5db_projectphasesService.create({
-        cr5db_phasename: newPhaseName,
-        new_status: statusVal as any,
-        cr5db_startdate: newPhaseStartDate || undefined,
-        cr5db_enddate: newPhaseEndDate || undefined,
-        "cr5db_ProjectID@odata.bind": `/cr5db_projects(${activeProjectDetails.cr5db_projectid})`
-      } as any);
+
+      if (editingPhase) {
+        // Update existing phase
+        await Cr5db_projectphasesService.update(editingPhase.cr5db_projectphaseid, {
+          cr5db_phasename: newPhaseName,
+          new_status: statusVal as any,
+          cr5db_startdate: newPhaseStartDate || undefined,
+          cr5db_enddate: newPhaseEndDate || undefined,
+        } as any);
+      } else {
+        // Create new phase
+        await Cr5db_projectphasesService.create({
+          cr5db_phasename: newPhaseName,
+          new_status: statusVal as any,
+          cr5db_startdate: newPhaseStartDate || undefined,
+          cr5db_enddate: newPhaseEndDate || undefined,
+          "cr5db_ProjectID@odata.bind": `/cr5db_projects(${activeProjectDetails.cr5db_projectid})`
+        } as any);
+      }
 
       setShowPhaseModal(false);
+      setEditingPhase(null);
       setNewPhaseName('');
       setNewPhaseStatus('Not Started');
       setNewPhaseStartDate('');
@@ -1789,7 +1803,7 @@ function App() {
     } catch (err: any) {
       console.error(err);
       const errMsg = err?.message || err?.error?.message || JSON.stringify(err);
-      alert(`Không thể thêm giai đoạn dự án. Chi tiết lỗi: ${errMsg}`);
+      alert(`Không thể ${editingPhase ? 'cập nhật' : 'thêm'} giai đoạn dự án. Chi tiết lỗi: ${errMsg}`);
       setIsLoading(false);
     }
   };
@@ -1799,12 +1813,19 @@ function App() {
     if (!activeProjectDetails || !newRiskName.trim()) return;
     try {
       setIsLoading(true);
-      await Cr5db_projectrisksService.create({
+      const createResult = await Cr5db_projectrisksService.create({
         cr5db_projectrisk1: newRiskName,
         cr5db_impactlevel: newRiskImpact === 'High' ? 122650000 : newRiskImpact === 'Medium' ? 122650001 : 122650002,
         cr5db_probabilitypercentage: newRiskProbability === 'High' ? 80 : newRiskProbability === 'Medium' ? 50 : 20,
-        "cr5db_ProjectID@odata.bind": `/cr5db_projects(${activeProjectDetails.cr5db_projectid})`
+        "new_Project@odata.bind": `/cr5db_projects(${activeProjectDetails.cr5db_projectid})`
       } as any);
+
+      if (createResult && createResult.success === false) {
+        const errDetail = createResult.error?.message || JSON.stringify(createResult);
+        alert(`Không thể thêm rủi ro: ${errDetail}`);
+        setIsLoading(false);
+        return;
+      }
 
       setShowRiskModal(false);
       setNewRiskName('');
@@ -1813,9 +1834,9 @@ function App() {
       setNewRiskMitigation('');
       await fetchLiveValues();
     } catch (err: any) {
-      console.error(err);
+      console.error('[handleSaveRisk] Exception:', err);
       const errMsg = err?.message || err?.error?.message || JSON.stringify(err);
-      alert(`Không thể thêm rủi ro dự án. Chi tiết lỗi: ${errMsg}`);
+      alert(`Không thể thêm rủi ro dự án. Chi tiết lỗi:\n${errMsg}`);
       setIsLoading(false);
     }
   };
@@ -4623,7 +4644,25 @@ function App() {
                                               </span>
                                             )}
                                           </div>
-                                          <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, ...phStyle }}>{phStatus}</span>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, ...phStyle }}>{phStatus}</span>
+                                            {canManageProject && (
+                                              <button
+                                                onClick={() => {
+                                                  setEditingPhase(ph);
+                                                  setNewPhaseName(ph.cr5db_phasename || '');
+                                                  setNewPhaseStatus(phStatus);
+                                                  setNewPhaseStartDate(ph.cr5db_startdate ? ph.cr5db_startdate.substring(0, 10) : '');
+                                                  setNewPhaseEndDate(ph.cr5db_enddate ? ph.cr5db_enddate.substring(0, 10) : '');
+                                                  setShowPhaseModal(true);
+                                                }}
+                                                className="btn-filled-3"
+                                                style={{ padding: '2px 6px', fontSize: '10px', minWidth: 'auto' }}
+                                              >
+                                                Sửa
+                                              </button>
+                                            )}
+                                          </div>
                                         </div>
                                       );
                                     })}
@@ -4655,10 +4694,8 @@ function App() {
 
                               {(() => {
                                 const risks = projectRisks.filter(risk => 
-                                  risk._cr5db_projectid_value === currentActiveProject.cr5db_projectid ||
-                                  risk._cr5db_project_value === currentActiveProject.cr5db_projectid ||
-                                  risk.cr5db_projectid === currentActiveProject.cr5db_projectid ||
-                                  risk._cr5db_projectid_value?.toLowerCase() === currentActiveProject.cr5db_projectid.toLowerCase()
+                                  risk._new_project_value === currentActiveProject.cr5db_projectid ||
+                                  risk._new_project_value?.toLowerCase() === currentActiveProject.cr5db_projectid?.toLowerCase()
                                 );
                                 if (risks.length === 0) {
                                   return <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontStyle: 'italic', padding: '6px' }}>Chưa ghi nhận rủi ro nào.</div>;
@@ -4666,8 +4703,10 @@ function App() {
                                 return (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                     {risks.map(r => {
-                                      // probability percentage or string, impact level
-                                      const impact = r.cr5db_impact || r.cr5db_impactlevel || 'Medium';
+                                      // Map numeric OptionSet values to readable labels
+                                      const impactLevelMap: Record<number, string> = { 122650000: 'High', 122650001: 'Medium', 122650002: 'Low' };
+                                      const rawImpact = r.cr5db_impactlevelname || (typeof r.cr5db_impactlevel === 'number' ? impactLevelMap[r.cr5db_impactlevel] : r.cr5db_impactlevel) || r.cr5db_impact || 'Medium';
+                                      const impact = typeof rawImpact === 'string' ? rawImpact : String(rawImpact);
                                       const prob = r.cr5db_probability || r.cr5db_probabilitypercentage || 'Medium';
                                       const mitigation = r.cr5db_mitigationplan || 'Chưa lập phương án giảm thiểu.';
                                       
@@ -6539,7 +6578,7 @@ function App() {
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '400px' }}>
             <h3 style={{ marginBottom: '16px', fontSize: '15px', fontWeight: 700 }}>
-              Thêm giai đoạn dự án
+              {editingPhase ? 'Chỉnh sửa giai đoạn dự án' : 'Thêm giai đoạn dự án'}
             </h3>
             <form onSubmit={handleSavePhase} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
@@ -6591,6 +6630,7 @@ function App() {
                   type="button" 
                   onClick={() => {
                     setShowPhaseModal(false);
+                    setEditingPhase(null);
                     setNewPhaseName('');
                     setNewPhaseStatus('Not Started');
                     setNewPhaseStartDate('');
@@ -6601,7 +6641,7 @@ function App() {
                   Hủy
                 </button>
                 <button type="submit" className="btn-filled-2" style={{ backgroundColor: '#742774' }}>
-                  Lưu giai đoạn
+                  {editingPhase ? 'Cập nhật' : 'Lưu giai đoạn'}
                 </button>
               </div>
             </form>

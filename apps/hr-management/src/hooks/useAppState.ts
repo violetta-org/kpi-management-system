@@ -123,6 +123,7 @@ export function useAppState() {
 
   // ── Phase & Risk ─────────────────────────────────────────────────────────
   const [showPhaseModal, setShowPhaseModal] = useState(false);
+  const [editingPhase, setEditingPhase] = useState<any>(null);
   const [newPhaseName, setNewPhaseName] = useState('');
   const [newPhaseStatus, setNewPhaseStatus] = useState('Not Started');
   const [newPhaseStartDate, setNewPhaseStartDate] = useState('');
@@ -366,6 +367,7 @@ export function useAppState() {
 
     // Phase & Risk
     showPhaseModal, setShowPhaseModal,
+    editingPhase, setEditingPhase,
     newPhaseName, setNewPhaseName,
     newPhaseStatus, setNewPhaseStatus,
     newPhaseStartDate, setNewPhaseStartDate,

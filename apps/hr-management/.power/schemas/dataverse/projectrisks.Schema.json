@@ -202,6 +202,22 @@
           "required": true,
           "maxLength": 100
         },
+        "new_project": {
+          "type": "string",
+          "title": "Project",
+          "x-ms-dataverse-attribute": "new_project",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "new_Project"
+        },
+        "new_projectname": {
+          "type": "string",
+          "title": "new_projectname",
+          "x-ms-dataverse-attribute": "new_projectname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "new_ProjectName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
         "overriddencreatedon": {
           "type": "string",
           "title": "Record Created On",
@@ -244,13 +260,6 @@
           "x-ms-read-only": true,
           "required": true,
           "maxLength": 100
-        },
-        "cr5db_ProjectID": {
-          "type": "string",
-          "title": "Project",
-          "x-ms-dataverse-attribute": "cr5db_projectid",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "cr5db_ProjectID"
         },
         "owningbusinessunit": {
           "type": "string",
