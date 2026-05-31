@@ -3333,7 +3333,7 @@ function App() {
                       </div>
 
                       {/* Main content table card */}
-                      <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
+                      <div className="card-spec" style={{ padding: '0px', overflowX: 'auto' }}>
                         {userKpis.length === 0 ? (
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', textAlign: 'center', gap: '12px' }}>
                             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--color-text-secondary)' }}><path d="M18 20V10M12 20V4M6 20v-6" /></svg>
@@ -3704,7 +3704,7 @@ function App() {
                 appraisals.filter(ap => ap.cr5db_employeeemail?.toLowerCase() === currentUserEmail.toLowerCase()).length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>No appraisals logs found.</div>
                 ) : (
-                  <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
+                  <div className="card-spec" style={{ padding: '0px', overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                       <thead>
                         <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
@@ -3748,7 +3748,7 @@ function App() {
                   </div>
                 )
               ) : activePerformanceSubTab === 'team' ? (
-                <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
+                <div className="card-spec" style={{ padding: '0px', overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
@@ -3820,7 +3820,7 @@ function App() {
                     </button>
                   </div>
 
-                  <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
+                  <div className="card-spec" style={{ padding: '0px', overflowX: 'auto' }}>
                     {evaluationPeriodsList.length === 0 ? (
                       <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>Không có chu kỳ đánh giá nào. Hãy tạo một chu kỳ để bắt đầu!</div>
                     ) : (
@@ -4003,7 +4003,7 @@ function App() {
                 <button onClick={() => setShowCatalogModal(true)} className="btn-primary">+ Add New Title</button>
               </div>
 
-              <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
+              <div className="card-spec" style={{ padding: '0px', overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
@@ -4055,7 +4055,7 @@ function App() {
                 <button onClick={() => setShowJobPositionModal(true)} className="btn-primary">+ Add Job Position</button>
               </div>
 
-              <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
+              <div className="card-spec" style={{ padding: '0px', overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
@@ -5159,7 +5159,7 @@ function App() {
                   ))}
                 </div>
               ) : activeDirectorySubTab === 'manage' ? (
-                <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
+                <div className="card-spec" style={{ padding: '0px', overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
@@ -5325,7 +5325,7 @@ function App() {
                   </div>
 
                   {/* Groups List Table */}
-                  <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
+                  <div className="card-spec" style={{ padding: '0px', overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                       <thead>
                         <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
@@ -5388,7 +5388,7 @@ function App() {
                   </div>
                 </div>
               ) : (
-                <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
+                <div className="card-spec" style={{ padding: '0px', overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
@@ -5624,7 +5624,7 @@ function App() {
                 </button>
               </div>
 
-              <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
+              <div className="card-spec" style={{ padding: '0px', overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
@@ -7154,10 +7154,12 @@ function App() {
                         style={{ height: '38px', padding: '6px 12px' }}
                         required
                       >
-                        {objectivesList.filter(o => !kpiPeriod || o.cr5db_periodnamename === kpiPeriod).map(o => (
-                          <option key={o.cr5db_objectiveid} value={o.cr5db_objectiveid}>{o.cr5db_objective1}</option>
+                        {objectivesList.filter(o => !kpiPeriod || o.cr5db_periodnamename === kpiPeriod || !o.cr5db_periodnamename || o.cr5db_objectiveid === kpiObjectiveId).map(o => (
+                          <option key={o.cr5db_objectiveid} value={o.cr5db_objectiveid}>
+                            {o.cr5db_objective1}{!o.cr5db_periodnamename ? ' (Không thuộc chu kỳ nào)' : ''}
+                          </option>
                         ))}
-                        {objectivesList.filter(o => !kpiPeriod || o.cr5db_periodnamename === kpiPeriod).length === 0 && (
+                        {objectivesList.filter(o => !kpiPeriod || o.cr5db_periodnamename === kpiPeriod || !o.cr5db_periodnamename || o.cr5db_objectiveid === kpiObjectiveId).length === 0 && (
                           <option value="">Không có mục tiêu nào trong chu kỳ này</option>
                         )}
                       </select>
