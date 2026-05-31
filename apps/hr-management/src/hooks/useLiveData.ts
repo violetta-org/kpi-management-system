@@ -509,12 +509,14 @@ export function useLiveData(setters: LiveDataSetters) {
       // Map Timesheets
       const mappedTimesheets = (timesheetsResponse.data || []).map((ts: any) => {
         const user = allUsers.find((u: User) => u.cr5db_userid === ts._cr5db_userid_value);
+        const taskObj = mappedTasks.find((t: any) => t.cr5db_taskid === ts._cr5db_taskid_value);
+        
         return {
           cr5db_timesheetlogid: ts.cr5db_timesheetlogid,
           cr5db_timesheetlog1: ts.cr5db_timesheetlog1,
           cr5db_actualhoursworked: ts.cr5db_actualhoursworked || 0,
           cr5db_logdate: ts.cr5db_logdate || '',
-          cr5db_taskname: ts.cr5db_taskidname || 'Không thuộc dự án',
+          cr5db_taskname: taskObj?.cr5db_taskname || ts.cr5db_taskidname || 'Không xác định',
           _cr5db_taskid_value: ts._cr5db_taskid_value,
           cr5db_username: ts.cr5db_useridname || user?.cr5db_fullname || 'Thành viên',
           cr5db_useremail: user?.cr5db_email || '',
