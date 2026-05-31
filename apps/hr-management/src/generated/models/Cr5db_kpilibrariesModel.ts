@@ -18,6 +18,7 @@ export interface Cr5db_kpilibrariesBase {
   cr5db_kpilibraryid: string;
   cr5db_kpiname: string;
   cr5db_unit?: string;
+  cr5db_direction?: number;
   importsequencenumber?: number;
   overriddencreatedon?: string;
   ownerid: string;

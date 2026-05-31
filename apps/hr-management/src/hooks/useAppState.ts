@@ -243,6 +243,7 @@ export function useAppState() {
   const [kpiLibName, setKpiLibName] = useState('');
   const [kpiLibUnit, setKpiLibUnit] = useState('%');
   const [kpiLibFormula, setKpiLibFormula] = useState('');
+  const [kpiLibDirection, setKpiLibDirection] = useState<number>(1);
 
   // Objective (period/cycle) modal
   const [showObjectiveModal, setShowObjectiveModal] = useState(false);
@@ -478,6 +479,7 @@ export function useAppState() {
     kpiLibName, setKpiLibName,
     kpiLibUnit, setKpiLibUnit,
     kpiLibFormula, setKpiLibFormula,
+    kpiLibDirection, setKpiLibDirection,
     showObjectiveModal, setShowObjectiveModal,
     editingObjective, setEditingObjective,
     objectiveName, setObjectiveName,
