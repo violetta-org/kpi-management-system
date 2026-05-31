@@ -21,6 +21,7 @@ import { Cr5db_projectphasesService } from './generated/services/Cr5db_projectph
 import { Cr5db_projectrisksService } from './generated/services/Cr5db_projectrisksService';
 import { Cr5db_resourceallocationsService } from './generated/services/Cr5db_resourceallocationsService';
 import { Cr5db_approvalroutesesService } from './generated/services/Cr5db_approvalroutesesService';
+import { Cr5db_projectteamsService } from './generated/services/Cr5db_projectteamsService';
 import { Cr5db_kpilibrariesService } from './generated/services/Cr5db_kpilibrariesService';
 import { Cr5db_objectivesService } from './generated/services/Cr5db_objectivesService';
 import { Cr5db_evaluationperiodsService } from './generated/services/Cr5db_evaluationperiodsService';
@@ -155,6 +156,7 @@ function App() {
     objectivesList, setObjectivesList,
     approvalRoutesList, setApprovalRoutesList,
     changeRequestsList, setChangeRequestsList,
+    projectTeamsList, setProjectTeamsList,
     showKpiModal, setShowKpiModal,
     editingKpi, setEditingKpi,
     kpiTargetName, setKpiTargetName,
@@ -318,7 +320,7 @@ function App() {
     setResourceAllocationsList, setObjectivesList,
     setProjects, setProjectPhases, setProjectRisks,
     setSystemNotifications, setKpiLibrariesList,
-    setApprovalRoutesList, setChangeRequestsList,
+    setApprovalRoutesList, setChangeRequestsList, setProjectTeamsList,
     setTasks, setHeadcountRequests, setKpiTargets,
     setTimesheets, setAppraisals, setEvaluationPeriodsList,
     setNewReqDeptId, setNewJobPosDeptId,
@@ -1900,11 +1902,35 @@ function App() {
       const pName = proj?.cr5db_projectname || 'Project';
       const name = allocationName || `Allocation of ${uName} to ${pName}`;
 
+      // 1. Resolve project team for the selected project
+      const matchedTeam = projectTeamsList.find(
+        team => team._cr5db_projectid_value === allocationProject || team.cr5db_projectid === allocationProject
+      );
+
+      let teamId = matchedTeam?.cr5db_projectteamid;
+
+      // 2. Dynamic Fallback: if no project team exists in the database, create one on the fly
+      if (!teamId) {
+        console.log(`[SaveAllocation] No ProjectTeam found for project ${pName} (${allocationProject}). Creating team dynamically...`);
+        const newTeamRes = await Cr5db_projectteamsService.create({
+          cr5db_teamname: `${pName} Team`,
+          "cr5db_ProjectID@odata.bind": `/cr5db_projects(${allocationProject})`,
+          statecode: 0
+        } as any);
+
+        if (newTeamRes && newTeamRes.data) {
+          teamId = newTeamRes.data.cr5db_projectteamid;
+          console.log(`[SaveAllocation] Successfully created new ProjectTeam with ID: ${teamId}`);
+        } else {
+          throw new Error(`Không thể tự động tạo Project Team cho dự án ${pName}`);
+        }
+      }
+
       await Cr5db_resourceallocationsService.create({
         cr5db_resourceallocation1: name,
         cr5db_allocationpercentage: Number(allocationPercentage) || 100,
         "cr5db_UserID@odata.bind": `/cr5db_users(${allocationUser})`,
-        "cr5db_ProjectTeamID@odata.bind": `/cr5db_projects(${allocationProject})`,
+        "cr5db_ProjectTeamID@odata.bind": `/cr5db_projectteams(${teamId})`,
         statecode: 0
       } as any);
 

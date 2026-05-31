@@ -56,6 +56,7 @@ export function useAppState() {
   const [objectivesList, setObjectivesList] = useState<any[]>([]);
   const [approvalRoutesList, setApprovalRoutesList] = useState<any[]>([]);
   const [changeRequestsList, setChangeRequestsList] = useState<any[]>([]);
+  const [projectTeamsList, setProjectTeamsList] = useState<any[]>([]);
   const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>([]);
   const [defaultGroups, setDefaultGroups] = useState<string>('');
   const [defaultGroupsDbId, setDefaultGroupsDbId] = useState<string>('');
@@ -323,6 +324,7 @@ export function useAppState() {
     objectivesList, setObjectivesList,
     approvalRoutesList, setApprovalRoutesList,
     changeRequestsList, setChangeRequestsList,
+    projectTeamsList, setProjectTeamsList,
 
     // KPI CRUD
     showKpiModal, setShowKpiModal,

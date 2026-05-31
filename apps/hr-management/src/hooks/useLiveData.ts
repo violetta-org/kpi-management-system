@@ -22,6 +22,7 @@ import { Cr5db_approvalroutesesService } from '../generated/services/Cr5db_appro
 import { Cr5db_changerequestsesService } from '../generated/services/Cr5db_changerequestsesService';
 import { Cr5db_systemparametersService } from '../generated/services/Cr5db_systemparametersService';
 import { Cr5db_evaluationperiodsService } from '../generated/services/Cr5db_evaluationperiodsService';
+import { Cr5db_projectteamsService } from '../generated/services/Cr5db_projectteamsService';
 import type { User, Task, HeadcountRequest, KPITarget, PermissionGroup, EvaluationPeriod } from '../lib/types';
 
 /** All setters useLiveData needs to push fetched data into shared state */
@@ -46,6 +47,7 @@ export interface LiveDataSetters {
   setKpiLibrariesList: (v: any[]) => void;
   setApprovalRoutesList: (v: any[]) => void;
   setChangeRequestsList: (v: any[]) => void;
+  setProjectTeamsList: (v: any[]) => void;
   setTasks: (v: Task[]) => void;
   setHeadcountRequests: (v: HeadcountRequest[]) => void;
   setKpiTargets: (v: KPITarget[]) => void;
@@ -142,7 +144,8 @@ export function useLiveData(setters: LiveDataSetters) {
         rawRoutes,
         rawRequests,
         rawParams,
-        rawEvaluationPeriods
+        rawEvaluationPeriods,
+        rawProjectTeams
       ] = await Promise.all([
         safeGet<User>('Users', Cr5db_usersService.getAll),
         safeGet('Departments', Cr5db_departmentsService.getAll),
@@ -165,7 +168,8 @@ export function useLiveData(setters: LiveDataSetters) {
         safeGet('Approval Routes', Cr5db_approvalroutesesService.getAll),
         safeGet('Change Requests', Cr5db_changerequestsesService.getAll),
         safeGet('System Parameters', Cr5db_systemparametersService.getAll),
-        safeGet('Evaluation Periods', Cr5db_evaluationperiodsService.getAll)
+        safeGet('Evaluation Periods', Cr5db_evaluationperiodsService.getAll),
+        safeGet('Project Teams', Cr5db_projectteamsService.getAll)
       ]);
 
       if (loadErrors.length > 0) {
@@ -277,6 +281,7 @@ export function useLiveData(setters: LiveDataSetters) {
       setters.setKpiLibrariesList(rawKpiLibraries);
       setters.setApprovalRoutesList(rawRoutes);
       setters.setChangeRequestsList(rawRequests);
+      setters.setProjectTeamsList(rawProjectTeams);
 
       // Populate default select values
       if (allDepts.length > 0) {
