@@ -531,7 +531,7 @@ function App() {
           let count = 0;
           compKpis.forEach(k => {
             const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-            totalRate += calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+            totalRate += calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
             count++;
           });
           
@@ -586,7 +586,7 @@ function App() {
           
         const risks = myKpis.map(k => {
           const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-          const rate = calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+          const rate = calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
           return { k, rate };
         }).filter(item => item.rate < 100);
         
@@ -645,7 +645,7 @@ function App() {
               let kpiCount = 0;
               objKpis.forEach(k => {
                 const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                totalRate += calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+                totalRate += calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
                 kpiCount++;
               });
               const avgRate = kpiCount > 0 ? Math.round(totalRate / kpiCount) : 0;
@@ -704,7 +704,7 @@ function App() {
         let totalKpiRate = 0;
         myKpis.forEach(k => {
           const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-          totalKpiRate += calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+          totalKpiRate += calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
         });
         const kpiRate = myKpis.length > 0 ? Math.round(totalKpiRate / myKpis.length) : 0;
         
@@ -764,7 +764,7 @@ function App() {
         const myKpis = kpiTargets.filter(k => k.cr5db_user_email?.toLowerCase() === currentUserEmail.toLowerCase());
         const attentionKpis = myKpis.filter(k => {
           const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-          return calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction) < 100;
+          return calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction) < 100;
         });
         
         return (
@@ -808,7 +808,7 @@ function App() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '110px', overflowY: 'auto' }}>
                 {attentionKpis.slice(0, 2).map((k, idx) => {
                   const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                  const rate = calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+                  const rate = calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
                   return (
                     <div key={idx} style={{ fontSize: '11.5px', padding: '4px', backgroundColor: '#fafafa', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100px' }}>{k.cr5db_kpiname}</span>
@@ -1275,7 +1275,7 @@ function App() {
     let breakdownLines: string[] = [];
 
     employeeKpis.forEach((k, idx) => {
-      const target = k.cr5db_targetvalue || 100;
+      const target = k.cr5db_targetvalue ?? 100;
       const actual = k.cr5db_actualvalue || 0;
       const weight = k.cr5db_weightpercentage || 0;
       const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
