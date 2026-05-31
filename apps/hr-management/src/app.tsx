@@ -2576,8 +2576,8 @@ function App() {
       const payload: any = {
         cr5db_projectrisk1: newRiskName,
         cr5db_impactlevel: newRiskImpact === 'High' ? 122650000 : newRiskImpact === 'Medium' ? 122650001 : 122650002,
-        cr5db_probabilitypercentage: newRiskProbability === 'High' ? 80 : newRiskProbability === 'Medium' ? 50 : 20,
-        cr5db_mitigationplan: newRiskMitigation
+        cr5db_probabilitypercentage: newRiskProbability === 'High' ? 80 : newRiskProbability === 'Medium' ? 50 : 20
+        // cr5db_mitigationplan: newRiskMitigation // Property does not exist in Dataverse schema
       };
 
       if (editingRisk) {
