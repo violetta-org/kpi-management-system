@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo } from 'react';
 import './App.css';
+import { AIGenerateButton } from './features/ai/AIGenerateButton';
+import { AIService, type PerformanceContext, type SystemSnapshot } from './features/ai/AIService';
+import { AIChatbot } from './features/ai/AIChatbot';
 
 // Hooks
 import { useAppState } from './hooks/useAppState';
@@ -5140,6 +5143,23 @@ function App() {
                                 >
                                   Tự tính
                                 </button>
+                                <AIGenerateButton 
+                                  onClick={async () => {
+                                    const empTasks = tasks.filter(t => t.cr5db_assignee_email === ap.cr5db_employeeemail);
+                                    const empTimesheets = timesheets.filter(ts => ts.cr5db_useremail === ap.cr5db_employeeemail);
+                                    const ctx: PerformanceContext = {
+                                      employeeName: ap.cr5db_employeename,
+                                      kpiScore: ap.cr5db_finalscore || ap.cr5db_selfscore || 0,
+                                      completedTaskCount: empTasks.filter(t => t.cr5db_status === 'Completed').length,
+                                      totalTaskCount: empTasks.length,
+                                      totalHoursLogged: empTimesheets.reduce((s, ts) => s + (ts.cr5db_actualhoursworked || 0), 0),
+                                      taskNames: empTasks.filter(t => t.cr5db_status === 'Completed').slice(0, 5).map(t => t.cr5db_taskname),
+                                      projectNames: [...new Set(empTasks.map(t => t.cr5db_project_name).filter(Boolean))]
+                                    };
+                                    return await AIService.generatePerformanceReview(ctx);
+                                  }}
+                                  onSuccess={(text) => alert(text)}
+                                />
                                 {isLocked && <span style={{ fontSize: '11.5px', color: '#ff8c00', fontWeight: 600, marginLeft: '6px' }}>🔒 Đã khóa</span>}
                               </div>
                             </td>
@@ -7526,6 +7546,18 @@ function App() {
               {/* Description */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '14px', fontWeight: 500, lineHeight: '14px', color: '#000000' }}>Description</label>
+                <AIGenerateButton 
+                  onClick={async () => {
+                    const selProject = projects.find(p => p.cr5db_projectid === newTaskProjectId);
+                    const selPhase = projectPhases.find(ph => ph.cr5db_projectphaseid === newTaskPhaseId);
+                    return await AIService.generateTaskDescription(
+                      newTaskName || 'Công việc mới',
+                      selProject?.cr5db_projectname || '',
+                      selPhase?.cr5db_projectphase1 || ''
+                    );
+                  }}
+                  onSuccess={(text) => setNewTaskDesc(text)}
+                />
                 <textarea 
                   value={newTaskDesc} 
                   onChange={(e) => setNewTaskDesc(e.target.value)} 
@@ -7959,6 +7991,16 @@ function App() {
             <form onSubmit={handleAddTimesheet} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div>
                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Mô tả công việc</label>
+                <AIGenerateButton 
+                  onClick={async () => {
+                    const selTask = tasks.find(t => t.cr5db_taskid === newTimesheetTaskId);
+                    return await AIService.refineTimesheetText(
+                      newTimesheetDesc || 'Đã làm việc',
+                      selTask?.cr5db_taskname || ''
+                    );
+                  }}
+                  onSuccess={(text) => setNewTimesheetDesc(text)}
+                />
                 <input type="text" value={newTimesheetDesc} onChange={(e) => setNewTimesheetDesc(e.target.value)} className="input-spec" required placeholder="Hôm nay bạn đã làm gì..." />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -9605,6 +9647,54 @@ function App() {
         </div>
       )}
 
+      {/* 🤖 AI Chatbot Float Widget */}
+      <AIChatbot 
+        snapshot={((): SystemSnapshot => {
+          const completedTasks = tasks.filter(t => t.cr5db_status === 'Completed').length;
+          const now = new Date();
+          const overdueTasks = tasks.filter(t => t.cr5db_due_date && new Date(t.cr5db_due_date) < now && t.cr5db_status !== 'Completed').length;
+          const totalHours = timesheets.reduce((s, ts) => s + (ts.cr5db_actualhoursworked || 0), 0);
+          
+          // Nhóm task theo dự án
+          const projMap = new Map<string, { name: string; total: number; done: number }>();
+          tasks.forEach(t => {
+            const pName = t.cr5db_project_name || 'Không thuộc dự án';
+            const entry = projMap.get(pName) || { name: pName, total: 0, done: 0 };
+            entry.total++;
+            if (t.cr5db_status === 'Completed') entry.done++;
+            projMap.set(pName, entry);
+          });
+          
+          // Top nhân viên theo số task
+          const empMap = new Map<string, number>();
+          tasks.forEach(t => {
+            const name = t.cr5db_assignee_name || 'Chưa phân công';
+            empMap.set(name, (empMap.get(name) || 0) + 1);
+          });
+          const topEmps = [...empMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, count]) => ({ name, taskCount: count }));
+          
+          // KPI summary
+          const kpiScores = kpiTargets.map(k => {
+            const rate = k.cr5db_targetvalue > 0 ? Math.round((k.cr5db_actualvalue / k.cr5db_targetvalue) * 100) : 0;
+            return rate;
+          });
+          const avgKpi = kpiScores.length > 0 ? Math.round(kpiScores.reduce((a, b) => a + b, 0) / kpiScores.length) : 0;
+          const belowThreshold = kpiScores.filter(s => s < 70).length;
+          
+          return {
+            totalUsers: usersList.length,
+            totalTasks: tasks.length,
+            completedTasks,
+            overdueTasks,
+            totalProjects: projects.length,
+            totalTimesheetHours: totalHours,
+            totalAppraisals: appraisals.length,
+            projectDetails: [...projMap.values()].map(p => ({ name: p.name, taskCount: p.total, completedCount: p.done })),
+            topEmployees: topEmps,
+            kpiSummary: { avgScore: avgKpi, belowThreshold }
+          };
+        })()}
+      />
     </div>
   );
 }
