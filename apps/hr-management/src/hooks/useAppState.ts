@@ -91,6 +91,8 @@ export function useAppState() {
   const [kpiEmployeeId, setKpiEmployeeId] = useState('');
   const [kpiObjectiveId, setKpiObjectiveId] = useState('');
   const [kpiLibraryId, setKpiLibraryId] = useState('');
+  const [kpiParentKpiId, setKpiParentKpiId] = useState('');
+  const [kpiRollupMethod, setKpiRollupMethod] = useState('Manual');
   const [kpiPeriod, setKpiPeriod] = useState('Q2/2026');
 
   // ── Sub-Tabs ─────────────────────────────────────────────────────────────
@@ -339,6 +341,8 @@ export function useAppState() {
     kpiEmployeeId, setKpiEmployeeId,
     kpiObjectiveId, setKpiObjectiveId,
     kpiLibraryId, setKpiLibraryId,
+    kpiParentKpiId, setKpiParentKpiId,
+    kpiRollupMethod, setKpiRollupMethod,
     kpiPeriod, setKpiPeriod,
 
     // Sub-Tabs
