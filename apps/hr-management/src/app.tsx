@@ -6768,9 +6768,13 @@ function App() {
                 <div>
                   <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Phòng ban</label>
                   <select value={newReqDeptId} onChange={(e) => setNewReqDeptId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
-                    {departmentsList.map(d => (
-                      <option key={d.cr5db_departmentid} value={d.cr5db_departmentid}>{d.cr5db_departmentname}</option>
-                    ))}
+                    {departmentsList.map(d => {
+                      const company = companiesList.find(c => c.cr5db_companyid === d._cr5db_companyid_value);
+                      const displayLabel = company ? `${d.cr5db_departmentname} (${company.cr5db_companyname})` : d.cr5db_departmentname;
+                      return (
+                        <option key={d.cr5db_departmentid} value={d.cr5db_departmentid}>{displayLabel}</option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>
@@ -6792,9 +6796,16 @@ function App() {
                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Quản lý trực tiếp (Reports To)</label>
                 <select value={newReqReportsToId} onChange={(e) => setNewReqReportsToId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
                   <option value="">Không có / Vị trí cấp cao nhất</option>
-                  {jobPositionsList.map(pos => (
-                    <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>{pos.cr5db_positionname}</option>
-                  ))}
+                  {jobPositionsList.map(pos => {
+                    const dept = departmentsList.find(d => d.cr5db_departmentid === pos._cr5db_department_value);
+                    const company = dept ? companiesList.find(c => c.cr5db_companyid === dept._cr5db_companyid_value) : null;
+                    const deptPart = dept ? dept.cr5db_departmentname : '';
+                    const compPart = company ? ` - ${company.cr5db_companyname}` : '';
+                    const displayLabel = deptPart || compPart ? `${pos.cr5db_positionname} (${deptPart}${compPart})` : pos.cr5db_positionname;
+                    return (
+                      <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>{displayLabel}</option>
+                    );
+                  })}
                 </select>
               </div>
               <div>
@@ -7242,9 +7253,13 @@ function App() {
                 <div>
                   <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Phòng ban</label>
                   <select value={newJobPosDeptId} onChange={(e) => setNewJobPosDeptId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
-                    {departmentsList.map(d => (
-                      <option key={d.cr5db_departmentid} value={d.cr5db_departmentid}>{d.cr5db_departmentname}</option>
-                    ))}
+                    {departmentsList.map(d => {
+                      const company = companiesList.find(c => c.cr5db_companyid === d._cr5db_companyid_value);
+                      const displayLabel = company ? `${d.cr5db_departmentname} (${company.cr5db_companyname})` : d.cr5db_departmentname;
+                      return (
+                        <option key={d.cr5db_departmentid} value={d.cr5db_departmentid}>{displayLabel}</option>
+                      );
+                    })}
                   </select>
                 </div>
                 <div>
@@ -7267,9 +7282,16 @@ function App() {
                     <option value="">Không có</option>
                     {jobPositionsList
                       .filter(pos => !editingJobPosition || pos.cr5db_jobpositionid !== editingJobPosition.cr5db_jobpositionid)
-                      .map(pos => (
-                        <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>{pos.cr5db_positionname}</option>
-                      ))}
+                      .map(pos => {
+                        const dept = departmentsList.find(d => d.cr5db_departmentid === pos._cr5db_department_value);
+                        const company = dept ? companiesList.find(c => c.cr5db_companyid === dept._cr5db_companyid_value) : null;
+                        const deptPart = dept ? dept.cr5db_departmentname : '';
+                        const compPart = company ? ` - ${company.cr5db_companyname}` : '';
+                        const displayLabel = deptPart || compPart ? `${pos.cr5db_positionname} (${deptPart}${compPart})` : pos.cr5db_positionname;
+                        return (
+                          <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>{displayLabel}</option>
+                        );
+                      })}
                   </select>
                 </div>
               </div>
