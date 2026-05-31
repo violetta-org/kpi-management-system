@@ -53,6 +53,7 @@ export interface KPITarget {
   cr5db_weightpercentage: number;
   cr5db_user_email: string;
   cr5db_period: string;
+  cr5db_objective_name?: string;
   _cr5db_parentobjective_value?: string;
   _cr5db_employeeid_value?: string;
   _cr5db_kpicode_value?: string;

@@ -200,6 +200,8 @@ function App() {
     selectedDeptCompanyId, setSelectedDeptCompanyId,
     selectedReportsToPositionId, setSelectedReportsToPositionId,
     selectedKpiEmployeeFilter, setSelectedKpiEmployeeFilter,
+    selectedKpiObjectiveFilter, setSelectedKpiObjectiveFilter,
+    selectedKpiPeriodFilter, setSelectedKpiPeriodFilter,
     isSidebarHidden, setIsSidebarHidden,
     showNotificationsModal, setShowNotificationsModal,
     taskSearchQuery, setTaskSearchQuery,
@@ -490,8 +492,8 @@ function App() {
   const handleApproveTimesheet = async (id: string) => {
     try {
       setIsLoading(true);
-      // statecode:1 = Inactive (closed), statuscode:1 = Approved
-      await Cr5db_timesheetlogsService.update(id, { statecode: 1, statuscode: 1 } as any);
+      // statecode:1 = Inactive (closed), statuscode:2 = Inactive (database approved)
+      await Cr5db_timesheetlogsService.update(id, { statecode: 1, statuscode: 2 } as any);
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
@@ -512,20 +514,66 @@ function App() {
     }
   };
 
+  const handleUpdateSelfAppraisalScore = async (id: string, score: number) => {
+    try {
+      setIsLoading(true);
+      await Cr5db_performanceappraisalsService.update(id, { cr5db_selfscore: score });
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể cập nhật điểm tự chấm.");
+      setIsLoading(false);
+    }
+  };
+
   const handleAutoCalculateAppraisal = async (id: string, email: string) => {
     if (!email) return;
     const employeeKpis = kpiTargets.filter(k => k.cr5db_user_email.toLowerCase() === email.toLowerCase());
+    if (employeeKpis.length === 0) {
+      alert("Không tìm thấy dữ liệu KPI nào được gán cho nhân sự này để tự động tính điểm.");
+      return;
+    }
+
     let totalWeight = 0;
     let weightedScore = 0;
-    employeeKpis.forEach(k => {
+    let breakdownLines: string[] = [];
+
+    employeeKpis.forEach((k, idx) => {
       const target = k.cr5db_targetvalue || 100;
       const actual = k.cr5db_actualvalue || 0;
       const weight = k.cr5db_weightpercentage || 0;
       const rate = target > 0 ? actual / target : 0;
-      weightedScore += rate * weight;
+      const contribution = rate * weight;
+
+      weightedScore += contribution;
       totalWeight += weight;
+
+      const pctComplete = Math.round(rate * 100);
+      breakdownLines.push(
+        `${idx + 1}. ${k.cr5db_kpiname}\n` +
+        `   • Thực tế: ${actual} / ${target} ${k.cr5db_unit} (Hoàn thành: ${pctComplete}%)\n` +
+        `   • Tỷ trọng: ${weight}% | Đóng góp: ${contribution.toFixed(1)}%`
+      );
     });
+
     const suggested = totalWeight > 0 ? Math.round((weightedScore / totalWeight) * 100) : 75;
+
+    const confirmMessage = 
+      `--- BẢNG CHI TIẾT TÍNH TOÁN ĐIỂM HIỆU SUẤT ---\n\n` +
+      `Nhân viên: ${email}\n` +
+      `Số lượng KPI đánh giá: ${employeeKpis.length}\n\n` +
+      `Chi tiết các chỉ tiêu:\n` +
+      `--------------------------------------------------\n` +
+      `${breakdownLines.join('\n\n')}\n` +
+      `--------------------------------------------------\n` +
+      `• Tổng tỷ trọng các KPI: ${totalWeight}%\n` +
+      `• Tổng đóng góp có trọng số: ${weightedScore.toFixed(1)}%\n` +
+      `• Công thức: (Tổng đóng góp / Tổng tỷ trọng) * 100\n` +
+      `• Điểm hiệu suất đề xuất: ${suggested} / 100\n\n` +
+      `Bạn có muốn áp dụng điểm hiệu suất ${suggested}/100 này làm điểm chung cuộc không?`;
+
+    if (!window.confirm(confirmMessage)) return;
+
     try {
       setIsLoading(true);
       await Cr5db_performanceappraisalsService.update(id, { cr5db_finalscore: suggested });
@@ -542,8 +590,17 @@ function App() {
     if (!rejectionReason.trim()) return;
     try {
       setIsLoading(true);
+      const tsRecord = timesheets.find(t => t.cr5db_timesheetlogid === timesheetToRejectId);
+      const originalDesc = tsRecord?.cr5db_timesheetlog1 || '';
+      const prefix = `[Từ chối] ${rejectionReason.trim()} | `;
+      const newDesc = originalDesc.startsWith('[Từ chối]') ? originalDesc : (prefix + originalDesc);
+
       // statecode:1 = Inactive (closed), statuscode:2 = Rejected
-      await Cr5db_timesheetlogsService.update(timesheetToRejectId, { statecode: 1, statuscode: 2 } as any);
+      await Cr5db_timesheetlogsService.update(timesheetToRejectId, { 
+        statecode: 1, 
+        statuscode: 2,
+        cr5db_timesheetlog1: newDesc
+      } as any);
 
       const adminUser = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       await Cr5db_audittraillogsService.create({
@@ -1820,7 +1877,7 @@ function App() {
   const totalHoursThisWeek = myTimesheets.reduce((acc, curr) => acc + curr.cr5db_actualhoursworked, 0);
   const totalEntries = myTimesheets.length;
   const pendingCount = myTimesheets.filter(ts => ts.statecode === 0).length;
-  const approvedCount = myTimesheets.filter(ts => ts.statecode === 1).length;
+  const approvedCount = myTimesheets.filter(ts => ts.statecode === 1 && !ts.cr5db_timesheetlog1?.startsWith('[Từ chối]')).length;
   const avgDaily = totalEntries > 0 ? Math.round(totalHoursThisWeek / totalEntries) : 0;
 
   const pendingApprovalsTimesheets = timesheets.filter(ts => ts.statecode === 0);
@@ -2557,10 +2614,10 @@ function App() {
                             <td style={{ padding: '12px' }}>
                               <span className={
                                 ts.statecode === 0 ? 'status-pending'
-                                : ts.statuscode === 2 ? 'status-rejected'
+                                : ts.cr5db_timesheetlog1?.startsWith('[Từ chối]') ? 'status-rejected'
                                 : 'status-approved'
                               }>
-                                {ts.statecode === 0 ? 'Pending' : ts.statuscode === 2 ? 'Từ chối' : 'Approved'}
+                                {ts.statecode === 0 ? 'Pending' : ts.cr5db_timesheetlog1?.startsWith('[Từ chối]') ? 'Từ chối' : 'Approved'}
                               </span>
                             </td>
                           </tr>
@@ -2610,7 +2667,7 @@ function App() {
           )}
 
           {activeTab === 'kpi' && (() => {
-            const userKpis = activeRole === 'Employee'
+            let filteredKpis = activeRole === 'Employee'
               ? kpiTargets.filter(k => k.cr5db_user_email.toLowerCase() === currentUserEmail.toLowerCase())
               : selectedKpiEmployeeFilter === 'All'
                 ? kpiTargets
@@ -2618,6 +2675,14 @@ function App() {
                     const employee = usersList.find(u => u.cr5db_userid === k._cr5db_employeeid_value);
                     return employee?.cr5db_userid === selectedKpiEmployeeFilter;
                   });
+
+            if (selectedKpiObjectiveFilter !== 'All') {
+              filteredKpis = filteredKpis.filter(k => k._cr5db_parentobjective_value === selectedKpiObjectiveFilter);
+            }
+            if (selectedKpiPeriodFilter !== 'All') {
+              filteredKpis = filteredKpis.filter(k => k.cr5db_period === selectedKpiPeriodFilter);
+            }
+            const userKpis = filteredKpis;
             return (
               <div className="space-y-6 p-6" style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '24px', fontFamily: 'ui-sans-serif, system-ui, sans-serif', color: '#000000', backgroundColor: '#ffffff' }}>
               {/* Header section */}
@@ -2637,16 +2702,17 @@ function App() {
                 {activeRole !== 'Employee' && (
                   <button
                     onClick={() => {
+                      const firstLib = kpiLibrariesList[0];
                       setEditingKpi(null);
-                      setKpiTargetName('');
+                      setKpiTargetName(firstLib ? (firstLib.cr5db_kpiname || '') : '');
                       setKpiTargetValue(100);
                       setKpiActualValue(0);
                       setKpiWeight(10);
-                      setKpiUnit('%');
+                      setKpiUnit(firstLib ? (firstLib.cr5db_unit || '%') : '%');
                       setKpiPeriod('Q2/2026');
                       setKpiEmployeeId(usersList[0]?.cr5db_userid || '');
                       setKpiObjectiveId(objectivesList[0]?.cr5db_objectiveid || '');
-                      setKpiLibraryId(kpiLibrariesList[0]?.cr5db_kpilibraryid || '');
+                      setKpiLibraryId(firstLib ? firstLib.cr5db_kpilibraryid : '');
                       setShowKpiModal(true);
                     }}
                     className="btn-primary"
@@ -2745,23 +2811,58 @@ function App() {
                         </div>
                       </div>
 
-                      {/* Admin Filter panel */}
-                      {activeRole !== 'Employee' && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 600 }}>Lọc theo nhân sự:</span>
+                      {/* Filter panel */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '16px', padding: '12px 16px', backgroundColor: '#F8F9FA', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                        {activeRole !== 'Employee' && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 600 }}>Nhân sự:</span>
+                            <select
+                              value={selectedKpiEmployeeFilter}
+                              onChange={(e) => setSelectedKpiEmployeeFilter(e.target.value)}
+                              className="input-spec"
+                              style={{ width: '180px', height: '34px', padding: '4px 10px', fontSize: '13px', border: '1px solid var(--color-border)', borderRadius: '6px' }}
+                            >
+                              <option value="All">Tất cả nhân viên</option>
+                              {usersList.map(u => (
+                                <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 600 }}>Chu kỳ:</span>
                           <select
-                            value={selectedKpiEmployeeFilter}
-                            onChange={(e) => setSelectedKpiEmployeeFilter(e.target.value)}
+                            value={selectedKpiPeriodFilter}
+                            onChange={(e) => setSelectedKpiPeriodFilter(e.target.value)}
                             className="input-spec"
-                            style={{ width: '220px', height: '36px', padding: '4px 10px', fontSize: '13px' }}
+                            style={{ width: '150px', height: '34px', padding: '4px 10px', fontSize: '13px', border: '1px solid var(--color-border)', borderRadius: '6px' }}
                           >
-                            <option value="All">Tất cả nhân viên</option>
-                            {usersList.map(u => (
-                              <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname}</option>
+                            <option value="All">Tất cả chu kỳ</option>
+                            {Array.from(new Set([
+                              ...objectivesList.map(o => o.cr5db_periodnamename),
+                              ...kpiTargets.map(k => k.cr5db_period)
+                            ].filter(Boolean))).map(p => (
+                              <option key={p} value={p}>{p}</option>
                             ))}
                           </select>
                         </div>
-                      )}
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 600 }}>Mục tiêu chung:</span>
+                          <select
+                            value={selectedKpiObjectiveFilter}
+                            onChange={(e) => setSelectedKpiObjectiveFilter(e.target.value)}
+                            className="input-spec"
+                            style={{ width: '220px', height: '34px', padding: '4px 10px', fontSize: '13px', border: '1px solid var(--color-border)', borderRadius: '6px' }}
+                          >
+                            <option value="All">Tất cả mục tiêu chung</option>
+                            {objectivesList.map(o => (
+                              <option key={o.cr5db_objectiveid} value={o.cr5db_objectiveid}>{o.cr5db_objective1}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
 
                       {/* Main content table card */}
                       <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
@@ -2779,6 +2880,8 @@ function App() {
                               <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
                                 <th style={{ padding: '14px 20px' }}>Mục tiêu KPI</th>
                                 {activeRole !== 'Employee' && <th style={{ padding: '14px 20px' }}>Nhân sự</th>}
+                                <th style={{ padding: '14px 20px' }}>Mục tiêu chung</th>
+                                <th style={{ padding: '14px 20px' }}>Chu kỳ</th>
                                 <th style={{ padding: '14px 20px' }}>Tỷ trọng</th>
                                 <th style={{ padding: '14px 20px' }}>Mục tiêu</th>
                                 <th style={{ padding: '14px 20px' }}>Thực tế</th>
@@ -2794,6 +2897,8 @@ function App() {
                                   <tr key={k.cr5db_kpitargetid} style={{ borderBottom: '1px solid var(--color-border)' }}>
                                     <td style={{ padding: '14px 20px', fontWeight: 600 }}>{k.cr5db_kpiname}</td>
                                     {activeRole !== 'Employee' && <td style={{ padding: '14px 20px' }}>{employeeName}</td>}
+                                    <td style={{ padding: '14px 20px' }}>{k.cr5db_objective_name || 'Chưa liên kết'}</td>
+                                    <td style={{ padding: '14px 20px' }}>{k.cr5db_period}</td>
                                     <td style={{ padding: '14px 20px' }}>{k.cr5db_weightpercentage}%</td>
                                     <td style={{ padding: '14px 20px' }}>{k.cr5db_targetvalue} {k.cr5db_unit}</td>
                                     <td style={{ padding: '14px 20px', fontWeight: 600 }}>{k.cr5db_actualvalue} {k.cr5db_unit}</td>
@@ -3141,7 +3246,19 @@ function App() {
                           <tr key={ap.cr5db_performanceappraisalid} style={{ borderBottom: '1px solid var(--color-border)' }}>
                             <td style={{ padding: '14px 20px', fontWeight: 600 }}>{ap.cr5db_performanceappraisal1}</td>
                             <td style={{ padding: '14px 20px' }}>{ap.cr5db_evaluatorname}</td>
-                            <td style={{ padding: '14px 20px' }}>{ap.cr5db_selfscore}/100</td>
+                            <td style={{ padding: '14px 20px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <input 
+                                  type="number" 
+                                  min={0} 
+                                  max={100}
+                                  defaultValue={ap.cr5db_selfscore}
+                                  onBlur={(e) => handleUpdateSelfAppraisalScore(ap.cr5db_performanceappraisalid, Number(e.target.value))}
+                                  style={{ width: '60px', padding: '4px 8px', border: '1px solid var(--color-border)', borderRadius: '4px' }}
+                                />
+                                <span style={{ fontSize: '13px' }}>/100</span>
+                              </div>
+                            </td>
                             <td style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-primary)' }}>{ap.cr5db_finalscore}/100</td>
                           </tr>
                         ))}
@@ -4784,8 +4901,8 @@ function App() {
             </div>
           )}
 
-          {/* SCREEN 12: APPROVAL ROUTES CONFIG (ADMIN ONLY) */}
-          {activeTab === 'routes' && activeRole === 'Admin' && (
+          {/* SCREEN 12: APPROVAL ROUTES CONFIG (ADMIN OR PERMITTED ONLY) */}
+          {activeTab === 'routes' && (activeRole === 'Admin' || checkPermission('routes')) && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
@@ -5285,7 +5402,7 @@ function App() {
       )}
 
       {/* Approval Route Modal */}
-      {showRouteModal && activeRole === 'Admin' && (
+      {showRouteModal && (activeRole === 'Admin' || checkPermission('routes')) && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '500px' }}>
             <h3 style={{ marginBottom: '16px', fontSize: '16px', fontWeight: 700 }}>

@@ -358,7 +358,8 @@ export function useLiveData(setters: LiveDataSetters) {
           cr5db_unit: libraryItem?.cr5db_unit || '%',
           cr5db_weightpercentage: k.cr5db_weightpercentage || 0,
           cr5db_user_email: employee?.cr5db_email || '',
-          cr5db_period: parentObjective?.cr5db_objective1 || 'Q2/2026',
+          cr5db_period: parentObjective?.cr5db_periodnamename || 'Q2/2026',
+          cr5db_objective_name: parentObjective?.cr5db_objective1 || 'Chưa liên kết',
           _cr5db_parentobjective_value: k._cr5db_parentobjective_value || undefined,
           _cr5db_employeeid_value: k._cr5db_employeeid_value || undefined,
           _cr5db_kpicode_value: k._cr5db_kpicode_value || undefined
@@ -377,7 +378,8 @@ export function useLiveData(setters: LiveDataSetters) {
           cr5db_taskname: ts.cr5db_taskidname || 'Không thuộc dự án',
           cr5db_username: ts.cr5db_useridname || user?.cr5db_fullname || 'Thành viên',
           cr5db_useremail: user?.cr5db_email || '',
-          statecode: ts.statecode
+          statecode: ts.statecode,
+          statuscode: ts.statuscode
         };
       });
       setters.setTimesheets(mappedTimesheets);

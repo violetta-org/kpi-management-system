@@ -112,6 +112,8 @@ export function useAppState() {
   const [selectedDeptCompanyId, setSelectedDeptCompanyId] = useState<string>('');
   const [selectedReportsToPositionId, setSelectedReportsToPositionId] = useState<string>('');
   const [selectedKpiEmployeeFilter, setSelectedKpiEmployeeFilter] = useState<string>('All');
+  const [selectedKpiObjectiveFilter, setSelectedKpiObjectiveFilter] = useState<string>('All');
+  const [selectedKpiPeriodFilter, setSelectedKpiPeriodFilter] = useState<string>('All');
 
   // ── UI State ─────────────────────────────────────────────────────────────
   const [isSidebarHidden, setIsSidebarHidden] = useState(false);
@@ -353,6 +355,8 @@ export function useAppState() {
     selectedDeptCompanyId, setSelectedDeptCompanyId,
     selectedReportsToPositionId, setSelectedReportsToPositionId,
     selectedKpiEmployeeFilter, setSelectedKpiEmployeeFilter,
+    selectedKpiObjectiveFilter, setSelectedKpiObjectiveFilter,
+    selectedKpiPeriodFilter, setSelectedKpiPeriodFilter,
 
     // UI State
     isSidebarHidden, setIsSidebarHidden,
