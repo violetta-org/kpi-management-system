@@ -58,6 +58,7 @@ export function useAppState() {
   const [changeRequestsList, setChangeRequestsList] = useState<any[]>([]);
   const [projectTeamsList, setProjectTeamsList] = useState<any[]>([]);
   const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>([]);
+  const [bonusMatrixList, setBonusMatrixList] = useState<any[]>([]);
   const [defaultGroups, setDefaultGroups] = useState<string>('');
   const [defaultGroupsDbId, setDefaultGroupsDbId] = useState<string>('');
 
@@ -237,7 +238,7 @@ export function useAppState() {
   const [selectedApproverId, setSelectedApproverId] = useState('');
 
   // ── KPI Catalog (Library + Objectives) ──────────────────────────────────
-  const [activeKpiCatalogSubTab, setActiveKpiCatalogSubTab] = useState<'library' | 'objectives'>('library');
+  const [activeKpiCatalogSubTab, setActiveKpiCatalogSubTab] = useState<'library' | 'objectives' | 'bonus'>('library');
 
   // KPI Library item modal
   const [showKpiLibraryModal, setShowKpiLibraryModal] = useState(false);
@@ -252,7 +253,13 @@ export function useAppState() {
   const [editingObjective, setEditingObjective] = useState<any>(null);
   const [objectiveName, setObjectiveName] = useState('');
   const [objectiveTarget, setObjectiveTarget] = useState<number>(100);
-  const [objectivePeriodId, setObjectivePeriodId] = useState('');
+  const [objectivePeriodId, setObjectivePeriodId] = useState<string>('');
+
+  const [showBonusMatrixModal, setShowBonusMatrixModal] = useState(false);
+  const [editingBonusMatrix, setEditingBonusMatrix] = useState<any>(null);
+  const [newMinScore, setNewMinScore] = useState<number>(0);
+  const [newMaxScore, setNewMaxScore] = useState<number>(0);
+  const [newMultiplier, setNewMultiplier] = useState<number>(0);
 
   // ── Approval Routes Management ───────────────────────────────────────────
   const [showRouteModal, setShowRouteModal] = useState(false);
@@ -489,6 +496,12 @@ export function useAppState() {
     objectiveName, setObjectiveName,
     objectiveTarget, setObjectiveTarget,
     objectivePeriodId, setObjectivePeriodId,
+    bonusMatrixList, setBonusMatrixList,
+    showBonusMatrixModal, setShowBonusMatrixModal,
+    editingBonusMatrix, setEditingBonusMatrix,
+    newMinScore, setNewMinScore,
+    newMaxScore, setNewMaxScore,
+    newMultiplier, setNewMultiplier,
 
     // Approval Routes Management
     showRouteModal, setShowRouteModal,

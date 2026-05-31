@@ -23,7 +23,8 @@ import { Cr5db_changerequestsesService } from '../generated/services/Cr5db_chang
 import { Cr5db_systemparametersService } from '../generated/services/Cr5db_systemparametersService';
 import { Cr5db_evaluationperiodsService } from '../generated/services/Cr5db_evaluationperiodsService';
 import { Cr5db_projectteamsService } from '../generated/services/Cr5db_projectteamsService';
-import type { User, Task, HeadcountRequest, KPITarget, PermissionGroup, EvaluationPeriod } from '../lib/types';
+import { New_bonusmatrixService } from '../generated/services/New_bonusmatrixService';
+import type { User, Task, HeadcountRequest, KPITarget, PermissionGroup, EvaluationPeriod, BonusMatrix } from '../lib/types';
 
 /** All setters useLiveData needs to push fetched data into shared state */
 export interface LiveDataSetters {
@@ -55,6 +56,7 @@ export interface LiveDataSetters {
   setAppraisals: (v: any[]) => void;
   setEvaluationPeriodsList: (v: EvaluationPeriod[]) => void;
   setPermissionGroups: (v: PermissionGroup[]) => void;
+  setBonusMatrixList: (v: BonusMatrix[]) => void;
   setDefaultGroups: (v: string) => void;
   setDefaultGroupsDbId: (v: string) => void;
   // Default select setters populated on first load
@@ -145,7 +147,8 @@ export function useLiveData(setters: LiveDataSetters) {
         rawRequests,
         rawParams,
         rawEvaluationPeriods,
-        rawProjectTeams
+        rawProjectTeams,
+        rawBonusMatrix
       ] = await Promise.all([
         safeGet<User>('Users', Cr5db_usersService.getAll),
         safeGet('Departments', Cr5db_departmentsService.getAll),
@@ -169,7 +172,8 @@ export function useLiveData(setters: LiveDataSetters) {
         safeGet('Change Requests', Cr5db_changerequestsesService.getAll),
         safeGet('System Parameters', Cr5db_systemparametersService.getAll),
         safeGet('Evaluation Periods', Cr5db_evaluationperiodsService.getAll),
-        safeGet('Project Teams', Cr5db_projectteamsService.getAll)
+        safeGet('Project Teams', Cr5db_projectteamsService.getAll),
+        safeGet<BonusMatrix>('Bonus Matrix', New_bonusmatrixService.getAll)
       ]);
 
       if (loadErrors.length > 0) {
@@ -309,6 +313,7 @@ export function useLiveData(setters: LiveDataSetters) {
       setters.setApprovalRoutesList(rawRoutes);
       setters.setChangeRequestsList(rawRequests);
       setters.setProjectTeamsList(rawProjectTeams);
+      setters.setBonusMatrixList(rawBonusMatrix);
 
       // Populate default select values
       if (allDepts.length > 0) {

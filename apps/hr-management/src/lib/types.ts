@@ -56,13 +56,23 @@ export interface KPITarget {
   cr5db_weightpercentage: number;
   cr5db_user_email: string;
   cr5db_period: string;
-  cr5db_objective_name?: string;
+  cr5db_objective_name: string;
+  cr5db_employee_name?: string;
+  cr5db_rollupmethod?: string;
   _cr5db_parentobjective_value?: string;
   _cr5db_employeeid_value?: string;
   _cr5db_kpicode_value?: string;
   _cr5db_parentkpi_value?: string;
   cr5db_rollupmethod?: string;
   cr5db_employee_name?: string;
+}
+
+export interface BonusMatrix {
+  new_bonusmatrixid: string;
+  new_minscore: number;
+  new_maxscore: number;
+  new_multiplier: number;
+  _new_evaluationperiod_value?: string;
 }
 
 export interface Company {
@@ -85,6 +95,7 @@ export interface JobPosition {
   _cr5db_reportstopositionid_value?: string;
   cr5db_headcountquota?: number;
   cr5db_currentheadcount?: number;
+  cr5db_actualheadcount?: number;
   cr5db_departmentname?: string;
   cr5db_actualheadcount?: number;
 }

@@ -27,6 +27,7 @@ import { Cr5db_kpilibrariesService } from './generated/services/Cr5db_kpilibrari
 import { Cr5db_objectivesService } from './generated/services/Cr5db_objectivesService';
 import { Cr5db_evaluationperiodsService } from './generated/services/Cr5db_evaluationperiodsService';
 import { Cr5db_systemparametersService } from './generated/services/Cr5db_systemparametersService';
+import { New_bonusmatrixService } from './generated/services/New_bonusmatrixService';
 
 import { calculateKpiAchievementRate } from './utils/kpiLogic';
 
@@ -282,6 +283,8 @@ function App() {
     kpiObjectiveId, setKpiObjectiveId,
     kpiLibraryId, setKpiLibraryId,
     kpiPeriod, setKpiPeriod,
+    kpiParentKpiId, setKpiParentKpiId,
+    kpiRollupMethod, setKpiRollupMethod,
     activeTimesheetSubTab, setActiveTimesheetSubTab,
     activePerformanceSubTab, setActivePerformanceSubTab,
     activeResourcesSubTab, setActiveResourcesSubTab,
@@ -409,6 +412,14 @@ function App() {
     permissionGroups, setPermissionGroups,
     defaultGroups, setDefaultGroups,
     defaultGroupsDbId, setDefaultGroupsDbId,
+    
+    // Bonus Matrix
+    bonusMatrixList, setBonusMatrixList,
+    showBonusMatrixModal, setShowBonusMatrixModal,
+    editingBonusMatrix, setEditingBonusMatrix,
+    newMinScore, setNewMinScore,
+    newMaxScore, setNewMaxScore,
+    newMultiplier, setNewMultiplier,
 
     // Appraisal cycles
     evaluationPeriodsList, setEvaluationPeriodsList,
@@ -970,7 +981,7 @@ function App() {
     setNewReqCatalogId, setNewJobPosCatalogId,
     setSelectedDeptCompanyId, setNewTimesheetTaskId,
     setPermissionGroups, setDefaultGroups,
-    setDefaultGroupsDbId,
+    setDefaultGroupsDbId, setBonusMatrixList
   });
 
   // ── Approval Engine ───────────────────────────────────────────────────────
@@ -1223,6 +1234,12 @@ function App() {
     }
   };
 
+  const calculateBonusMultiplier = (score: number) => {
+    if (!bonusMatrixList || bonusMatrixList.length === 0) return 0;
+    const match = bonusMatrixList.find(m => score >= m.new_minscore && score <= m.new_maxscore);
+    return match ? match.new_multiplier : 0;
+  };
+
   const handleUpdateAppraisalScore = async (id: string, score: number) => {
     const ap = appraisals.find(a => a.cr5db_performanceappraisalid === id);
     const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === ap?.cr5db_periodname);
@@ -1232,7 +1249,8 @@ function App() {
     }
     try {
       setIsLoading(true);
-      await Cr5db_performanceappraisalsService.update(id, { cr5db_finalscore: score });
+      const bonus = calculateBonusMultiplier(score);
+      await Cr5db_performanceappraisalsService.update(id, { cr5db_finalscore: score, new_bonusmultiplier: bonus } as any);
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
@@ -1324,6 +1342,7 @@ function App() {
     });
 
     const suggested = totalWeight > 0 ? Math.round((weightedScore / totalWeight) * 100) : 75;
+    const bonus = calculateBonusMultiplier(suggested);
 
     const confirmMessage = 
       `--- BẢNG CHI TIẾT TÍNH TOÁN ĐIỂM HIỆU SUẤT ---\n\n` +
@@ -1336,14 +1355,15 @@ function App() {
       `• Tổng tỷ trọng các KPI: ${totalWeight}%\n` +
       `• Tổng đóng góp có trọng số: ${weightedScore.toFixed(1)}%\n` +
       `• Công thức: (Tổng đóng góp / Tổng tỷ trọng) * 100\n` +
-      `• Điểm hiệu suất đề xuất: ${suggested} / 100\n\n` +
+      `• Điểm hiệu suất đề xuất: ${suggested} / 100\n` +
+      `• Dự kiến Hệ số Thưởng: ${bonus} tháng\n\n` +
       `Bạn có muốn áp dụng điểm hiệu suất ${suggested}/100 này làm điểm chung cuộc không?`;
 
     if (!window.confirm(confirmMessage)) return;
 
     try {
       setIsLoading(true);
-      await Cr5db_performanceappraisalsService.update(id, { cr5db_finalscore: suggested });
+      await Cr5db_performanceappraisalsService.update(id, { cr5db_finalscore: suggested, new_bonusmultiplier: bonus } as any);
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
@@ -1631,6 +1651,51 @@ function App() {
     } catch (err: any) {
       console.error(err);
       alert("Không thể xóa chức danh: " + (err.message || err));
+      setIsLoading(false);
+    }
+  };
+
+  // Bonus Matrix CRUD
+  const handleSaveBonusMatrix = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newMinScore < 0 || newMaxScore < newMinScore) {
+      alert("Dải điểm không hợp lệ (Min >= 0, Max >= Min).");
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const payload: any = {
+        new_minscore: newMinScore,
+        new_maxscore: newMaxScore,
+        new_multiplier: newMultiplier
+      };
+      if (editingBonusMatrix) {
+        await New_bonusmatrixService.update(editingBonusMatrix.new_bonusmatrixid, payload);
+      } else {
+        await New_bonusmatrixService.create(payload);
+      }
+      setShowBonusMatrixModal(false);
+      setEditingBonusMatrix(null);
+      setNewMinScore(0);
+      setNewMaxScore(0);
+      setNewMultiplier(0);
+      await fetchLiveValues();
+    } catch (err: any) {
+      console.error(err);
+      alert("Không thể lưu dải điểm: " + (err.message || err));
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteBonusMatrix = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa dải điểm thưởng này không?")) return;
+    try {
+      setIsLoading(true);
+      await New_bonusmatrixService.delete(id);
+      await fetchLiveValues();
+    } catch (err: any) {
+      console.error(err);
+      alert("Không thể xóa dải điểm: " + (err.message || err));
       setIsLoading(false);
     }
   };
@@ -4418,6 +4483,7 @@ function App() {
                           <th style={{ padding: '14px 20px' }}>Người đánh giá</th>
                           <th style={{ padding: '14px 20px' }}>Tự chấm</th>
                           <th style={{ padding: '14px 20px' }}>Chung cuộc</th>
+                          <th style={{ padding: '14px 20px' }}>Kết quả Thưởng</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -4457,6 +4523,11 @@ function App() {
                                 </div>
                               </td>
                               <td style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-primary)' }}>{ap.cr5db_finalscore}/100</td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <span style={{ fontSize: '13px', background: ap.new_bonusmultiplier > 0 ? '#e0f2fe' : '#f3f4f6', color: ap.new_bonusmultiplier > 0 ? '#0369a1' : '#4b5563', padding: '4px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                                  {ap.new_bonusmultiplier > 0 ? `Thưởng ${ap.new_bonusmultiplier} tháng` : 'Chưa đạt'}
+                                </span>
+                              </td>
                             </tr>
                           );
                         })}
@@ -4473,6 +4544,7 @@ function App() {
                         <th style={{ padding: '14px 20px' }}>Đợt đánh giá</th>
                         <th style={{ padding: '14px 20px' }}>Tự chấm</th>
                         <th style={{ padding: '14px 20px' }}>Điểm chung cuộc</th>
+                        <th style={{ padding: '14px 20px' }}>Kết quả Thưởng</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -4516,6 +4588,11 @@ function App() {
                                 </button>
                                 {isLocked && <span style={{ fontSize: '11.5px', color: '#ff8c00', fontWeight: 600, marginLeft: '6px' }}>🔒 Đã khóa</span>}
                               </div>
+                            </td>
+                            <td style={{ padding: '14px 20px' }}>
+                              <span style={{ fontSize: '13px', background: ap.new_bonusmultiplier > 0 ? '#e0f2fe' : '#f3f4f6', color: ap.new_bonusmultiplier > 0 ? '#0369a1' : '#4b5563', padding: '4px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                                {ap.new_bonusmultiplier > 0 ? `Thưởng ${ap.new_bonusmultiplier} tháng` : 'Chưa đạt'}
+                              </span>
                             </td>
                           </tr>
                         );
@@ -6204,7 +6281,7 @@ function App() {
                   }}
                   className="btn-primary"
                 >
-                  + Them {activeKpiCatalogSubTab === 'library' ? 'KPI moi' : 'Muc tieu moi'}
+                  + Thêm {activeKpiCatalogSubTab === 'library' ? 'KPI mới' : activeKpiCatalogSubTab === 'bonus' ? 'Mức thưởng mới' : 'Mục tiêu mới'}
                 </button>
               </div>
 
@@ -6227,7 +6304,7 @@ function App() {
 
               {/* Sub-tab switcher */}
               <div style={{ display: 'flex', gap: '0', borderBottom: '2px solid var(--color-border)' }}>
-                {(['library', 'objectives'] as const).map(tab => (
+                {(['library', 'objectives', 'bonus'] as const).map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveKpiCatalogSubTab(tab)}
@@ -6239,7 +6316,7 @@ function App() {
                       transition: 'all 0.18s', marginBottom: '-2px',
                     }}
                   >
-                    {tab === 'library' ? 'Thu vien KPI' : 'Muc tieu (Objectives)'}
+                    {tab === 'library' ? 'Thư viện KPI' : tab === 'objectives' ? 'Mục tiêu (Objectives)' : 'Chính sách Thưởng'}
                   </button>
                 ))}
               </div>
@@ -6298,6 +6375,54 @@ function App() {
                     </div>
                   )}
 
+                </>
+              )}
+
+              {/* ── Bonus Matrix sub-tab ────────────────────────────────── */}
+              {activeKpiCatalogSubTab === 'bonus' && (
+                <>
+                  {bonusMatrixList.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--color-text-secondary)', background: 'var(--color-surface)', borderRadius: '12px', border: '2px dashed var(--color-border)' }}>
+                      <div style={{ fontSize: '48px', marginBottom: '16px' }}>💰</div>
+                      <p style={{ fontWeight: 600, marginBottom: '8px' }}>Chưa có chính sách thưởng nào</p>
+                      <p style={{ fontSize: '13px', marginBottom: '20px' }}>Thêm cấu hình quy đổi từ điểm KPI sang hệ số thưởng</p>
+                      <button onClick={() => { setEditingBonusMatrix(null); setNewMinScore(0); setNewMaxScore(0); setNewMultiplier(0); setShowBonusMatrixModal(true); }} className="btn-primary">+ Thêm dải điểm thưởng</button>
+                    </div>
+                  ) : (
+                    <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                            <th style={{ padding: '14px 20px', width: '20%' }}>Điểm tối thiểu (Min)</th>
+                            <th style={{ padding: '14px 20px', width: '20%' }}>Điểm tối đa (Max)</th>
+                            <th style={{ padding: '14px 20px', width: '20%' }}>Hệ số Thưởng (Multiplier)</th>
+                            <th style={{ padding: '14px 20px', width: '25%' }}>Mô phỏng</th>
+                            <th style={{ padding: '14px 20px', textAlign: 'right', width: '15%' }}>Thao tác</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[...bonusMatrixList].sort((a, b) => b.new_minscore - a.new_minscore).map((m: any) => (
+                            <tr key={m.new_bonusmatrixid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                              <td style={{ padding: '14px 20px', fontWeight: 600 }}>{m.new_minscore} đ</td>
+                              <td style={{ padding: '14px 20px', fontWeight: 600 }}>{m.new_maxscore} đ</td>
+                              <td style={{ padding: '14px 20px', color: 'var(--color-primary)', fontWeight: 700 }}>x{m.new_multiplier}</td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <span style={{ fontSize: '12px', background: '#e0f2fe', color: '#0369a1', padding: '4px 8px', borderRadius: '4px' }}>
+                                  {m.new_multiplier > 0 ? `Thưởng ${m.new_multiplier} tháng` : 'Không có thưởng'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                  <button onClick={() => { setEditingBonusMatrix(m); setNewMinScore(m.new_minscore); setNewMaxScore(m.new_maxscore); setNewMultiplier(m.new_multiplier); setShowBonusMatrixModal(true); }} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }}>Sửa</button>
+                                  <button onClick={() => handleDeleteBonusMatrix(m.new_bonusmatrixid)} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', color: '#dc2626', borderColor: '#fca5a5' }}>Xóa</button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -7188,6 +7313,33 @@ function App() {
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
                 <button type="button" onClick={() => setShowObjectiveModal(false)} className="btn-filled-3">Huy</button>
                 <button type="submit" className="btn-primary">Luu muc tieu</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bonus Matrix Modal */}
+      {showBonusMatrixModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ width: '420px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>{editingBonusMatrix ? 'Chỉnh sửa dải điểm' : 'Thêm dải điểm thưởng'}</h3>
+            <form onSubmit={handleSaveBonusMatrix} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Điểm tối thiểu (Min Score) <span style={{ color: '#dc2626' }}>*</span></label>
+                <input type="number" step="0.01" value={newMinScore} onChange={e => setNewMinScore(Number(e.target.value))} required style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Điểm tối đa (Max Score) <span style={{ color: '#dc2626' }}>*</span></label>
+                <input type="number" step="0.01" value={newMaxScore} onChange={e => setNewMaxScore(Number(e.target.value))} required style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Hệ số thưởng (Multiplier) <span style={{ color: '#dc2626' }}>*</span></label>
+                <input type="number" step="0.01" value={newMultiplier} onChange={e => setNewMultiplier(Number(e.target.value))} required style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button type="button" onClick={() => setShowBonusMatrixModal(false)} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary">Lưu cấu hình</button>
               </div>
             </form>
           </div>
