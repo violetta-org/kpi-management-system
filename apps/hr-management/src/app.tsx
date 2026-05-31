@@ -2580,6 +2580,11 @@ function App() {
         new_mitigationplan: newRiskMitigation
       };
 
+      // DEBUG: Log payload keys to verify no old field names
+      console.log('[DEBUG handleSaveRisk] Payload keys:', Object.keys(payload));
+      console.log('[DEBUG handleSaveRisk] Full payload:', JSON.stringify(payload, null, 2));
+      alert('[DEBUG] Payload keys: ' + Object.keys(payload).join(', '));
+
       if (editingRisk) {
         // Update existing risk
         const updateResult = await Cr5db_projectrisksService.update(editingRisk.cr5db_projectriskid, payload);
