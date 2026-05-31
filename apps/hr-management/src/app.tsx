@@ -4774,6 +4774,7 @@ function App() {
                     <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
                       <th style={{ padding: '14px 20px' }}>Position Name</th>
                       <th style={{ padding: '14px 20px' }}>Phòng ban</th>
+                      <th style={{ padding: '14px 20px' }}>Báo cáo cho (Reports To)</th>
                       <th style={{ padding: '14px 20px' }}>Quota</th>
                       <th style={{ padding: '14px 20px' }}>Actual</th>
                       <th style={{ padding: '14px 20px' }}>Trạng thái</th>
@@ -4783,7 +4784,7 @@ function App() {
                   <tbody>
                     {jobPositionsList.length === 0 ? (
                       <tr>
-                        <td colSpan={6} style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                        <td colSpan={7} style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                             <span style={{ fontSize: '28px' }}>📋</span>
                             <span style={{ fontWeight: 600 }}>Chưa có dữ liệu định biên</span>
@@ -4794,8 +4795,10 @@ function App() {
                     ) : jobPositionsList.map(pos => {
                       const dept = departmentsList.find(d => d.cr5db_departmentid === pos._cr5db_department_value);
                       const company = dept ? companiesList.find(c => c.cr5db_companyid === dept._cr5db_companyid_value) : null;
-                      const deptName = dept?.cr5db_departmentname || 'Chung';
-                      const displayDept = company ? `${deptName} (${company.cr5db_companyname})` : deptName;
+                      const deptName = dept?.cr5db_departmentname || 'Dùng chung (Toàn hệ thống)';
+                      const displayDept = company ? `${deptName} - ${company.cr5db_companyname}` : deptName;
+                      const parentPosition = pos._cr5db_reportstopositionid_value ? jobPositionsList.find(p => p.cr5db_jobpositionid === pos._cr5db_reportstopositionid_value) : null;
+                      const reportsToDisplay = parentPosition ? parentPosition.cr5db_positionname : '-';
                       const quota = pos.cr5db_headcountquota || 0;
                       const actual = usersList.filter(u => u._cr5db_jobposition_value === pos.cr5db_jobpositionid && u.cr5db_isactive !== false).length;
                       let statusText = 'At Quota';
@@ -4806,6 +4809,7 @@ function App() {
                         <tr key={pos.cr5db_jobpositionid} style={{ borderBottom: '1px solid var(--color-border)' }}>
                           <td style={{ padding: '14px 20px', fontWeight: 600 }}>{pos.cr5db_positionname}</td>
                           <td style={{ padding: '14px 20px' }}>{displayDept}</td>
+                          <td style={{ padding: '14px 20px', color: 'var(--color-text-secondary)', fontStyle: parentPosition ? 'normal' : 'italic' }}>{reportsToDisplay}</td>
                           <td style={{ padding: '14px 20px' }}>{quota}</td>
                           <td style={{ padding: '14px 20px' }}>{actual}</td>
                           <td style={{ padding: '14px 20px', fontWeight: 700, color: statusColor }}>{statusText}</td>
