@@ -77,8 +77,11 @@ async function callGeminiAI(userPrompt: string): Promise<string> {
     });
   } catch (err: unknown) {
     clearTimeout(timeoutId);
-    if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error("AI phản hồi quá lâu (timeout 15s). Kiểm tra kết nối mạng.");
+    if (err instanceof Error) {
+      if (err.name === 'AbortError') {
+        throw new Error("AI phản hồi quá lâu (timeout 15s). Kiểm tra kết nối mạng.");
+      }
+      throw new Error(`Không thể kết nối tới Server AI (${err.message}). Kiểm tra mạng hoặc CORS.`);
     }
     throw new Error("Không thể kết nối tới Server AI. Kiểm tra mạng internet.");
   } finally {
