@@ -531,7 +531,7 @@ export function useLiveData(setters: LiveDataSetters) {
         return {
           cr5db_kpitargetid: k.cr5db_kpitargetid,
           cr5db_kpiname: k.cr5db_kpitarget1 || libraryItem?.cr5db_kpiname || 'Mục tiêu KPI',
-          cr5db_targetvalue: k.cr5db_targetvalue || 100,
+          cr5db_targetvalue: k.cr5db_targetvalue ?? 100,
           cr5db_actualvalue: dynamicActual,
           cr5db_unit: libraryItem?.cr5db_unit || '%',
           cr5db_weightpercentage: k.cr5db_weightpercentage || 0,
