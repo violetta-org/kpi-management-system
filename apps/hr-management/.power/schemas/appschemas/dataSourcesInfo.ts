@@ -249,5 +249,12 @@ export const dataSourcesInfo = {
     "primaryKey": "cr5db_userid",
     "dataSourceType": "Dataverse",
     "apis": {}
+  },
+  "new_bonusmatrix": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_bonusmatrixid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
   }
 };
