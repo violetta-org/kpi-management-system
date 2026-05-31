@@ -3039,6 +3039,11 @@ function App() {
 
   const pendingApprovalsTimesheets = timesheets.filter(ts => ts.statecode === 0);
 
+  const getJobPositionActualCount = (posId: string) => {
+    const pos = jobPositionsList.find(p => p.cr5db_jobpositionid === posId);
+    return pos?.cr5db_actualheadcount ? Number(pos.cr5db_actualheadcount) : 0;
+  };
+
   // Group job positions by company for Bar Chart
   const getCompanyHeadcounts = () => {
     const data: { [key: string]: { quota: number; actual: number } } = {};
@@ -3065,11 +3070,6 @@ function App() {
 
   const companyHeadcounts = getCompanyHeadcounts();
   const totalQuotaCount = jobPositionsList.reduce((acc, curr) => acc + (curr.cr5db_headcountquota || 0), 0);
-  
-  const getJobPositionActualCount = (posId: string) => {
-    const pos = jobPositionsList.find(p => p.cr5db_jobpositionid === posId);
-    return pos?.cr5db_actualheadcount ? Number(pos.cr5db_actualheadcount) : 0;
-  };
   
   const totalActualCount = jobPositionsList.reduce((acc, curr) => acc + getJobPositionActualCount(curr.cr5db_jobpositionid), 0);
   const overQuotaCount = jobPositionsList.filter(p => getJobPositionActualCount(p.cr5db_jobpositionid) > (p.cr5db_headcountquota || 0)).length;
