@@ -112,6 +112,7 @@ function App() {
   const [allocationProject, setAllocationProject] = React.useState('');
   const [allocationPercentage, setAllocationPercentage] = React.useState(100);
   const [allocationName, setAllocationName] = React.useState('');
+  const [editingAllocation, setEditingAllocation] = React.useState<any | null>(null);
 
   // KPI custom date filter states
   const [kpiCustomStartDate, setKpiCustomStartDate] = React.useState('2026-05-01');
@@ -1926,22 +1927,48 @@ function App() {
         }
       }
 
-      await Cr5db_resourceallocationsService.create({
-        cr5db_resourceallocation1: name,
-        cr5db_allocationpercentage: Number(allocationPercentage) || 100,
-        "cr5db_UserID@odata.bind": `/cr5db_users(${allocationUser})`,
-        "cr5db_ProjectTeamID@odata.bind": `/cr5db_projectteams(${teamId})`,
-        statecode: 0
-      } as any);
+      if (editingAllocation) {
+        await Cr5db_resourceallocationsService.update(editingAllocation.cr5db_resourceallocationid, {
+          cr5db_resourceallocation1: name,
+          cr5db_allocationpercentage: Number(allocationPercentage) || 100,
+          "cr5db_UserID@odata.bind": `/cr5db_users(${allocationUser})`,
+          "cr5db_ProjectTeamID@odata.bind": `/cr5db_projectteams(${teamId})`
+        } as any);
+      } else {
+        await Cr5db_resourceallocationsService.create({
+          cr5db_resourceallocation1: name,
+          cr5db_allocationpercentage: Number(allocationPercentage) || 100,
+          "cr5db_UserID@odata.bind": `/cr5db_users(${allocationUser})`,
+          "cr5db_ProjectTeamID@odata.bind": `/cr5db_projectteams(${teamId})`,
+          statecode: 0
+        } as any);
+      }
 
       setShowAllocationModal(false);
+      setEditingAllocation(null);
       setAllocationName('');
       setAllocationPercentage(100);
       await fetchLiveValues();
-      alert("Phân bổ nhân sự thành công!");
+      alert(editingAllocation ? "Cập nhật phân bổ nhân sự thành công!" : "Phân bổ nhân sự thành công!");
     } catch (err: any) {
       console.error("Save allocation error:", err);
-      alert("Không thể gán phân bổ nhân sự: " + (err.message || err));
+      alert("Không thể lưu phân bổ nhân sự: " + (err.message || err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteAllocation = async (allocationId: string) => {
+    const confirmDelete = window.confirm("Bạn có chắc chắn muốn xóa phân bổ nhân sự này không?");
+    if (!confirmDelete) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_resourceallocationsService.delete(allocationId);
+      await fetchLiveValues();
+      alert("Xóa phân bổ nhân sự thành công!");
+    } catch (err: any) {
+      console.error(err);
+      alert("Không thể xóa phân bổ nhân sự: " + (err.message || err));
     } finally {
       setIsLoading(false);
     }
@@ -4265,6 +4292,7 @@ function App() {
                 {activeResourcesSubTab === 'allocations' && (activeRole === 'Admin' || checkPermission('resources')) && (
                   <button
                     onClick={() => {
+                      setEditingAllocation(null);
                       setAllocationUser(usersList[0]?.cr5db_userid || '');
                       setAllocationProject(projects[0]?.cr5db_projectid || '');
                       setAllocationPercentage(100);
@@ -4398,6 +4426,7 @@ function App() {
                                       <th style={{ padding: '10px 12px', fontWeight: 600 }}>Nhân viên</th>
                                       <th style={{ padding: '10px 12px', fontWeight: 600 }}>% Phân bổ</th>
                                       <th style={{ padding: '10px 12px', fontWeight: 600 }}>Tình trạng sử dụng</th>
+                                      <th style={{ padding: '10px 12px', fontWeight: 600, width: '120px' }}>Thao tác</th>
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -4434,6 +4463,45 @@ function App() {
                                                   {"⚠️ Quá tải định biên (>100%)"}
                                                 </span>
                                               )}
+                                            </div>
+                                          </td>
+                                          <td style={{ padding: '12px' }}>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                              <button
+                                                onClick={() => {
+                                                  setEditingAllocation(a);
+                                                  setAllocationUser(a._cr5db_userid_value || '');
+                                                  setAllocationProject(a.cr5db_projectid || '');
+                                                  setAllocationPercentage(a.cr5db_allocationpercentage || 100);
+                                                  setAllocationName(a.cr5db_resourceallocation1 || '');
+                                                  setShowAllocationModal(true);
+                                                }}
+                                                style={{
+                                                  background: 'none',
+                                                  border: 'none',
+                                                  color: 'var(--color-primary)',
+                                                  cursor: 'pointer',
+                                                  fontSize: '12px',
+                                                  fontWeight: 600,
+                                                  padding: '0'
+                                                }}
+                                              >
+                                                Sửa
+                                              </button>
+                                              <button
+                                                onClick={() => handleDeleteAllocation(a.cr5db_resourceallocationid)}
+                                                style={{
+                                                  background: 'none',
+                                                  border: 'none',
+                                                  color: '#dc2626',
+                                                  cursor: 'pointer',
+                                                  fontSize: '12px',
+                                                  fontWeight: 600,
+                                                  padding: '0'
+                                                }}
+                                              >
+                                                Xóa
+                                              </button>
                                             </div>
                                           </td>
                                         </tr>
@@ -7069,7 +7137,9 @@ function App() {
       {showAllocationModal && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ width: '420px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>Phân bổ nhân sự vào dự án</h3>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>
+              {editingAllocation ? 'Cập nhật phân bổ nhân sự' : 'Phân bổ nhân sự vào dự án'}
+            </h3>
             <form onSubmit={handleSaveAllocation} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Nhân sự <span style={{ color: '#dc2626' }}>*</span></label>
@@ -7121,8 +7191,10 @@ function App() {
                 />
               </div>
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
-                <button type="button" onClick={() => setShowAllocationModal(false)} className="btn-filled-3">Hủy</button>
-                <button type="submit" className="btn-primary">Giao việc</button>
+                <button type="button" onClick={() => { setShowAllocationModal(false); setEditingAllocation(null); }} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary">
+                  {editingAllocation ? 'Cập nhật' : 'Giao việc'}
+                </button>
               </div>
             </form>
           </div>

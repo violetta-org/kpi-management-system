@@ -266,13 +266,30 @@ export function useLiveData(setters: LiveDataSetters) {
       const timesheetsResponse = { data: rawTimesheets };
       const appraisalsResponse = { data: rawAppraisals };
 
+      // Map user names and project team names onto resource allocations
+      const mappedAllocations = rawAllocations.map((a: any) => {
+        const userId = a._cr5db_userid_value || (a.cr5db_userid as any)?.cr5db_userid || '';
+        const matchedUser = allUsers.find((u: User) => u.cr5db_userid === userId);
+        
+        const teamId = a._cr5db_projectteamid_value || (a.cr5db_projectteamid as any)?.cr5db_projectteamid || '';
+        const matchedTeam = rawProjectTeams.find((t: any) => t.cr5db_projectteamid === teamId);
+        const projectId = matchedTeam?._cr5db_projectid_value || '';
+        
+        return {
+          ...a,
+          cr5db_useridname: matchedUser?.cr5db_fullname || a.cr5db_useridname || 'Thành viên chưa rõ',
+          cr5db_projectteamidname: matchedTeam?.cr5db_teamname || a.cr5db_projectteamidname || 'Dự án khác / Không thuộc dự án',
+          cr5db_projectid: projectId
+        };
+      });
+
       setters.setUsersList(allUsers);
       setters.setDepartmentsList(allDepts);
       setters.setCompaniesList(allCompanies);
       setters.setPositionCatalogList(allCatalogs);
       setters.setJobPositionsList(allJobPositions as any);
       setters.setAuditLogsList(allAuditLogs);
-      setters.setResourceAllocationsList(rawAllocations);
+      setters.setResourceAllocationsList(mappedAllocations);
       setters.setObjectivesList(rawObjectives);
       setters.setProjects(rawProjects);
       setters.setProjectPhases(rawProjectPhases);
