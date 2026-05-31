@@ -2629,7 +2629,7 @@ function App() {
                       {activeRole === 'Employee' ? 'My KPIs' : 'KPI Target Management'}
                     </h1>
                     <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', margin: '2px 0 0 0', fontWeight: 400 }}>
-                      {activeRole === 'Employee' ? 'Theo dõi mục tiêu hiệu suất cá nhân' : 'Quản lý, gán chỉ chỉ tiêu hiệu suất KPI cho nhân sự tổ chức'}
+                      {activeRole === 'Employee' ? 'Theo dõi mục tiêu hiệu suất cá nhân' : 'Quản lý, gán chỉ tiêu hiệu suất KPI cho nhân sự tổ chức'}
                     </p>
                   </div>
                 </div>
