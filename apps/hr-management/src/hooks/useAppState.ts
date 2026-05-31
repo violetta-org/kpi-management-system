@@ -58,6 +58,10 @@ export function useAppState() {
   const [changeRequestsList, setChangeRequestsList] = useState<any[]>([]);
   const [projectTeamsList, setProjectTeamsList] = useState<any[]>([]);
   const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>([]);
+  const [bonusMatrixList, setBonusMatrixList] = useState<any[]>([]);
+  const [competencyCatalogList, setCompetencyCatalogList] = useState<any[]>([]);
+  const [jobCompetenciesList, setJobCompetenciesList] = useState<any[]>([]);
+  const [competencyAssessmentsList, setCompetencyAssessmentsList] = useState<any[]>([]);
   const [defaultGroups, setDefaultGroups] = useState<string>('');
   const [defaultGroupsDbId, setDefaultGroupsDbId] = useState<string>('');
 
@@ -97,7 +101,7 @@ export function useAppState() {
 
   // ── Sub-Tabs ─────────────────────────────────────────────────────────────
   const [activeTimesheetSubTab, setActiveTimesheetSubTab] = useState<'my' | 'approvals'>('my');
-  const [activePerformanceSubTab, setActivePerformanceSubTab] = useState<'my' | 'team' | 'cycles'>('my');
+  const [activePerformanceSubTab, setActivePerformanceSubTab] = useState<'my' | 'team' | 'cycles' | 'competency'>('my');
   const [activeResourcesSubTab, setActiveResourcesSubTab] = useState<'allocations' | 'projects'>('allocations');
   const [collapsedProjects, setCollapsedProjects] = useState<{ [key: string]: boolean }>({});
   const [activeKpiSubTab, setActiveKpiSubTab] = useState<'overview' | 'charts'>('overview');
@@ -237,7 +241,7 @@ export function useAppState() {
   const [selectedApproverId, setSelectedApproverId] = useState('');
 
   // ── KPI Catalog (Library + Objectives) ──────────────────────────────────
-  const [activeKpiCatalogSubTab, setActiveKpiCatalogSubTab] = useState<'library' | 'objectives'>('library');
+  const [activeKpiCatalogSubTab, setActiveKpiCatalogSubTab] = useState<'library' | 'objectives' | 'bonus' | 'competency'>('library');
 
   // KPI Library item modal
   const [showKpiLibraryModal, setShowKpiLibraryModal] = useState(false);
@@ -252,7 +256,28 @@ export function useAppState() {
   const [editingObjective, setEditingObjective] = useState<any>(null);
   const [objectiveName, setObjectiveName] = useState('');
   const [objectiveTarget, setObjectiveTarget] = useState<number>(100);
-  const [objectivePeriodId, setObjectivePeriodId] = useState('');
+  const [objectivePeriodId, setObjectivePeriodId] = useState<string>('');
+
+  const [showBonusMatrixModal, setShowBonusMatrixModal] = useState(false);
+  const [editingBonusMatrix, setEditingBonusMatrix] = useState<any>(null);
+  const [newMinScore, setNewMinScore] = useState<number>(0);
+  const [newMaxScore, setNewMaxScore] = useState<number>(0);
+  const [newMultiplier, setNewMultiplier] = useState(0);
+
+  // ── Competency Framework States ──────────────────────────────────────────
+  const [showCompetencyModal, setShowCompetencyModal] = useState(false);
+  const [editingCompetency, setEditingCompetency] = useState<any>(null);
+  const [newCompetencyName, setNewCompetencyName] = useState('');
+  const [newCompetencyType, setNewCompetencyType] = useState('Core');
+  const [newCompetencyDesc, setNewCompetencyDesc] = useState('');
+  const [newCompetencyMaxLevel, setNewCompetencyMaxLevel] = useState(5);
+
+  const [showJobCompetencyModal, setShowJobCompetencyModal] = useState(false);
+  const [editingJobCompetency, setEditingJobCompetency] = useState<any>(null);
+  const [selectedJobPositionId, setSelectedJobPositionId] = useState('');
+  const [newJobCompetencyId, setNewJobCompetencyId] = useState('');
+  const [newRequiredLevel, setNewRequiredLevel] = useState(3);
+  const [newCompetencyWeight, setNewCompetencyWeight] = useState(0);
 
   // ── Approval Routes Management ───────────────────────────────────────────
   const [showRouteModal, setShowRouteModal] = useState(false);
@@ -489,6 +514,29 @@ export function useAppState() {
     objectiveName, setObjectiveName,
     objectiveTarget, setObjectiveTarget,
     objectivePeriodId, setObjectivePeriodId,
+    bonusMatrixList, setBonusMatrixList,
+    showBonusMatrixModal, setShowBonusMatrixModal,
+    editingBonusMatrix, setEditingBonusMatrix,
+    newMinScore, setNewMinScore,
+    newMaxScore, setNewMaxScore,
+    newMultiplier, setNewMultiplier,
+
+    // Competency Framework
+    competencyCatalogList, setCompetencyCatalogList,
+    jobCompetenciesList, setJobCompetenciesList,
+    competencyAssessmentsList, setCompetencyAssessmentsList,
+    showCompetencyModal, setShowCompetencyModal,
+    editingCompetency, setEditingCompetency,
+    newCompetencyName, setNewCompetencyName,
+    newCompetencyType, setNewCompetencyType,
+    newCompetencyDesc, setNewCompetencyDesc,
+    newCompetencyMaxLevel, setNewCompetencyMaxLevel,
+    showJobCompetencyModal, setShowJobCompetencyModal,
+    editingJobCompetency, setEditingJobCompetency,
+    selectedJobPositionId, setSelectedJobPositionId,
+    newJobCompetencyId, setNewJobCompetencyId,
+    newRequiredLevel, setNewRequiredLevel,
+    newCompetencyWeight, setNewCompetencyWeight,
 
     // Approval Routes Management
     showRouteModal, setShowRouteModal,

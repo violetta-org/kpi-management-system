@@ -249,5 +249,40 @@ export const dataSourcesInfo = {
     "primaryKey": "cr5db_userid",
     "dataSourceType": "Dataverse",
     "apis": {}
+  },
+  "cr5db_workhours": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cr5db_workhourid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_bonusmatrix": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_bonusmatrixid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_competencycatalog": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_competencycatalogid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_jobcompetency": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_jobcompetencyid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_competencyassessment": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_competencyassessmentid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
   }
 };

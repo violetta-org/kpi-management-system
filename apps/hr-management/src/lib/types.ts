@@ -58,7 +58,9 @@ export interface KPITarget {
   cr5db_weightpercentage: number;
   cr5db_user_email: string;
   cr5db_period: string;
-  cr5db_objective_name?: string;
+  cr5db_objective_name: string;
+  cr5db_employee_name?: string;
+  cr5db_rollupmethod?: string;
   _cr5db_parentobjective_value?: string;
   _cr5db_employeeid_value?: string;
   _cr5db_kpicode_value?: string;
@@ -70,6 +72,42 @@ export interface KPITarget {
   currentActiveTasks?: number;
   currentLoggedHours?: number;
   hasCapacityAlert?: boolean;
+}
+
+export interface BonusMatrix {
+  new_bonusmatrixid: string;
+  new_minscore: number;
+  new_maxscore: number;
+  new_multiplier: number;
+  _new_evaluationperiod_value?: string;
+}
+
+export interface CompetencyCatalog {
+  new_competencycatalogid: string;
+  new_competencyname: string;
+  new_competencytype: string;
+  new_description: string;
+  new_maxlevel: number;
+}
+
+export interface JobCompetency {
+  new_jobcompetencyid: string;
+  new_requiredlevel: number;
+  new_weight?: number;
+  _new_jobpositionid_value: string;
+  _new_competencyid_value: string;
+}
+
+export interface CompetencyAssessment {
+  new_competencyassessmentid: string;
+  new_selfscore: number;
+  new_managerscore: number;
+  new_finalscore: number;
+  new_managercomment: string;
+  new_evidence: string;
+  _new_employeeid_value: string;
+  _new_evaluationperiodid_value: string;
+  _new_competencyid_value: string;
 }
 
 export interface Company {
@@ -92,6 +130,7 @@ export interface JobPosition {
   _cr5db_reportstopositionid_value?: string;
   cr5db_headcountquota?: number;
   cr5db_currentheadcount?: number;
+  cr5db_actualheadcount?: number;
   cr5db_departmentname?: string;
   new_actualheadcount?: number;
 }
