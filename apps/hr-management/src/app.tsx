@@ -28,6 +28,41 @@ import { Cr5db_objectivesService } from './generated/services/Cr5db_objectivesSe
 import { Cr5db_evaluationperiodsService } from './generated/services/Cr5db_evaluationperiodsService';
 import { Cr5db_systemparametersService } from './generated/services/Cr5db_systemparametersService';
 
+// Helper function to calculate achievement rate (handles both positive and negative/minimization KPIs)
+export const calculateKpiAchievementRate = (
+  kpiName: string,
+  targetValue: number,
+  actualValue: number
+): number => {
+  if (targetValue <= 0) return 0;
+  
+  const nameLower = (kpiName || '').toLowerCase();
+  
+  // Detect minimization metric (e.g., bugs, errors, downtimes, slow response, defects)
+  const isMinimization = 
+    nameLower.includes('bug') || 
+    nameLower.includes('lỗi') || 
+    nameLower.includes('giảm') || 
+    nameLower.includes('down') || 
+    nameLower.includes('error') || 
+    nameLower.includes('defect') || 
+    nameLower.includes('trễ') || 
+    nameLower.includes('chậm') || 
+    nameLower.includes('fail') || 
+    nameLower.includes('hỏng');
+    
+  if (isMinimization) {
+    if (actualValue <= targetValue) {
+      return 100; // Success! Under or equal to the bug limit is 100% achieved
+    }
+    // Degradation rate: larger actual value yields lower achievement rate
+    return Math.max(0, Math.round((targetValue / actualValue) * 100));
+  } else {
+    // Normal maximization metric (higher is better)
+    return Math.min(100, Math.round((actualValue / targetValue) * 100));
+  }
+};
+
 // SVG Icons
 const DashboardIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -567,7 +602,7 @@ function App() {
       const target = k.cr5db_targetvalue || 100;
       const actual = k.cr5db_actualvalue || 0;
       const weight = k.cr5db_weightpercentage || 0;
-      const rate = target > 0 ? actual / target : 0;
+      const rate = calculateKpiAchievementRate(k.cr5db_kpiname, target, actual) / 100;
       const contribution = rate * weight;
 
       weightedScore += contribution;
@@ -2705,7 +2740,7 @@ function App() {
                         <span className="feature-title" style={{ fontSize: '15px', fontWeight: 700 }}>{t('sidebar.kpi')}</span>
                       </div>
                       <span className="feature-desc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                        {kpiTargets.length} {language === 'vi' ? 'chỉ tiêu' : 'targets'}, {kpiTargets.filter(k => k.cr5db_actualvalue >= k.cr5db_targetvalue).length} {language === 'vi' ? 'đạt mục tiêu' : 'on track'}
+                        {kpiTargets.length} {language === 'vi' ? 'chỉ tiêu' : 'targets'}, {kpiTargets.filter(k => calculateKpiAchievementRate(k.cr5db_kpiname, k.cr5db_targetvalue, k.cr5db_actualvalue) >= 100).length} {language === 'vi' ? 'đạt mục tiêu' : 'on track'}
                       </span>
                       <button onClick={() => setActiveTab('kpi')} className="feature-link">{language === 'vi' ? 'Xem chỉ số ➔' : 'View KPIs ➔'}</button>
                     </div>
@@ -3227,9 +3262,12 @@ function App() {
               {activeKpiSubTab === 'overview' ? (
                 (() => {
                   const totalCount = userKpis.length;
-                  const onTrackCount = userKpis.filter(k => k.cr5db_actualvalue >= k.cr5db_targetvalue).length;
-                  const atRiskCount = userKpis.filter(k => k.cr5db_actualvalue < k.cr5db_targetvalue && k.cr5db_actualvalue > 0).length;
-                  const behindCount = userKpis.filter(k => k.cr5db_actualvalue === 0).length;
+                  const onTrackCount = userKpis.filter(k => calculateKpiAchievementRate(k.cr5db_kpiname, k.cr5db_targetvalue, k.cr5db_actualvalue) >= 100).length;
+                  const atRiskCount = userKpis.filter(k => {
+                    const r = calculateKpiAchievementRate(k.cr5db_kpiname, k.cr5db_targetvalue, k.cr5db_actualvalue);
+                    return r >= 50 && r < 100;
+                  }).length;
+                  const behindCount = userKpis.filter(k => calculateKpiAchievementRate(k.cr5db_kpiname, k.cr5db_targetvalue, k.cr5db_actualvalue) < 50).length;
 
                   return (
                     <>
@@ -3359,7 +3397,7 @@ function App() {
                             </thead>
                             <tbody>
                               {userKpis.map(k => {
-                                const rate = k.cr5db_targetvalue > 0 ? Math.min(100, Math.round((k.cr5db_actualvalue / k.cr5db_targetvalue) * 100)) : 0;
+                                const rate = calculateKpiAchievementRate(k.cr5db_kpiname, k.cr5db_targetvalue, k.cr5db_actualvalue);
                                 const employeeName = usersList.find(u => u.cr5db_userid === k._cr5db_employeeid_value)?.cr5db_fullname || k.cr5db_user_email.split('@')[0];
                                 return (
                                   <tr key={k.cr5db_kpitargetid} style={{ borderBottom: '1px solid var(--color-border)' }}>
@@ -3565,10 +3603,10 @@ function App() {
                         {/* Highlights cards */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
                           {(() => {
-                            const rates = userKpis.map(k => k.cr5db_targetvalue > 0 ? Math.min(100, Math.round((k.cr5db_actualvalue / k.cr5db_targetvalue) * 100)) : 0);
+                            const rates = userKpis.map(k => calculateKpiAchievementRate(k.cr5db_kpiname, k.cr5db_targetvalue, k.cr5db_actualvalue));
                             const avgProgress = rates.length > 0 ? Math.round(rates.reduce((sum, r) => sum + r, 0) / rates.length) : 0;
                             const totalWeight = userKpis.reduce((sum, k) => sum + (k.cr5db_weightpercentage || 0), 0);
-                            const achievedCount = userKpis.filter(k => k.cr5db_actualvalue >= k.cr5db_targetvalue).length;
+                            const achievedCount = userKpis.filter(k => calculateKpiAchievementRate(k.cr5db_kpiname, k.cr5db_targetvalue, k.cr5db_actualvalue) >= 100).length;
                             
                             return (
                               <>
@@ -3629,7 +3667,7 @@ function App() {
                                   {/* Draw comparative bars for each KPI */}
                                   {userKpis.map((k, idx) => {
                                     const yPos = idx * 55 + 20;
-                                    const progressRate = k.cr5db_targetvalue > 0 ? Math.min(100, Math.round((k.cr5db_actualvalue / k.cr5db_targetvalue) * 100)) : 0;
+                                    const progressRate = calculateKpiAchievementRate(k.cr5db_kpiname, k.cr5db_targetvalue, k.cr5db_actualvalue);
                                     const kpiNameTruncated = k.cr5db_kpiname.length > 25 ? k.cr5db_kpiname.substring(0, 23) + '...' : k.cr5db_kpiname;
 
                                     return (
