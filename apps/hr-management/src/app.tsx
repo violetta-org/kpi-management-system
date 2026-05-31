@@ -3711,7 +3711,7 @@ function App() {
                                   {userKpis.map((k, idx) => {
                                     const yPos = idx * 55 + 20;
                                     const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                                    const progressRate = calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.cr5db_direction);
+                                    const progressRate = calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.new_direction);
                                     const kpiNameTruncated = k.cr5db_kpiname.length > 25 ? k.cr5db_kpiname.substring(0, 23) + '...' : k.cr5db_kpiname;
 
                                     return (
