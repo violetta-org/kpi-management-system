@@ -292,6 +292,7 @@ function App() {
     editingObjective, setEditingObjective,
     objectiveName, setObjectiveName,
     objectiveTarget, setObjectiveTarget,
+    objectivePeriodId, setObjectivePeriodId,
     permissionGroups, setPermissionGroups,
     defaultGroups, setDefaultGroups,
     defaultGroupsDbId, setDefaultGroupsDbId,
@@ -923,6 +924,12 @@ function App() {
         cr5db_targetvalue: objectiveTarget,
         statecode: 0,
       };
+      if (objectivePeriodId) {
+        payload["cr5db_PeriodName@odata.bind"] = `/cr5db_evaluationperiods(${objectivePeriodId})`;
+      } else if (editingObjective) {
+        payload.cr5db_PeriodName = null;
+      }
+
       if (editingObjective) {
         await Cr5db_objectivesService.update(editingObjective.cr5db_objectiveid, payload);
       } else {
@@ -930,7 +937,9 @@ function App() {
       }
       setShowObjectiveModal(false);
       setEditingObjective(null);
-      setObjectiveName(''); setObjectiveTarget(100);
+      setObjectiveName(''); 
+      setObjectiveTarget(100);
+      setObjectivePeriodId('');
       await fetchLiveValues();
     } catch (err) { console.error(err); alert('Loi khi luu muc tieu.'); setIsLoading(false); }
   };
@@ -5421,7 +5430,7 @@ function App() {
                       setEditingKpiLibrary(null); setKpiLibName(''); setKpiLibUnit('%'); setKpiLibFormula('');
                       setShowKpiLibraryModal(true);
                     } else {
-                      setEditingObjective(null); setObjectiveName(''); setObjectiveTarget(100);
+                      setEditingObjective(null); setObjectiveName(''); setObjectiveTarget(100); setObjectivePeriodId('');
                       setShowObjectiveModal(true);
                     }
                   }}
@@ -5532,7 +5541,7 @@ function App() {
                       <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎯</div>
                       <p style={{ fontWeight: 600, marginBottom: '8px' }}>Chua co muc tieu nao</p>
                       <p style={{ fontSize: '13px', marginBottom: '20px' }}>Them muc tieu chung de lien ket voi KPI targets cua nhan vien</p>
-                      <button onClick={() => { setEditingObjective(null); setObjectiveName(''); setObjectiveTarget(100); setShowObjectiveModal(true); }} className="btn-primary">+ Them muc tieu</button>
+                      <button onClick={() => { setEditingObjective(null); setObjectiveName(''); setObjectiveTarget(100); setObjectivePeriodId(''); setShowObjectiveModal(true); }} className="btn-primary">+ Them muc tieu</button>
                     </div>
                   ) : (
                     <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', overflow: 'hidden' }}>
@@ -5570,7 +5579,7 @@ function App() {
                               </td>
                               <td style={{ padding: '14px 16px' }}>
                                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                  <button onClick={() => { setEditingObjective(obj); setObjectiveName(obj.cr5db_objective1); setObjectiveTarget(obj.cr5db_targetvalue ?? 100); setShowObjectiveModal(true); }} style={{ padding: '5px 12px', fontSize: '12px', border: '1px solid var(--color-border)', borderRadius: '6px', cursor: 'pointer', background: 'transparent', fontWeight: 600 }}>Sua</button>
+                                  <button onClick={() => { setEditingObjective(obj); setObjectiveName(obj.cr5db_objective1); setObjectiveTarget(obj.cr5db_targetvalue ?? 100); setObjectivePeriodId(obj._cr5db_periodname_value || ''); setShowObjectiveModal(true); }} style={{ padding: '5px 12px', fontSize: '12px', border: '1px solid var(--color-border)', borderRadius: '6px', cursor: 'pointer', background: 'transparent', fontWeight: 600 }}>Sua</button>
                                   <button onClick={() => handleDeleteObjective(obj.cr5db_objectiveid)} style={{ padding: '5px 12px', fontSize: '12px', border: '1px solid #fca5a5', borderRadius: '6px', cursor: 'pointer', background: 'transparent', color: '#dc2626', fontWeight: 600 }}>Xoa</button>
                                 </div>
                               </td>
@@ -6347,6 +6356,22 @@ function App() {
               <div>
                 <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Gia tri muc tieu</label>
                 <input type="number" value={objectiveTarget} onChange={e => setObjectiveTarget(Number(e.target.value))} style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Chu kỳ đánh giá (Evaluation Period) <span style={{ color: '#dc2626' }}>*</span></label>
+                <select 
+                  value={objectivePeriodId} 
+                  onChange={e => setObjectivePeriodId(e.target.value)} 
+                  required 
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', backgroundColor: '#ffffff' }}
+                >
+                  <option value="">-- Chọn chu kỳ đánh giá --</option>
+                  {evaluationPeriodsList.map(ep => (
+                    <option key={ep.cr5db_evaluationperiodid} value={ep.cr5db_evaluationperiodid}>
+                      {ep.cr5db_evaluationperiod1}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
                 <button type="button" onClick={() => setShowObjectiveModal(false)} className="btn-filled-3">Huy</button>

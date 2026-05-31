@@ -249,6 +249,7 @@ export function useAppState() {
   const [editingObjective, setEditingObjective] = useState<any>(null);
   const [objectiveName, setObjectiveName] = useState('');
   const [objectiveTarget, setObjectiveTarget] = useState<number>(100);
+  const [objectivePeriodId, setObjectivePeriodId] = useState('');
 
   // ── Approval Routes Management ───────────────────────────────────────────
   const [showRouteModal, setShowRouteModal] = useState(false);
@@ -481,6 +482,7 @@ export function useAppState() {
     editingObjective, setEditingObjective,
     objectiveName, setObjectiveName,
     objectiveTarget, setObjectiveTarget,
+    objectivePeriodId, setObjectivePeriodId,
 
     // Approval Routes Management
     showRouteModal, setShowRouteModal,
