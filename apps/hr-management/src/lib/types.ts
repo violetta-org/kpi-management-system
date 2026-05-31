@@ -86,7 +86,7 @@ export interface JobPosition {
   cr5db_headcountquota?: number;
   cr5db_currentheadcount?: number;
   cr5db_departmentname?: string;
-  cr5db_actualheadcount?: number;
+  new_actualheadcount?: number;
 }
 
 export interface AuditLog {
