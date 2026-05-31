@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import type { User, Task, HeadcountRequest, KPITarget, Company, PositionCatalog, JobPosition, AuditLog, PermissionGroup, EvaluationPeriod } from '../lib/types';
+import type { User, Task, HeadcountRequest, KPITarget, Company, PositionCatalog, JobPosition, AuditLog, PermissionGroup, EvaluationPeriod, LeaveBalance, LeaveRequest, Holiday, OvertimeRequest } from '../lib/types';
 
 export type ActiveTab =
   | 'dashboard' | 'tasks' | 'timesheets' | 'kpi' | 'performance'
   | 'companies' | 'positions' | 'headcount' | 'requests' | 'directory'
-  | 'roles' | 'resources' | 'routes' | 'kpi-catalog' | 'system-seed';
+  | 'roles' | 'resources' | 'routes' | 'kpi-catalog' | 'system-seed' | 'my-processes';
 
 export type ActiveRole = 'Employee' | 'Admin';
 
@@ -45,6 +45,10 @@ export function useAppState() {
   const [projectRisks, setProjectRisks] = useState<any[]>([]);
   const [appraisals, setAppraisals] = useState<any[]>([]);
   const [systemNotifications, setSystemNotifications] = useState<any[]>([]);
+  const [leaveBalancesList, setLeaveBalancesList] = useState<LeaveBalance[]>([]);
+  const [leaveRequestsList, setLeaveRequestsList] = useState<LeaveRequest[]>([]);
+  const [holidaysList, setHolidaysList] = useState<Holiday[]>([]);
+  const [overtimeRequestsList, setOvertimeRequestsList] = useState<OvertimeRequest[]>([]);
 
   // ── Master Lists ─────────────────────────────────────────────────────────
   const [companiesList, setCompaniesList] = useState<Company[]>([]);
@@ -100,12 +104,18 @@ export function useAppState() {
   const [kpiPeriod, setKpiPeriod] = useState('Q2/2026');
 
   // ── Sub-Tabs ─────────────────────────────────────────────────────────────
-  const [activeTimesheetSubTab, setActiveTimesheetSubTab] = useState<'my' | 'approvals'>('my');
+  const [activeTimesheetSubTab, setActiveTimesheetSubTab] = useState<'my' | 'approvals' | 'my-leaves' | 'leave-approvals' | 'leave-balances' | 'holidays' | 'ot' | 'ot-approvals'>('my');
   const [activePerformanceSubTab, setActivePerformanceSubTab] = useState<'my' | 'team' | 'cycles' | 'competency' | 'idp'>('my');
 
   // IDP states
   const [idpList, setIdpList] = useState<any[]>([]);
   const [idpActionList, setIdpActionList] = useState<any[]>([]);
+
+  // ── Onboarding / Offboarding ─────────────────────────────────────────────
+  const [processTemplateList, setProcessTemplateList] = useState<any[]>([]);
+  const [processTemplateStepList, setProcessTemplateStepList] = useState<any[]>([]);
+  const [employeeProcessList, setEmployeeProcessList] = useState<any[]>([]);
+  const [processStepList, setProcessStepList] = useState<any[]>([]);
   const [showIdpModal, setShowIdpModal] = useState(false);
   const [editingIdp, setEditingIdp] = useState<any>(null);
   const [showIdpActionModal, setShowIdpActionModal] = useState(false);
@@ -116,7 +126,7 @@ export function useAppState() {
   const [kpiTimeRange, setKpiTimeRange] = useState<'week' | 'month' | 'quarter' | 'custom'>('quarter');
 
   // ── Employee Directory ───────────────────────────────────────────────────
-  const [activeDirectorySubTab, setActiveDirectorySubTab] = useState<'view' | 'manage' | 'history' | 'groups' | 'orgchart'>('view');
+  const [activeDirectorySubTab, setActiveDirectorySubTab] = useState<'view' | 'manage' | 'history' | 'groups' | 'orgchart' | 'onboarding'>('view');
   const [expandedOrgNodes, setExpandedOrgNodes] = useState<{ [key: string]: boolean }>({});
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<User | null>(null);
@@ -165,6 +175,35 @@ export function useAppState() {
   const [selectedFilterProject, setSelectedFilterProject] = useState('All Projects');
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // ── Leave Management Modals ────────────────────────────────────────────────
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [newLeaveType, setNewLeaveType] = useState('Annual Leave');
+  const [newLeaveStartDate, setNewLeaveStartDate] = useState('');
+  const [newLeaveEndDate, setNewLeaveEndDate] = useState('');
+  const [newLeaveReason, setNewLeaveReason] = useState('');
+
+  const [showLeaveBalanceModal, setShowLeaveBalanceModal] = useState(false);
+  const [editingLeaveBalance, setEditingLeaveBalance] = useState<LeaveBalance | null>(null);
+  const [newBalanceEntitlement, setNewBalanceEntitlement] = useState('12');
+  const [newBalanceCarriedOver, setNewBalanceCarriedOver] = useState('0');
+  const [newBalanceUsedDays, setNewBalanceUsedDays] = useState('0');
+
+  // ── Holiday & Overtime Modals ──────────────────────────────────────────────
+  const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [newHolidayName, setNewHolidayName] = useState('');
+  const [newHolidayDate, setNewHolidayDate] = useState('');
+
+  const [showOvertimeModal, setShowOvertimeModal] = useState(false);
+  const [newOtDate, setNewOtDate] = useState('');
+  const [newOtStartTime, setNewOtStartTime] = useState('18:00');
+  const [newOtEndTime, setNewOtEndTime] = useState('20:00');
+  const [newOtHours, setNewOtHours] = useState('2');
+  const [newOtType, setNewOtType] = useState('Weekday');
+  const [newOtReason, setNewOtReason] = useState('');
+  const [showOtApprovalModal, setShowOtApprovalModal] = useState(false);
+  const [otToApproveId, setOtToApproveId] = useState('');
+  const [otApprovedHours, setOtApprovedHours] = useState('0');
 
   // ── Task Modal ───────────────────────────────────────────────────────────
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -298,9 +337,17 @@ export function useAppState() {
   const [routeRoutingType, setRouteRoutingType] = useState<number>(1); // Default POSITION_HIERARCHY
   const [routeApproverRole, setRouteApproverRole] = useState('');
   const [routeApproverUserId, setRouteApproverUserId] = useState('');
-  const [routePriority, setRoutePriority] = useState<number>(10);
+  const [routePriority, setRoutePriority] = useState<number>(1);
 
-  // ── Role Gate: redirect to dashboard if tab not permitted ────────────────
+  // ── Onboarding / Offboarding Modals ──────────────────────────────────────
+  const [showProcessModal, setShowProcessModal] = useState(false);
+  const [newProcessEmployeeId, setNewProcessEmployeeId] = useState('');
+  const [newProcessTemplateId, setNewProcessTemplateId] = useState('');
+  
+  const [showProcessDetailModal, setShowProcessDetailModal] = useState(false);
+  const [selectedProcessId, setSelectedProcessId] = useState('');
+
+  // ── Appraisal cycles ───────────────────────────────────────────────────────
   useEffect(() => {
     if (activeRole === 'Admin') return;
     if (usersList.length === 0) return; // Wait for data to load
@@ -339,7 +386,11 @@ export function useAppState() {
     currentUserEmail, setCurrentUserEmail,
     currentUserName, setCurrentUserName,
 
-    // Live Data
+    // Lists
+    processTemplateList, setProcessTemplateList,
+    processTemplateStepList, setProcessTemplateStepList,
+    employeeProcessList, setEmployeeProcessList,
+    processStepList, setProcessStepList,
     usersList, setUsersList,
     departmentsList, setDepartmentsList,
     tasks, setTasks,
@@ -365,6 +416,17 @@ export function useAppState() {
     projectTeamsList, setProjectTeamsList,
 
     // KPI CRUD
+    showLeaveModal, setShowLeaveModal,
+    newLeaveType, setNewLeaveType,
+    newLeaveStartDate, setNewLeaveStartDate,
+    newLeaveEndDate, setNewLeaveEndDate,
+    newLeaveReason, setNewLeaveReason,
+    showLeaveBalanceModal, setShowLeaveBalanceModal,
+    editingLeaveBalance, setEditingLeaveBalance,
+    newBalanceEntitlement, setNewBalanceEntitlement,
+    newBalanceCarriedOver, setNewBalanceCarriedOver,
+    newBalanceUsedDays, setNewBalanceUsedDays,
+
     showKpiModal, setShowKpiModal,
     editingKpi, setEditingKpi,
     kpiTargetName, setKpiTargetName,
@@ -571,6 +633,13 @@ export function useAppState() {
     defaultGroups, setDefaultGroups,
     defaultGroupsDbId, setDefaultGroupsDbId,
 
+    // Onboarding / Offboarding Modals
+    showProcessModal, setShowProcessModal,
+    newProcessEmployeeId, setNewProcessEmployeeId,
+    newProcessTemplateId, setNewProcessTemplateId,
+    showProcessDetailModal, setShowProcessDetailModal,
+    selectedProcessId, setSelectedProcessId,
+
     // Appraisal cycles
     evaluationPeriodsList, setEvaluationPeriodsList,
     showPeriodModal, setShowPeriodModal,
@@ -583,6 +652,27 @@ export function useAppState() {
     newAppraisalEmployeeId, setNewAppraisalEmployeeId,
     newAppraisalEvaluatorId, setNewAppraisalEvaluatorId,
     newAppraisalPeriodId, setNewAppraisalPeriodId,
+
+    // Leaves
+    leaveBalancesList, setLeaveBalancesList,
+    leaveRequestsList, setLeaveRequestsList,
+    holidaysList, setHolidaysList,
+    overtimeRequestsList, setOvertimeRequestsList,
+
+    // Holiday & Overtime Modals
+    showHolidayModal, setShowHolidayModal,
+    newHolidayName, setNewHolidayName,
+    newHolidayDate, setNewHolidayDate,
+    showOvertimeModal, setShowOvertimeModal,
+    newOtDate, setNewOtDate,
+    newOtStartTime, setNewOtStartTime,
+    newOtEndTime, setNewOtEndTime,
+    newOtHours, setNewOtHours,
+    newOtType, setNewOtType,
+    newOtReason, setNewOtReason,
+    showOtApprovalModal, setShowOtApprovalModal,
+    otToApproveId, setOtToApproveId,
+    otApprovedHours, setOtApprovedHours,
 
     // Language localization
     language, setLanguage, toggleLanguage,

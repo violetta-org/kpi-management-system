@@ -298,5 +298,61 @@ export const dataSourcesInfo = {
     "primaryKey": "new_idp_actionid",
     "dataSourceType": "Dataverse",
     "apis": {}
+  },
+  "new_processtemplate": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_processtemplateid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_processtemplatestep": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_processtemplatestepid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_employeeprocess": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_employeeprocessid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_processstep": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_processstepid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_leavebalance": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_leavebalanceid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_leaverequest": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_leaverequestid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_holiday": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_holidayid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_overtimerequest": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_overtimerequestid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
   }
 };

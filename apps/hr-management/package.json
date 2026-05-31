@@ -14,6 +14,10 @@
   },
   "dependencies": {
     "@microsoft/power-apps": "^1.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "groq-sdk": "^1.2.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

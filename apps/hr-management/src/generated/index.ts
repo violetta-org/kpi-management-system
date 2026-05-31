@@ -77,3 +77,12 @@ export * from './services/Cr5db_tasksService';
 export * from './services/Cr5db_timesheetlogsService';
 export * from './services/Cr5db_userprojectrolesService';
 export * from './services/Cr5db_usersService';
+
+export * from './services/New_processtemplateService';
+export * from './services/New_processtemplatestepService';
+export * from './services/New_leavebalanceService';
+export * from './services/New_leaverequestService';
+export * from './services/New_employeeprocessService';
+export * from './services/New_processstepService';
+export * from './services/New_holidayService';
+export * from './services/New_overtimerequestService';

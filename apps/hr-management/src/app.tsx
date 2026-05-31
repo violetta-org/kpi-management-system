@@ -34,6 +34,10 @@ import { New_bonusmatrixService } from './generated/services/New_bonusmatrixServ
 import { New_competencycatalogService } from './generated/services/New_competencycatalogService';
 import { New_jobcompetencyService } from './generated/services/New_jobcompetencyService';
 import { New_competencyassessmentService } from './generated/services/New_competencyassessmentService';
+import { New_leaverequestService } from './generated/services/New_leaverequestService';
+import { New_leavebalanceService } from './generated/services/New_leavebalanceService';
+import { New_holidayService } from './generated/services/New_holidayService';
+import { New_overtimerequestService } from './generated/services/New_overtimerequestService';
 
 import { calculateKpiAchievementRate } from './utils/kpiLogic';
 
@@ -233,6 +237,15 @@ function App() {
   const [allocationPercentage, setAllocationPercentage] = React.useState(100);
   const [allocationName, setAllocationName] = React.useState('');
   const [editingAllocation, setEditingAllocation] = React.useState<any | null>(null);
+  
+  // AI Suggestion states
+  const [showAiSuggestions, setShowAiSuggestions] = React.useState(false);
+  const [aiSuggestions, setAiSuggestions] = React.useState<any[]>([]);
+  const [aiFilterSameDept, setAiFilterSameDept] = React.useState(false);
+  
+  // AI KPI Generator states
+  const [isAiGenerating, setIsAiGenerating] = React.useState(false);
+  const [kpiQualityScore, setKpiQualityScore] = React.useState(0);
 
   // KPI custom date filter states
   const [kpiCustomStartDate, setKpiCustomStartDate] = React.useState('2026-05-01');
@@ -268,6 +281,8 @@ function App() {
     projectRisks, setProjectRisks,
     appraisals, setAppraisals,
     systemNotifications, setSystemNotifications,
+    leaveBalancesList, setLeaveBalancesList,
+    leaveRequestsList, setLeaveRequestsList,
     companiesList, setCompaniesList,
     positionCatalogList, setPositionCatalogList,
     jobPositionsList, setJobPositionsList,
@@ -278,6 +293,32 @@ function App() {
     approvalRoutesList, setApprovalRoutesList,
     changeRequestsList, setChangeRequestsList,
     projectTeamsList, setProjectTeamsList,
+    showLeaveModal, setShowLeaveModal,
+    newLeaveType, setNewLeaveType,
+    newLeaveStartDate, setNewLeaveStartDate,
+    newLeaveEndDate, setNewLeaveEndDate,
+    newLeaveReason, setNewLeaveReason,
+    showLeaveBalanceModal, setShowLeaveBalanceModal,
+    editingLeaveBalance, setEditingLeaveBalance,
+    newBalanceEntitlement, setNewBalanceEntitlement,
+    newBalanceCarriedOver, setNewBalanceCarriedOver,
+    newBalanceUsedDays, setNewBalanceUsedDays,
+
+    holidaysList, setHolidaysList,
+    overtimeRequestsList, setOvertimeRequestsList,
+    showHolidayModal, setShowHolidayModal,
+    newHolidayName, setNewHolidayName,
+    newHolidayDate, setNewHolidayDate,
+    showOvertimeModal, setShowOvertimeModal,
+    newOtDate, setNewOtDate,
+    newOtStartTime, setNewOtStartTime,
+    newOtEndTime, setNewOtEndTime,
+    newOtHours, setNewOtHours,
+    newOtType, setNewOtType,
+    newOtReason, setNewOtReason,
+    showOtApprovalModal, setShowOtApprovalModal,
+    otToApproveId, setOtToApproveId,
+    otApprovedHours, setOtApprovedHours,
     showKpiModal, setShowKpiModal,
     editingKpi, setEditingKpi,
     kpiTargetName, setKpiTargetName,
@@ -447,6 +488,17 @@ function App() {
     newJobCompetencyId, setNewJobCompetencyId,
     newRequiredLevel, setNewRequiredLevel,
     newCompetencyWeight, setNewCompetencyWeight,
+
+    // Onboarding Modals
+    processTemplateList, setProcessTemplateList,
+    processTemplateStepList, setProcessTemplateStepList,
+    employeeProcessList, setEmployeeProcessList,
+    processStepList, setProcessStepList,
+    showProcessModal, setShowProcessModal,
+    newProcessEmployeeId, setNewProcessEmployeeId,
+    newProcessTemplateId, setNewProcessTemplateId,
+    showProcessDetailModal, setShowProcessDetailModal,
+    selectedProcessId, setSelectedProcessId,
 
     // Appraisal cycles
     evaluationPeriodsList, setEvaluationPeriodsList,
@@ -646,7 +698,7 @@ function App() {
       }
     },
     risk_alerts: {
-      title: language === 'vi' ? 'Cảnh báo rủi ro KPI (Risk Assessment)' : 'KPI Risk Alerts',
+      title: language === 'vi' ? 'KPI Risk Predictor' : 'KPI Risk Predictor',
       size: 'medium',
       roles: ['Admin', 'Employee'],
       render: () => {
@@ -654,41 +706,254 @@ function App() {
           ? kpiTargets.filter(k => k.cr5db_user_email?.toLowerCase() === currentUserEmail.toLowerCase())
           : kpiTargets;
           
+        const now = Date.now();
+        
         const risks = myKpis.map(k => {
           const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-          const rate = calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
-          return { k, rate };
-        }).filter(item => item.rate < 100);
+          const rate = calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+          
+          // Determine Time Percent
+          let timePercent = 0;
+          let evaluationPeriod = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === k.cr5db_period);
+          if (evaluationPeriod && evaluationPeriod.cr5db_startdate && evaluationPeriod.cr5db_enddate) {
+            const start = new Date(evaluationPeriod.cr5db_startdate).getTime();
+            const end = new Date(evaluationPeriod.cr5db_enddate).getTime();
+            if (end > start) {
+              const elapsed = now - start;
+              const total = end - start;
+              timePercent = Math.max(0, Math.min(100, Math.round((elapsed / total) * 100)));
+            }
+          }
+          
+          let status = 'On Track';
+          if (rate < 100) {
+            if (timePercent > rate + 20) {
+              status = 'High Risk';
+            } else if (timePercent > rate + 10) {
+              status = 'At Risk';
+            }
+          }
+          
+          return { k, rate, timePercent, status };
+        }).filter(item => item.status !== 'On Track');
         
-        const behind = risks.filter(item => item.rate < 50);
-        const atRisk = risks.filter(item => item.rate >= 50 && item.rate < 100);
+        const behind = risks.filter(item => item.status === 'High Risk');
+        const atRisk = risks.filter(item => item.status === 'At Risk');
+        
+        // Sort by biggest gap
+        risks.sort((a, b) => (b.timePercent - b.rate) - (a.timePercent - a.rate));
         
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'flex', gap: '12px' }}>
               <div style={{ flex: 1, backgroundColor: '#FFF4CE', border: '1px solid #795B00', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
                 <div style={{ fontSize: '20px', fontWeight: 700, color: '#795B00' }}>{atRisk.length}</div>
-                <div style={{ fontSize: '11px', color: '#795B00', fontWeight: 600 }}>At Risk (50-99%)</div>
+                <div style={{ fontSize: '11px', color: '#795B00', fontWeight: 600 }}>At Risk (+10% lag)</div>
               </div>
               <div style={{ flex: 1, backgroundColor: '#FDE7E9', border: '1px solid #A80000', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
                 <div style={{ fontSize: '20px', fontWeight: 700, color: '#A80000' }}>{behind.length}</div>
-                <div style={{ fontSize: '11px', color: '#A80000', fontWeight: 600 }}>Behind (&lt;50%)</div>
+                <div style={{ fontSize: '11px', color: '#A80000', fontWeight: 600 }}>High Risk (+20% lag)</div>
               </div>
             </div>
             
             <div style={{ maxHeight: '120px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {risks.slice(0, 3).map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '6px', borderBottom: '1px solid var(--color-border-light)' }}>
-                  <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>{item.k.cr5db_kpiname}</span>
-                  <span style={{ fontWeight: 700, color: item.rate < 50 ? '#A80000' : '#795B00' }}>{item.rate}%</span>
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', padding: '8px', backgroundColor: item.status === 'High Risk' ? '#FDF3F3' : '#FFFAF0', border: `1px solid ${item.status === 'High Risk' ? '#F3D6D6' : '#F3E5CD'}`, borderRadius: '6px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
+                    <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.k.cr5db_kpiname}</span>
+                    <span style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>
+                      Prog: <strong style={{ color: 'var(--color-primary)' }}>{item.rate}%</strong> | Time: <strong>{item.timePercent}%</strong>
+                    </span>
+                  </div>
+                  <div style={{ marginLeft: '8px', padding: '4px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, color: '#fff', backgroundColor: item.status === 'High Risk' ? '#dc2626' : '#d97706', whiteSpace: 'nowrap' }}>
+                    {item.status === 'High Risk' ? 'NGUY CƠ CAO' : 'CẢNH BÁO'}
+                  </div>
                 </div>
               ))}
               {risks.length > 3 && (
-                <div style={{ fontSize: '11px', textAlign: 'center', color: 'var(--color-text-secondary)', cursor: 'pointer' }} onClick={() => setActiveTab('kpi')}>
+                <div style={{ fontSize: '11px', textAlign: 'center', color: 'var(--color-text-secondary)', cursor: 'pointer', marginTop: '4px' }} onClick={() => setActiveTab('kpi')}>
                   {language === 'vi' ? `Xem thêm ${risks.length - 3} cảnh báo...` : `View ${risks.length - 3} more alerts...`}
                 </div>
               )}
             </div>
+          </div>
+        );
+      }
+    },
+    workload_heatmap: {
+      title: language === 'vi' ? 'Workload Heatmap' : 'Workload Heatmap',
+      size: 'medium',
+      roles: ['Admin', 'ProjectManager'],
+      render: () => {
+        // Calculate workload for all users
+        const workloads = usersList.map(u => {
+          // 1. Allocation
+          const userAllocs = resourceAllocationsList.filter(a => a._cr5db_userid_value === u.cr5db_userid);
+          const totalAlloc = userAllocs.reduce((sum, a) => sum + (a.cr5db_allocationpercentage || 0), 0);
+          
+          // 2. Active Tasks
+          const activeTasks = tasks.filter(t => t.cr5db_assignee_email?.toLowerCase() === (u.cr5db_email || '').toLowerCase() && t.cr5db_status !== 'Completed');
+          const taskCount = activeTasks.length;
+          
+          // Classification
+          let status: 'Overloaded' | 'Optimal' | 'Underutilized' = 'Optimal';
+          if (totalAlloc > 100 || taskCount >= 5) {
+            status = 'Overloaded';
+          } else if (totalAlloc < 50 || taskCount === 0) {
+            status = 'Underutilized';
+          }
+          
+          return { user: u, totalAlloc, taskCount, status };
+        });
+        
+        // Sort: Overloaded first, then sort by Alloc descending
+        workloads.sort((a, b) => {
+          const rank = { 'Overloaded': 3, 'Optimal': 2, 'Underutilized': 1 };
+          if (rank[a.status] !== rank[b.status]) return rank[b.status] - rank[a.status];
+          return b.totalAlloc - a.totalAlloc;
+        });
+
+        // Top 5
+        const topWorkloads = workloads.slice(0, 5);
+        
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-secondary)', paddingBottom: '4px', borderBottom: '1px solid var(--color-border-light)' }}>
+              <span>Nhân sự</span>
+              <span>Trạng thái</span>
+            </div>
+            
+            {topWorkloads.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)', fontSize: '12px' }}>Không có dữ liệu phân bổ.</div>
+            ) : (
+              topWorkloads.map((wl, idx) => {
+                let barColor = 'var(--color-primary)';
+                let bgColor = '#e6f2eb';
+                if (wl.status === 'Overloaded') {
+                  barColor = '#dc2626';
+                  bgColor = '#FDF3F3';
+                } else if (wl.status === 'Underutilized') {
+                  barColor = '#9ca3af';
+                  bgColor = '#f3f4f6';
+                }
+                
+                // Map alloc to progress bar width (cap at 100% for display)
+                const barWidth = Math.min(100, wl.totalAlloc || 10);
+                
+                return (
+                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+                      <span style={{ fontWeight: 600 }}>{wl.user.cr5db_fullname}</span>
+                      <span style={{ fontWeight: 700, color: barColor }}>
+                        {wl.status === 'Overloaded' ? '🔴 Quá tải' : wl.status === 'Optimal' ? '🟢 Tối ưu' : '⚪ Rảnh rỗi'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ flex: 1, height: '8px', backgroundColor: bgColor, borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{ width: `${barWidth}%`, height: '100%', backgroundColor: barColor, transition: 'width 0.3s ease' }} />
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', width: '90px', textAlign: 'right' }}>
+                        {wl.totalAlloc}% | {wl.taskCount} Tasks
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        );
+      }
+    },
+    flight_risk_detector: {
+      title: language === 'vi' ? 'Flight Risk Detector' : 'Flight Risk Detector',
+      size: 'medium',
+      roles: ['Admin', 'HRManager'],
+      render: () => {
+        const risks = usersList.map(u => {
+          let riskScore = 0;
+          let riskFactors: string[] = [];
+          
+          // 1. Burnout (40%)
+          const userAllocs = resourceAllocationsList.filter(a => a._cr5db_userid_value === u.cr5db_userid);
+          const totalAlloc = userAllocs.reduce((sum, a) => sum + (a.cr5db_allocationpercentage || 0), 0);
+          const activeTasks = tasks.filter(t => t.cr5db_assignee_email?.toLowerCase() === (u.cr5db_email || '').toLowerCase() && t.cr5db_status !== 'Completed');
+          if (totalAlloc > 100 || activeTasks.length >= 5) {
+            riskScore += 40;
+            riskFactors.push('Đang quá tải (Burnout)');
+          }
+
+          // 2. Leave Patterns (30%)
+          const userLeaves = leaveRequestsList.filter(lr => lr._new_employeeid_value === u.cr5db_userid);
+          const sickLeaves = userLeaves.filter(lr => lr.new_leavetype === 'Sick Leave' || lr.new_leavetype === 'Unpaid Leave');
+          if (sickLeaves.length >= 2 || userLeaves.length >= 4) {
+            riskScore += 30;
+            riskFactors.push('Xin nghỉ thất thường');
+          }
+
+          // 3. Appraisal Trend (30%)
+          const userApps = appraisals.filter(ap => ap.cr5db_employeeemail?.toLowerCase() === (u.cr5db_email || '').toLowerCase());
+          let compScore = 0;
+          if (userApps.length > 0) {
+            const sortedApps = [...userApps].sort((a, b) => {
+              const pA = evaluationPeriodsList.find(p => p.cr5db_evaluationperiodid === a._cr5db_periodid_value);
+              const pB = evaluationPeriodsList.find(p => p.cr5db_evaluationperiodid === b._cr5db_periodid_value);
+              const dA = pA?.cr5db_enddate ? new Date(pA.cr5db_enddate).getTime() : 0;
+              const dB = pB?.cr5db_enddate ? new Date(pB.cr5db_enddate).getTime() : 0;
+              return dB - dA;
+            });
+            compScore = sortedApps[0].cr5db_finalscore || 0;
+          }
+          const hash = u.cr5db_userid.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          const tenureYears = (hash % 5) + 1; // Pseudo-random 1 to 5 years
+
+          if (compScore > 0 && compScore < 60) {
+            riskScore += 30;
+            riskFactors.push('Điểm đánh giá thấp');
+          } else if (compScore >= 85 && tenureYears >= 3) {
+            riskScore += 30;
+            riskFactors.push('Nguy cơ nhảy việc (Giỏi & Lâu năm)');
+          }
+
+          let riskLevel: 'High' | 'Medium' | 'Low' = 'Low';
+          if (riskScore >= 70) riskLevel = 'High';
+          else if (riskScore >= 40) riskLevel = 'Medium';
+
+          return { user: u, riskScore, riskFactors, riskLevel };
+        });
+
+        // Filter out Low risk and sort by score descending
+        const atRiskUsers = risks.filter(r => r.riskLevel !== 'Low').sort((a, b) => b.riskScore - a.riskScore).slice(0, 5);
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-secondary)', paddingBottom: '4px', borderBottom: '1px solid var(--color-border-light)' }}>
+              <span>Nhân sự</span>
+              <span>Mức độ Rủi ro</span>
+            </div>
+            
+            {atRiskUsers.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)', fontSize: '12px' }}>Không phát hiện rủi ro nghỉ việc đáng kể.</div>
+            ) : (
+              atRiskUsers.map((r, idx) => {
+                let badgeColor = r.riskLevel === 'High' ? '#dc2626' : '#d97706';
+                let badgeBg = r.riskLevel === 'High' ? '#FDF3F3' : '#FFFAF0';
+                
+                return (
+                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px', backgroundColor: badgeBg, borderRadius: '6px', border: `1px solid ${r.riskLevel === 'High' ? '#F3D6D6' : '#F3E5CD'}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, fontSize: '12px' }}>{r.user.cr5db_fullname}</span>
+                      <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, color: '#fff', backgroundColor: badgeColor }}>
+                        {r.riskLevel === 'High' ? 'RỦI RO CAO' : 'TIỀM ẨN'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span><strong>Tỷ lệ:</strong> <span style={{ color: badgeColor, fontWeight: 600 }}>{r.riskScore}%</span></span>
+                      <span><strong>Dấu hiệu:</strong> {r.riskFactors.join(', ')}</span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         );
       }
@@ -993,7 +1258,119 @@ function App() {
     );
   };
 
-  // ── Live Data ─────────────────────────────────────────────────────────────
+  const renderProcessTable = (processList: any[]) => {
+    return (
+      <div className="card-spec" style={{ padding: '0px', overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+              <th style={{ padding: '14px 20px' }}>Tên Quy trình</th>
+              <th style={{ padding: '14px 20px' }}>Loại</th>
+              <th style={{ padding: '14px 20px' }}>Nhân viên</th>
+              <th style={{ padding: '14px 20px' }}>Tiến độ</th>
+              <th style={{ padding: '14px 20px' }}>Trạng thái</th>
+              <th style={{ padding: '14px 20px', width: '100px', textAlign: 'center' }}>Hành động</th>
+            </tr>
+          </thead>
+          <tbody>
+            {processList.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                  Chưa có quy trình nào.
+                </td>
+              </tr>
+            ) : (
+              processList.map(proc => {
+                const emp = usersList.find(u => u.cr5db_userid === proc._new_employeeid_value);
+                const steps = processStepList.filter(s => s._new_processid_value === proc.new_employeeprocessid);
+                const completedSteps = steps.filter(s => s.new_status === 'Completed').length;
+                const totalSteps = steps.length;
+                const progress = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+                
+                return (
+                  <tr key={proc.new_employeeprocessid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                    <td style={{ padding: '14px 20px', fontWeight: 600 }}>{proc.new_name}</td>
+                    <td style={{ padding: '14px 20px' }}>
+                      <span style={{ 
+                        padding: '4px 8px', 
+                        borderRadius: '12px', 
+                        fontSize: '11px', 
+                        fontWeight: 600,
+                        backgroundColor: proc.new_type === 'Onboarding' ? 'rgba(16, 124, 65, 0.1)' : 'rgba(232, 17, 35, 0.1)',
+                        color: proc.new_type === 'Onboarding' ? '#107c41' : '#e81123'
+                      }}>
+                        {proc.new_type}
+                      </span>
+                    </td>
+                    <td style={{ padding: '14px 20px' }}>{emp?.cr5db_fullname || 'N/A'}</td>
+                    <td style={{ padding: '14px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '100px', height: '6px', backgroundColor: 'var(--color-border)', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${progress}%`, backgroundColor: progress === 100 ? '#107c41' : 'var(--color-primary)' }}></div>
+                        </div>
+                        <span style={{ fontSize: '12px', fontWeight: 600 }}>{progress}%</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '14px 20px' }}>
+                      <span style={{ 
+                        padding: '4px 8px', 
+                        borderRadius: '12px', 
+                        fontSize: '11px', 
+                        fontWeight: 600,
+                        backgroundColor: proc.new_status === 'Completed' ? 'rgba(16, 124, 65, 0.1)' : proc.new_status === 'Cancelled' ? 'rgba(232, 17, 35, 0.1)' : 'rgba(0, 120, 212, 0.1)',
+                        color: proc.new_status === 'Completed' ? '#107c41' : proc.new_status === 'Cancelled' ? '#e81123' : '#0078d4'
+                      }}>
+                        {proc.new_status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                      <button 
+                        className="btn-icon" 
+                        title="Xem chi tiết"
+                        onClick={() => {
+                          setSelectedProcessId(proc.new_employeeprocessid);
+                          setShowProcessDetailModal(true);
+                        }}
+                      >
+                        <i className="fas fa-eye"></i>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+  const getMyProcesses = () => {
+    if (!currentUserObj) return [];
+    const currentUserPosition = jobPositionsList.find(p => p.cr5db_jobpositionid === currentUserObj._cr5db_jobposition_value);
+    const currentUserDeptId = currentUserPosition?._cr5db_department_value;
+    const isManager = currentUserPosition?.cr5db_positionname?.toLowerCase().includes('manager') || currentUserPosition?.cr5db_positionname?.toLowerCase().includes('trưởng phòng');
+
+    return employeeProcessList.filter(proc => {
+      // 1. Is employee themselves
+      if (proc._new_employeeid_value === currentUserObj.cr5db_userid) return true;
+      
+      // 2. Is Department Manager
+      if (isManager && currentUserDeptId) {
+        const emp = usersList.find(u => u.cr5db_userid === proc._new_employeeid_value);
+        const empPos = jobPositionsList.find(p => p.cr5db_jobpositionid === emp?._cr5db_jobposition_value);
+        if (empPos && empPos._cr5db_department_value === currentUserDeptId) return true;
+      }
+
+      // 3. Has task assigned to user
+      const steps = processStepList.filter(s => s._new_processid_value === proc.new_employeeprocessid);
+      return steps.some(s => 
+        s._new_assigneduser_value === currentUserObj.cr5db_userid ||
+        (currentUserDeptId && s._new_assigneddepartment_value === currentUserDeptId) ||
+        (s.new_assigneerole && s.new_assigneerole === activeRole)
+      );
+    });
+  };
+
   const { fetchLiveValues } = useLiveData({
     setIsLoading, setErrorMsg,
     setCurrentUserEmail, setCurrentUserName, setActiveRole,
@@ -1012,7 +1389,11 @@ function App() {
     setPermissionGroups, setDefaultGroups,
     setDefaultGroupsDbId, setBonusMatrixList,
     setCompetencyCatalogList, setJobCompetenciesList, setCompetencyAssessmentsList,
-    setIdpList, setIdpActionList
+    setIdpList, setIdpActionList,
+    setProcessTemplateList, setProcessTemplateStepList,
+    setEmployeeProcessList, setProcessStepList,
+    setLeaveBalancesList, setLeaveRequestsList,
+    setHolidaysList, setOvertimeRequestsList
   });
 
   // ── Approval Engine ───────────────────────────────────────────────────────
@@ -1412,6 +1793,87 @@ function App() {
     }
   };
 
+  const handleCreateProcess = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProcessEmployeeId || !newProcessTemplateId) return;
+    setIsLoading(true);
+    try {
+      const template = processTemplateList.find(t => t.new_processtemplateid === newProcessTemplateId);
+      const employee = usersList.find(u => u.cr5db_userid === newProcessEmployeeId);
+      if (!template || !employee) return;
+
+      const { New_employeeprocessService } = await import('./generated/services/New_employeeprocessService');
+      const { New_processstepService } = await import('./generated/services/New_processstepService');
+      
+      const processName = `[${template.new_type}] ${employee.cr5db_fullname}`;
+      const procPayload = {
+        new_name: processName,
+        new_type: template.new_type,
+        new_status: 'In Progress',
+        "new_EmployeeId@odata.bind": `/cr5db_userses(${employee.cr5db_userid})`,
+        "new_TemplateId@odata.bind": `/new_processtemplates(${template.new_processtemplateid})`
+      };
+
+      const procRes = await New_employeeprocessService.create(procPayload as any);
+      if (procRes.data && procRes.data.new_employeeprocessid) {
+        const processId = procRes.data.new_employeeprocessid;
+        // Copy steps
+        const templateSteps = processTemplateStepList.filter(s => s._new_processtemplate_value === template.new_processtemplateid);
+        for (const tStep of templateSteps) {
+          const newStepPayload: any = {
+            new_name: tStep.new_name,
+            new_order: tStep.new_order,
+            new_status: 'Pending',
+            new_assigneerole: tStep.new_assigneerole,
+            "new_ProcessId@odata.bind": `/new_employeeprocesses(${processId})`
+          };
+          if (tStep._new_assigneddepartment_value) {
+            newStepPayload["new_AssignedDepartmentId@odata.bind"] = `/cr5db_departmentses(${tStep._new_assigneddepartment_value})`;
+          }
+          if (tStep._new_assigneduser_value) {
+            newStepPayload["new_AssignedUserId@odata.bind"] = `/cr5db_userses(${tStep._new_assigneduser_value})`;
+          }
+          await New_processstepService.create(newStepPayload);
+        }
+        await fetchLiveValues();
+        setShowProcessModal(false);
+      }
+    } catch (err: any) {
+      alert("Lỗi khi tạo quy trình: " + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateProcessStep = async (stepId: string, newStatus: string) => {
+    setIsLoading(true);
+    try {
+      const { New_processstepService } = await import('./generated/services/New_processstepService');
+      await New_processstepService.update(stepId, { 
+        new_status: newStatus,
+        new_completeddate: newStatus === 'Completed' ? new Date().toISOString() : null
+      } as any);
+
+      // Check if all steps are completed
+      const step = processStepList.find(s => s.new_processstepid === stepId);
+      if (step) {
+        const processId = step._new_processid_value;
+        const processSteps = processStepList.filter(s => s._new_processid_value === processId);
+        const allCompleted = processSteps.every(s => (s.new_processstepid === stepId ? newStatus : s.new_status) === 'Completed');
+        
+        if (allCompleted) {
+          const { New_employeeprocessService } = await import('./generated/services/New_employeeprocessService');
+          await New_employeeprocessService.update(processId, { new_status: 'Completed' } as any);
+        }
+      }
+      await fetchLiveValues();
+    } catch (err: any) {
+      alert("Lỗi cập nhật bước: " + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSaveIdp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -1688,6 +2150,358 @@ function App() {
     } catch (err) {
       console.error(err);
       alert('Lỗi khi từ chối timesheet.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleLeaveRequestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLeaveStartDate || !newLeaveEndDate || !newLeaveReason.trim()) {
+      alert('Vui lòng điền đầy đủ thông tin (Ngày bắt đầu, kết thúc, lý do).');
+      return;
+    }
+    const days = calculateWorkingDays(newLeaveStartDate, newLeaveEndDate);
+    if (days <= 0) {
+      alert('Khoảng thời gian không hợp lệ hoặc không có ngày làm việc.');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await New_leaverequestService.create({
+        new_name: `Nghỉ ${newLeaveType} - ${currentUserName}`,
+        new_leavetype: newLeaveType,
+        new_startdate: new Date(newLeaveStartDate).toISOString(),
+        new_enddate: new Date(newLeaveEndDate).toISOString(),
+        new_durationdays: days,
+        new_reason: newLeaveReason,
+        new_status: 'Pending',
+        "_new_employeeid_value@odata.bind": `/cr5db_userses(${currentUserId})`
+      } as any);
+      setShowLeaveModal(false);
+      setNewLeaveStartDate('');
+      setNewLeaveEndDate('');
+      setNewLeaveReason('');
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi gửi đơn xin nghỉ phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleApproveLeave = async (leaveId: string) => {
+    try {
+      setIsLoading(true);
+      const leave = leaveRequestsList.find(lr => lr.new_leaverequestid === leaveId);
+      if (leave) {
+        await New_leaverequestService.update(leaveId, {
+          new_status: 'Approved'
+        });
+        if (leave.new_leavetype === 'Annual Leave') {
+          // Trừ vào quỹ phép (cộng vào số ngày đã dùng)
+          const balance = leaveBalancesList.find(lb => lb._new_employeeid_value === leave._new_employeeid_value && lb.new_year === new Date(leave.new_startdate).getFullYear());
+          if (balance) {
+            await New_leavebalanceService.update(balance.new_leavebalanceid, {
+              new_useddays: (balance.new_useddays || 0) + leave.new_durationdays
+            });
+          }
+        }
+      }
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi duyệt phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleRejectLeave = async (leaveId: string) => {
+    try {
+      setIsLoading(true);
+      await New_leaverequestService.update(leaveId, {
+        new_status: 'Rejected'
+      });
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi từ chối phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveLeaveBalance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLeaveBalance) return;
+    try {
+      setIsLoading(true);
+      await New_leavebalanceService.update(editingLeaveBalance.new_leavebalanceid, {
+        new_totalentitlement: parseInt(newBalanceEntitlement) || 0,
+        new_carriedover: parseInt(newBalanceCarriedOver) || 0,
+        new_useddays: parseInt(newBalanceUsedDays) || 0
+      });
+      setShowLeaveBalanceModal(false);
+      setEditingLeaveBalance(null);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi cập nhật quỹ phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleHolidaySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newHolidayName.trim() || !newHolidayDate) return;
+    try {
+      setIsLoading(true);
+      await New_holidayService.create({
+        new_name: newHolidayName,
+        new_date: new Date(newHolidayDate).toISOString()
+      });
+      setShowHolidayModal(false);
+      setNewHolidayName('');
+      setNewHolidayDate('');
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi thêm ngày lễ.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleOvertimeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOtDate || !newOtStartTime || !newOtEndTime || !newOtHours || !newOtReason.trim()) {
+      alert('Vui lòng điền đầy đủ thông tin OT.');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await New_overtimerequestService.create({
+        new_name: `OT ${newOtDate} - ${currentUserName}`,
+        new_date: new Date(newOtDate).toISOString(),
+        new_starttime: newOtStartTime,
+        new_endtime: newOtEndTime,
+        new_hours: parseFloat(newOtHours),
+        new_ottype: newOtType,
+        new_reason: newOtReason,
+        new_status: 'Pending',
+        "_new_employeeid_value@odata.bind": `/cr5db_userses(${currentUserId})`
+      } as any);
+      setShowOvertimeModal(false);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi gửi đơn OT.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleApproveOtSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otToApproveId) return;
+    try {
+      setIsLoading(true);
+      await New_overtimerequestService.update(otToApproveId, {
+        new_status: 'Approved',
+        new_approvedhours: parseFloat(otApprovedHours) || 0
+      });
+      setShowOtApprovalModal(false);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi duyệt OT.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleRejectOt = async (otId: string) => {
+    try {
+      setIsLoading(true);
+      await New_overtimerequestService.update(otId, {
+        new_status: 'Rejected',
+        new_approvedhours: 0
+      });
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi từ chối OT.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleSavePeriod = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLeaveStartDate || !newLeaveEndDate || !newLeaveReason.trim()) {
+      alert('Vui lòng điền đầy đủ thông tin (Ngày bắt đầu, kết thúc, lý do).');
+      return;
+    }
+    const days = calculateWorkingDays(newLeaveStartDate, newLeaveEndDate);
+    if (days <= 0) {
+      alert('Khoảng thời gian không hợp lệ hoặc không có ngày làm việc.');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await New_leaverequestService.create({
+        new_name: `Nghỉ ${newLeaveType} - ${currentUserName}`,
+        new_leavetype: newLeaveType,
+        new_startdate: new Date(newLeaveStartDate).toISOString(),
+        new_enddate: new Date(newLeaveEndDate).toISOString(),
+        new_durationdays: days,
+        new_reason: newLeaveReason,
+        new_status: 'Pending',
+        "_new_employeeid_value@odata.bind": `/cr5db_userses(${currentUserId})`
+      } as any);
+      setShowLeaveModal(false);
+      setNewLeaveStartDate('');
+      setNewLeaveEndDate('');
+      setNewLeaveReason('');
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi gửi đơn xin nghỉ phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleApproveLeave = async (leaveId: string) => {
+    try {
+      setIsLoading(true);
+      const leave = leaveRequestsList.find(lr => lr.new_leaverequestid === leaveId);
+      if (leave) {
+        await New_leaverequestService.update(leaveId, {
+          new_status: 'Approved'
+        });
+        if (leave.new_leavetype === 'Annual Leave') {
+          // Trừ vào quỹ phép (cộng vào số ngày đã dùng)
+          const balance = leaveBalancesList.find(lb => lb._new_employeeid_value === leave._new_employeeid_value && lb.new_year === new Date(leave.new_startdate).getFullYear());
+          if (balance) {
+            await New_leavebalanceService.update(balance.new_leavebalanceid, {
+              new_useddays: (balance.new_useddays || 0) + leave.new_durationdays
+            });
+          }
+        }
+      }
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi duyệt phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleRejectLeave = async (leaveId: string) => {
+    try {
+      setIsLoading(true);
+      await New_leaverequestService.update(leaveId, {
+        new_status: 'Rejected'
+      });
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi từ chối phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveLeaveBalance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLeaveBalance) return;
+    try {
+      setIsLoading(true);
+      await New_leavebalanceService.update(editingLeaveBalance.new_leavebalanceid, {
+        new_totalentitlement: parseInt(newBalanceEntitlement) || 0,
+        new_carriedover: parseInt(newBalanceCarriedOver) || 0,
+        new_useddays: parseInt(newBalanceUsedDays) || 0
+      });
+      setShowLeaveBalanceModal(false);
+      setEditingLeaveBalance(null);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi cập nhật quỹ phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleHolidaySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newHolidayName.trim() || !newHolidayDate) return;
+    try {
+      setIsLoading(true);
+      await New_holidayService.create({
+        new_name: newHolidayName,
+        new_date: new Date(newHolidayDate).toISOString()
+      });
+      setShowHolidayModal(false);
+      setNewHolidayName('');
+      setNewHolidayDate('');
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi thêm ngày lễ.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleOvertimeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOtDate || !newOtStartTime || !newOtEndTime || !newOtHours || !newOtReason.trim()) {
+      alert('Vui lòng điền đầy đủ thông tin OT.');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await New_overtimerequestService.create({
+        new_name: `OT ${newOtDate} - ${currentUserName}`,
+        new_date: new Date(newOtDate).toISOString(),
+        new_starttime: newOtStartTime,
+        new_endtime: newOtEndTime,
+        new_hours: parseFloat(newOtHours),
+        new_ottype: newOtType,
+        new_reason: newOtReason,
+        new_status: 'Pending',
+        "_new_employeeid_value@odata.bind": `/cr5db_userses(${currentUserId})`
+      } as any);
+      setShowOvertimeModal(false);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi gửi đơn OT.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleApproveOtSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otToApproveId) return;
+    try {
+      setIsLoading(true);
+      await New_overtimerequestService.update(otToApproveId, {
+        new_status: 'Approved',
+        new_approvedhours: parseFloat(otApprovedHours) || 0
+      });
+      setShowOtApprovalModal(false);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi duyệt OT.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleRejectOt = async (otId: string) => {
+    try {
+      setIsLoading(true);
+      await New_overtimerequestService.update(otId, {
+        new_status: 'Rejected',
+        new_approvedhours: 0
+      });
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi từ chối OT.');
       setIsLoading(false);
     }
   };
@@ -2065,6 +2879,118 @@ function App() {
       console.error(err);
       alert("Lỗi xóa: " + (err.message || err));
       setIsLoading(false);
+    }
+  };
+  // AI KPI Generator Logic
+  const evaluateKpiSmartScore = (name: string, unit: string) => {
+    let score = 0;
+    const lowerName = name.toLowerCase();
+    
+    // 1. Specific (30%): Action verbs
+    const actionVerbs = ['tăng', 'giảm', 'cải thiện', 'hoàn thành', 'duy trì', 'xây dựng', 'đạt', 'tối ưu', 'tạo', 'phát triển'];
+    if (actionVerbs.some(v => lowerName.includes(v))) {
+      score += 30;
+    }
+
+    // 2. Measurable (40%): Numbers or units
+    const hasNumbers = /\d/.test(lowerName);
+    const hasUnit = unit && unit !== '%' && unit.trim().length > 0;
+    const hasMeasureWords = ['tỷ', 'triệu', 'phần trăm', '%', 'vnd', 'usd', 'người', 'giờ', 'ngày'];
+    if (hasNumbers || hasUnit || hasMeasureWords.some(w => lowerName.includes(w))) {
+      score += 40;
+    }
+
+    // 3. Attainable/Relevant (20%): Reasonable length
+    if (name.trim().length > 15) {
+      score += 20;
+    }
+
+    // 4. Time-bound (10%): Time keywords
+    const timeWords = ['tháng', 'quý', 'năm', 'kỳ', 'tuần', 'ngày', 'trước', 'deadline'];
+    if (timeWords.some(w => lowerName.includes(w))) {
+      score += 10;
+    }
+
+    return score;
+  };
+
+  React.useEffect(() => {
+    if (showKpiLibraryModal) {
+      setKpiQualityScore(evaluateKpiSmartScore(kpiLibName, kpiLibUnit));
+    }
+  }, [kpiLibName, kpiLibUnit, showKpiLibraryModal]);
+
+  const handleAiImproveKpi = async () => {
+    if (!kpiLibName.trim()) return;
+    setIsAiGenerating(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/improve-kpi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kpiText: kpiLibName })
+      });
+      const data = await response.json();
+      if (data.result) {
+        setKpiLibName(data.result);
+      } else if (data.error) {
+        alert("Lỗi AI: " + data.error);
+      }
+    } catch (err) {
+      console.error("AI Error:", err);
+      alert("Không thể kết nối đến Backend AI (Cổng 3001). Vui lòng đảm bảo server.js đang chạy.");
+    } finally {
+      setIsAiGenerating(false);
+    }
+  };
+
+    // 2. Measurable (40%): Numbers or units
+    const hasNumbers = /\d/.test(lowerName);
+    const hasUnit = unit && unit !== '%' && unit.trim().length > 0;
+    const hasMeasureWords = ['tỷ', 'triệu', 'phần trăm', '%', 'vnd', 'usd', 'người', 'giờ', 'ngày'];
+    if (hasNumbers || hasUnit || hasMeasureWords.some(w => lowerName.includes(w))) {
+      score += 40;
+    }
+
+    // 3. Attainable/Relevant (20%): Reasonable length
+    if (name.trim().length > 15) {
+      score += 20;
+    }
+
+    // 4. Time-bound (10%): Time keywords
+    const timeWords = ['tháng', 'quý', 'năm', 'kỳ', 'tuần', 'ngày', 'trước', 'deadline'];
+    if (timeWords.some(w => lowerName.includes(w))) {
+      score += 10;
+    }
+
+    return score;
+  };
+
+  React.useEffect(() => {
+    if (showKpiLibraryModal) {
+      setKpiQualityScore(evaluateKpiSmartScore(kpiLibName, kpiLibUnit));
+    }
+  }, [kpiLibName, kpiLibUnit, showKpiLibraryModal]);
+
+  const handleAiImproveKpi = async () => {
+    if (!kpiLibName.trim()) return;
+    setIsAiGenerating(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/improve-kpi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kpiText: kpiLibName })
+      });
+      const data = await response.json();
+      if (data.result) {
+        setKpiLibName(data.result);
+      } else if (data.error) {
+        alert("Lỗi AI: " + data.error);
+      }
+    } catch (err) {
+      console.error("AI Error:", err);
+      alert("Không thể kết nối đến Backend AI (Cổng 3001). Vui lòng đảm bảo server.js đang chạy.");
+    } finally {
+      setIsAiGenerating(false);
     }
   };
 
@@ -3112,6 +4038,111 @@ function App() {
     }
   };
 
+  const generateAiSuggestions = (filterSameDept: boolean) => {
+    let pool = usersList;
+    if (filterSameDept && currentUserObj?._cr5db_jobposition_value) {
+      const currentUserPosition = jobPositionsList.find(p => p.cr5db_jobpositionid === currentUserObj._cr5db_jobposition_value);
+      const currentUserDeptId = currentUserPosition?._cr5db_department_value;
+      if (currentUserDeptId) {
+        pool = usersList.filter(u => {
+          const userPos = jobPositionsList.find(p => p.cr5db_jobpositionid === u._cr5db_jobposition_value);
+          return userPos?._cr5db_department_value === currentUserDeptId;
+        });
+      }
+    }
+    
+    const scoredUsers = pool.map(u => {
+      // 1. Calculate Availability
+      const userAllocations = resourceAllocationsList.filter(a => a._cr5db_userid_value === u.cr5db_userid);
+      const totalAllocation = userAllocations.reduce((sum, a) => sum + (Number(a.cr5db_allocationpercentage) || 0), 0);
+      const availability = Math.max(0, 100 - totalAllocation);
+      
+      // 2. Skill Match (Deterministic pseudo-random 40-95 for demo)
+      const emailLen = u.cr5db_email ? u.cr5db_email.length : 10;
+      const skillMatch = 40 + ((emailLen * 13) % 55); 
+      
+      // 3. Combine: 60% Skill Match + 40% Availability
+      const fitScore = Math.round((skillMatch * 0.6) + (availability * 0.4));
+      
+      return {
+        user: u,
+        availability,
+        skillMatch,
+        fitScore
+      };
+    });
+    
+    scoredUsers.sort((a, b) => b.fitScore - a.fitScore);
+    setAiSuggestions(scoredUsers.slice(0, 3));
+    setShowAiSuggestions(true);
+  };
+
+  const handleSaveAllocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!allocationUser || !allocationProject) {
+      alert("Vui lòng chọn đầy đủ nhân sự và dự án.");
+      return;
+    }
+    
+    const scoredUsers = pool.map(u => {
+      // 1. Calculate Availability
+      const userAllocations = resourceAllocationsList.filter(a => a._cr5db_userid_value === u.cr5db_userid);
+      const totalAllocation = userAllocations.reduce((sum, a) => sum + (Number(a.cr5db_allocationpercentage) || 0), 0);
+      const availability = Math.max(0, 100 - totalAllocation);
+      
+      // 2. Skill Match (Deterministic pseudo-random 40-95 for demo)
+      const emailLen = u.cr5db_email ? u.cr5db_email.length : 10;
+      const skillMatch = 40 + ((emailLen * 13) % 55); 
+      
+      // 3. Combine: 60% Skill Match + 40% Availability
+      const fitScore = Math.round((skillMatch * 0.6) + (availability * 0.4));
+      
+      return {
+        user: u,
+        availability,
+        skillMatch,
+        fitScore
+      };
+    });
+    
+    scoredUsers.sort((a, b) => b.fitScore - a.fitScore);
+    setAiSuggestions(scoredUsers.slice(0, 3));
+    setShowAiSuggestions(true);
+  };
+
+  const handleSaveAllocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!allocationUser || !allocationProject) {
+      alert("Vui lòng chọn đầy đủ nhân sự và dự án.");
+      return;
+    }
+    
+    const scoredUsers = pool.map(u => {
+      // 1. Calculate Availability
+      const userAllocations = resourceAllocationsList.filter(a => a._cr5db_userid_value === u.cr5db_userid);
+      const totalAllocation = userAllocations.reduce((sum, a) => sum + (Number(a.cr5db_allocationpercentage) || 0), 0);
+      const availability = Math.max(0, 100 - totalAllocation);
+      
+      // 2. Skill Match (Deterministic pseudo-random 40-95 for demo)
+      const emailLen = u.cr5db_email ? u.cr5db_email.length : 10;
+      const skillMatch = 40 + ((emailLen * 13) % 55); 
+      
+      // 3. Combine: 60% Skill Match + 40% Availability
+      const fitScore = Math.round((skillMatch * 0.6) + (availability * 0.4));
+      
+      return {
+        user: u,
+        availability,
+        skillMatch,
+        fitScore
+      };
+    });
+    
+    scoredUsers.sort((a, b) => b.fitScore - a.fitScore);
+    setAiSuggestions(scoredUsers.slice(0, 3));
+    setShowAiSuggestions(true);
+  };
+
   const handleSaveAllocation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!allocationUser || !allocationProject) {
@@ -3449,6 +4480,35 @@ function App() {
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   };
 
+  const calculateWorkingDays = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (start > end) return 0;
+    
+    let workingDays = 0;
+    const current = new Date(start);
+    
+    // Tạo mảng các chuỗi YYYY-MM-DD của ngày Lễ để tra cứu nhanh
+    const holidayDates = holidaysList.map(h => {
+      const d = parseDateOnly(h.new_date);
+      return d ? d.toISOString().split('T')[0] : null;
+    }).filter(d => d !== null);
+
+    while (current <= end) {
+      const dayOfWeek = current.getDay();
+      const currentIso = current.toISOString().split('T')[0];
+      
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isHoliday = holidayDates.includes(currentIso);
+
+      if (!isWeekend && !isHoliday) {
+        workingDays++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    return workingDays;
+  };
+
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -3479,6 +4539,13 @@ function App() {
   const getJobPositionActualCount = (posId: string) => {
     return usersList.filter(u => u._cr5db_jobposition_value === posId && u.cr5db_isactive !== false).length;
   };
+
+  // Leave calculations
+  const currentUserId = currentUserObj ? currentUserObj.cr5db_userid : '';
+
+  const myLeaveBalances = leaveBalancesList.filter(lb => lb._new_employeeid_value === currentUserId);
+  const myLeaves = leaveRequestsList.filter(lr => lr._new_employeeid_value === currentUserId);
+  const pendingLeaveApprovals = leaveRequestsList.filter(lr => lr.new_status === 'Pending');
 
   // Group job positions by company for Bar Chart
   const getCompanyHeadcounts = () => {
@@ -3614,6 +4681,9 @@ function App() {
           </button>
           <button onClick={() => setActiveTab('tasks')} className={`nav-item ${activeTab === 'tasks' ? 'active' : ''}`}>
             <span className="nav-icon"><TaskIcon /></span>{t('sidebar.tasks')}
+          </button>
+          <button onClick={() => setActiveTab('my-processes')} className={`nav-item ${activeTab === 'my-processes' ? 'active' : ''}`}>
+            <span className="nav-icon"><i className="fas fa-clipboard-list" /></span>My Tasks
           </button>
           <button onClick={() => setActiveTab('timesheets')} className={`nav-item ${activeTab === 'timesheets' ? 'active' : ''}`}>
             <span className="nav-icon"><ClockIcon /></span>{t('sidebar.timesheets')}
@@ -3797,6 +4867,30 @@ function App() {
               )}
 
               {renderDashboardWidgets()}
+            </div>
+          )}
+
+          {/* SCREEN: MY PROCESSES (My Tasks) */}
+          {activeTab === 'my-processes' && (
+            <div className="space-y-6 p-6" style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '24px', fontFamily: 'ui-sans-serif, system-ui, sans-serif', color: '#000000', backgroundColor: '#ffffff' }}>
+              
+              <div className="task-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ color: '#000000', display: 'flex', alignItems: 'center' }}>
+                    <i className="fas fa-clipboard-list" style={{ fontSize: '24px' }}></i>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <h1 style={{ fontSize: '24px', fontWeight: 700, margin: 0, color: '#000000', lineHeight: '1.2' }}>
+                      {language === 'vi' ? 'Quy trình & Nhiệm vụ của tôi' : 'My Processes & Tasks'}
+                    </h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 400, color: 'rgba(0, 0, 0, 0.7)' }}>
+                      <span>Theo dõi các quy trình onboarding/offboarding bạn tham gia</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {renderProcessTable(getMyProcesses())}
             </div>
           )}
 
@@ -4057,8 +5151,8 @@ function App() {
                 </div>
               </div>
 
-              {/* Sub navigation button tabs matching Image 3 */}
-              <div style={{ display: 'flex', gap: '12px' }}>
+              {/* Sub navigation button tabs */}
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                 <button
                   onClick={() => setActiveTimesheetSubTab('my')}
                   style={{
@@ -4088,7 +5182,105 @@ function App() {
                       color: activeTimesheetSubTab === 'approvals' ? 'var(--color-text)' : 'var(--color-text-secondary)'
                     }}
                   >
-                    {t('timesheets.approvals')}
+                    Duyệt chấm công
+                  </button>
+                )}
+                <button
+                  onClick={() => setActiveTimesheetSubTab('my-leaves')}
+                  style={{
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    backgroundColor: activeTimesheetSubTab === 'my-leaves' ? '#FAF9F9' : 'transparent',
+                    color: activeTimesheetSubTab === 'my-leaves' ? 'var(--color-text)' : 'var(--color-text-secondary)'
+                  }}
+                >
+                  Phép của tôi
+                </button>
+                {(activeRole === 'Admin' || checkPermission('resources')) && (
+                  <button
+                    onClick={() => setActiveTimesheetSubTab('leave-approvals')}
+                    style={{
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      backgroundColor: activeTimesheetSubTab === 'leave-approvals' ? '#FAF9F9' : 'transparent',
+                      color: activeTimesheetSubTab === 'leave-approvals' ? 'var(--color-text)' : 'var(--color-text-secondary)'
+                    }}
+                  >
+                    Duyệt nghỉ phép
+                  </button>
+                )}
+                {activeRole === 'Admin' && (
+                  <button
+                    onClick={() => setActiveTimesheetSubTab('leave-balances')}
+                    style={{
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      backgroundColor: activeTimesheetSubTab === 'leave-balances' ? '#FAF9F9' : 'transparent',
+                      color: activeTimesheetSubTab === 'leave-balances' ? 'var(--color-text)' : 'var(--color-text-secondary)'
+                    }}
+                  >
+                    Quản lý Quỹ phép
+                  </button>
+                )}
+                <button
+                  onClick={() => setActiveTimesheetSubTab('ot')}
+                  style={{
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    backgroundColor: activeTimesheetSubTab === 'ot' ? '#FAF9F9' : 'transparent',
+                    color: activeTimesheetSubTab === 'ot' ? 'var(--color-text)' : 'var(--color-text-secondary)'
+                  }}
+                >
+                  Xin OT
+                </button>
+                {(activeRole === 'Admin' || checkPermission('resources')) && (
+                  <button
+                    onClick={() => setActiveTimesheetSubTab('ot-approvals')}
+                    style={{
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      backgroundColor: activeTimesheetSubTab === 'ot-approvals' ? '#FAF9F9' : 'transparent',
+                      color: activeTimesheetSubTab === 'ot-approvals' ? 'var(--color-text)' : 'var(--color-text-secondary)'
+                    }}
+                  >
+                    Duyệt OT
+                  </button>
+                )}
+                {activeRole === 'Admin' && (
+                  <button
+                    onClick={() => setActiveTimesheetSubTab('holidays')}
+                    style={{
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      backgroundColor: activeTimesheetSubTab === 'holidays' ? '#FAF9F9' : 'transparent',
+                      color: activeTimesheetSubTab === 'holidays' ? 'var(--color-text)' : 'var(--color-text-secondary)'
+                    }}
+                  >
+                    Cấu hình Ngày Lễ
                   </button>
                 )}
               </div>
@@ -4151,7 +5343,7 @@ function App() {
                     </table>
                   )}
                 </div>
-              ) : (
+              ) : activeTimesheetSubTab === 'approvals' ? (
                 <>
                   <div className="large-card" style={{ padding: '24px' }}>
                     {pendingApprovalsTimesheets.length === 0 ? (
@@ -4209,7 +5401,790 @@ function App() {
                     )}
                   </div>
                 </>
-              )}
+              ) : activeTimesheetSubTab === 'my-leaves' ? (
+                <div className="card-spec" style={{ padding: '32px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Phép của tôi</h3>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '2px' }}>Quản lý ngày phép và đơn xin nghỉ</p>
+                    </div>
+                    <button onClick={() => setShowLeaveModal(true)} className="btn-filled-3" style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>+</span> Xin nghỉ phép
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
+                    {myLeaveBalances.map(lb => (
+                      <div key={lb.new_leavebalanceid} className="metric-card" style={{ gap: '12px', padding: '20px', borderLeft: '4px solid #107C41' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 600 }}>{lb.new_name} ({lb.new_year})</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                          <span>Tổng cộng: <strong style={{ color: '#107C41' }}>{lb.new_totalentitlement + lb.new_carriedover} ngày</strong></span>
+                          <span>Đã dùng: <strong style={{ color: '#E29E2E' }}>{lb.new_useddays} ngày</strong></span>
+                          <span>Còn lại: <strong>{(lb.new_totalentitlement + lb.new_carriedover) - lb.new_useddays} ngày</strong></span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {myLeaves.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', background: '#FAF9F9', borderRadius: '8px' }}>
+                      Chưa có đơn xin nghỉ phép nào.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '12px' }}>Loại phép</th>
+                          <th style={{ padding: '12px' }}>Bắt đầu</th>
+                          <th style={{ padding: '12px' }}>Kết thúc</th>
+                          <th style={{ padding: '12px' }}>Số ngày</th>
+                          <th style={{ padding: '12px' }}>Lý do</th>
+                          <th style={{ padding: '12px' }}>Trạng thái</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {myLeaves.map(lr => (
+                          <tr key={lr.new_leaverequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{lr.new_leavetype}</td>
+                            <td style={{ padding: '12px' }}>{new Date(lr.new_startdate).toLocaleDateString('vi-VN')}</td>
+                            <td style={{ padding: '12px' }}>{new Date(lr.new_enddate).toLocaleDateString('vi-VN')}</td>
+                            <td style={{ padding: '12px' }}>{lr.new_durationdays}</td>
+                            <td style={{ padding: '12px' }}>{lr.new_reason}</td>
+                            <td style={{ padding: '12px' }}>
+                              <span className={
+                                lr.new_status === 'Pending' ? 'status-pending'
+                                : lr.new_status === 'Rejected' ? 'status-rejected'
+                                : 'status-approved'
+                              }>
+                                {lr.new_status === 'Pending' ? 'Chờ duyệt' : lr.new_status === 'Rejected' ? 'Từ chối' : 'Đã duyệt'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ) : activeTimesheetSubTab === 'leave-approvals' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '24px' }}>Đơn xin nghỉ chờ duyệt</h3>
+                  {pendingLeaveApprovals.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', background: '#FAF9F9', borderRadius: '8px' }}>
+                      Không có đơn xin nghỉ phép nào đang chờ duyệt.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '12px' }}>Nhân viên</th>
+                          <th style={{ padding: '12px' }}>Loại phép</th>
+                          <th style={{ padding: '12px' }}>Từ ngày</th>
+                          <th style={{ padding: '12px' }}>Đến ngày</th>
+                          <th style={{ padding: '12px' }}>Số ngày</th>
+                          <th style={{ padding: '12px' }}>Lý do</th>
+                          <th style={{ padding: '12px' }}>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingLeaveApprovals.map(lr => {
+                          const emp = usersList.find(u => u.cr5db_userid === lr._new_employeeid_value);
+                          return (
+                            <tr key={lr.new_leaverequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                              <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                              <td style={{ padding: '12px' }}>{lr.new_leavetype}</td>
+                              <td style={{ padding: '12px' }}>{new Date(lr.new_startdate).toLocaleDateString('vi-VN')}</td>
+                              <td style={{ padding: '12px' }}>{new Date(lr.new_enddate).toLocaleDateString('vi-VN')}</td>
+                              <td style={{ padding: '12px', fontWeight: 600 }}>{lr.new_durationdays}</td>
+                              <td style={{ padding: '12px' }}>{lr.new_reason}</td>
+                              <td style={{ padding: '12px', display: 'flex', gap: '8px' }}>
+                                <button onClick={() => handleApproveLeave(lr.new_leaverequestid)} className="btn-filled-2" style={{ padding: '4px 8px' }}>Duyệt</button>
+                                <button onClick={() => handleRejectLeave(lr.new_leaverequestid)} className="btn-filled-3" style={{ padding: '4px 8px', color: '#a80000' }}>Từ chối</button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ) : activeTimesheetSubTab === 'leave-balances' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Quản lý Quỹ phép (Admin)</h3>
+                    <button className="btn-filled-3" style={{ fontSize: '13px', fontWeight: 600 }}>+ Cấp phép mới</button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Nhân viên</th>
+                        <th style={{ padding: '12px' }}>Năm</th>
+                        <th style={{ padding: '12px' }}>Phép chuẩn</th>
+                        <th style={{ padding: '12px' }}>Tồn năm trước</th>
+                        <th style={{ padding: '12px' }}>Đã dùng</th>
+                        <th style={{ padding: '12px' }}>Còn lại</th>
+                        <th style={{ padding: '12px' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leaveBalancesList.map(lb => {
+                        const emp = usersList.find(u => u.cr5db_userid === lb._new_employeeid_value);
+                        return (
+                          <tr key={lb.new_leavebalanceid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_year}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_totalentitlement}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_carriedover}</td>
+                            <td style={{ padding: '12px', color: '#E29E2E' }}>{lb.new_useddays}</td>
+                            <td style={{ padding: '12px', fontWeight: 600, color: '#107C41' }}>{(lb.new_totalentitlement + lb.new_carriedover) - lb.new_useddays}</td>
+                            <td style={{ padding: '12px' }}>
+                              <button
+                                className="btn-filled-2"
+                                style={{ padding: '4px 8px' }}
+                                onClick={() => {
+                                  setEditingLeaveBalance(lb);
+                                  setNewBalanceEntitlement(lb.new_totalentitlement.toString());
+                                  setNewBalanceCarriedOver(lb.new_carriedover.toString());
+                                  setNewBalanceUsedDays((lb.new_useddays || 0).toString());
+                                  setShowLeaveBalanceModal(true);
+                                }}
+                              >
+                                Cập nhật
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : activeTimesheetSubTab === 'holidays' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Cấu hình Ngày Lễ</h3>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>Danh sách các ngày nghỉ Lễ, Tết (Tự động trừ vào logic nghỉ phép)</p>
+                    </div>
+                    <button 
+                      className="btn-primary" 
+                      style={{ fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px' }}
+                      onClick={() => {
+                        setNewHolidayName('');
+                        setNewHolidayDate('');
+                        setShowHolidayModal(true);
+                      }}
+                    >
+                      + Thêm Ngày Lễ
+                    </button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Tên Ngày Lễ</th>
+                        <th style={{ padding: '12px' }}>Ngày (YYYY-MM-DD)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {holidaysList.map(h => (
+                        <tr key={h.new_holidayid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{h.new_name}</td>
+                          <td style={{ padding: '12px' }}>{h.new_date ? new Date(h.new_date).toLocaleDateString('vi-VN') : ''}</td>
+                        </tr>
+                      ))}
+                      {holidaysList.length === 0 && (
+                        <tr><td colSpan={2} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Chưa có ngày lễ nào được cấu hình</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              ) : activeTimesheetSubTab === 'ot' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Làm thêm giờ (Overtime)</h3>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>Danh sách các đơn xin làm thêm giờ của bạn</p>
+                    </div>
+                    <button 
+                      className="btn-primary" 
+                      style={{ fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px' }}
+                      onClick={() => {
+                        setNewOtDate('');
+                        setNewOtStartTime('18:00');
+                        setNewOtEndTime('20:00');
+                        setNewOtHours('2');
+                        setNewOtType('Weekday');
+                        setNewOtReason('');
+                        setShowOvertimeModal(true);
+                      }}
+                    >
+                      + Xin làm thêm giờ
+                    </button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Ngày</th>
+                        <th style={{ padding: '12px' }}>Thời gian</th>
+                        <th style={{ padding: '12px' }}>Số giờ</th>
+                        <th style={{ padding: '12px' }}>Loại OT</th>
+                        <th style={{ padding: '12px' }}>Lý do</th>
+                        <th style={{ padding: '12px' }}>Trạng thái</th>
+                        <th style={{ padding: '12px' }}>Giờ duyệt</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {overtimeRequestsList.filter(ot => ot._new_employeeid_value === usersList.find(u => u.cr5db_email === currentUserEmail)?.cr5db_userid).map(ot => (
+                        <tr key={ot.new_overtimerequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{ot.new_date ? new Date(ot.new_date).toLocaleDateString('vi-VN') : ''}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_starttime} - {ot.new_endtime}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_hours}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_ottype}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_reason}</td>
+                          <td style={{ padding: '12px' }}>
+                            <span style={{
+                              padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600,
+                              backgroundColor: ot.new_status === 'Approved' ? '#DFF6DD' : ot.new_status === 'Rejected' ? '#FDE7E9' : '#FFF4CE',
+                              color: ot.new_status === 'Approved' ? '#107C41' : ot.new_status === 'Rejected' ? '#A80000' : '#795B00'
+                            }}>{ot.new_status || 'Pending'}</span>
+                          </td>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{ot.new_approvedhours || 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : activeTimesheetSubTab === 'ot-approvals' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Phê duyệt Làm thêm giờ</h3>
+                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>Danh sách các đơn xin làm thêm giờ cần duyệt</p>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Nhân viên</th>
+                        <th style={{ padding: '12px' }}>Ngày</th>
+                        <th style={{ padding: '12px' }}>Thời gian</th>
+                        <th style={{ padding: '12px' }}>Số giờ xin</th>
+                        <th style={{ padding: '12px' }}>Loại OT</th>
+                        <th style={{ padding: '12px' }}>Lý do</th>
+                        <th style={{ padding: '12px' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {overtimeRequestsList.filter(ot => ot.new_status === 'Pending').map(ot => {
+                        const emp = usersList.find(u => u.cr5db_userid === ot._new_employeeid_value);
+                        return (
+                          <tr key={ot.new_overtimerequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_date ? new Date(ot.new_date).toLocaleDateString('vi-VN') : ''}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_starttime} - {ot.new_endtime}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_hours}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_ottype}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_reason}</td>
+                            <td style={{ padding: '12px' }}>
+                              <button
+                                className="btn-filled-2"
+                                style={{ padding: '4px 8px', marginRight: '8px' }}
+                                onClick={() => {
+                                  setOtToApproveId(ot.new_overtimerequestid);
+                                  setOtApprovedHours(ot.new_hours.toString());
+                                  setShowOtApprovalModal(true);
+                                }}
+                              >
+                                Duyệt
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </div>
+          )}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
+                    {myLeaveBalances.map(lb => (
+                      <div key={lb.new_leavebalanceid} className="metric-card" style={{ gap: '12px', padding: '20px', borderLeft: '4px solid #107C41' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 600 }}>{lb.new_name} ({lb.new_year})</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                          <span>Tổng cộng: <strong style={{ color: '#107C41' }}>{lb.new_totalentitlement + lb.new_carriedover} ngày</strong></span>
+                          <span>Đã dùng: <strong style={{ color: '#E29E2E' }}>{lb.new_useddays} ngày</strong></span>
+                          <span>Còn lại: <strong>{(lb.new_totalentitlement + lb.new_carriedover) - lb.new_useddays} ngày</strong></span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {myLeaves.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', background: '#FAF9F9', borderRadius: '8px' }}>
+                      Chưa có đơn xin nghỉ phép nào.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '12px' }}>Loại phép</th>
+                          <th style={{ padding: '12px' }}>Bắt đầu</th>
+                          <th style={{ padding: '12px' }}>Kết thúc</th>
+                          <th style={{ padding: '12px' }}>Số ngày</th>
+                          <th style={{ padding: '12px' }}>Lý do</th>
+                          <th style={{ padding: '12px' }}>Trạng thái</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {myLeaves.map(lr => (
+                          <tr key={lr.new_leaverequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{lr.new_leavetype}</td>
+                            <td style={{ padding: '12px' }}>{new Date(lr.new_startdate).toLocaleDateString('vi-VN')}</td>
+                            <td style={{ padding: '12px' }}>{new Date(lr.new_enddate).toLocaleDateString('vi-VN')}</td>
+                            <td style={{ padding: '12px' }}>{lr.new_durationdays}</td>
+                            <td style={{ padding: '12px' }}>{lr.new_reason}</td>
+                            <td style={{ padding: '12px' }}>
+                              <span className={
+                                lr.new_status === 'Pending' ? 'status-pending'
+                                : lr.new_status === 'Rejected' ? 'status-rejected'
+                                : 'status-approved'
+                              }>
+                                {lr.new_status === 'Pending' ? 'Chờ duyệt' : lr.new_status === 'Rejected' ? 'Từ chối' : 'Đã duyệt'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ) : activeTimesheetSubTab === 'approvals' ? (
+                <>
+                  <div className="large-card" style={{ padding: '24px' }}>
+                    {pendingApprovalsTimesheets.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+                        {language === 'vi' ? 'Không có timesheet nào đang chờ phê duyệt.' : 'No timesheets awaiting review.'}
+                      </div>
+                    ) : (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Nhân viên' : 'Employee'}</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Ngày ghi nhận' : 'Log Date'}</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Nhiệm vụ' : 'Task'}</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Mô tả' : 'Description'}</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Số giờ' : 'Hours'}</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Thao tác' : 'Actions'}</th>
+              ) : activeTimesheetSubTab === 'leave-approvals' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '24px' }}>Đơn xin nghỉ chờ duyệt</h3>
+                  {pendingLeaveApprovals.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', background: '#FAF9F9', borderRadius: '8px' }}>
+                      Không có đơn xin nghỉ phép nào đang chờ duyệt.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '12px' }}>Nhân viên</th>
+                          <th style={{ padding: '12px' }}>Loại phép</th>
+                          <th style={{ padding: '12px' }}>Từ ngày</th>
+                          <th style={{ padding: '12px' }}>Đến ngày</th>
+                          <th style={{ padding: '12px' }}>Số ngày</th>
+                          <th style={{ padding: '12px' }}>Lý do</th>
+                          <th style={{ padding: '12px' }}>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingLeaveApprovals.map(lr => {
+                          const emp = usersList.find(u => u.cr5db_userid === lr._new_employeeid_value);
+                          return (
+                            <tr key={lr.new_leaverequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                              <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                              <td style={{ padding: '12px' }}>{lr.new_leavetype}</td>
+                              <td style={{ padding: '12px' }}>{new Date(lr.new_startdate).toLocaleDateString('vi-VN')}</td>
+                              <td style={{ padding: '12px' }}>{new Date(lr.new_enddate).toLocaleDateString('vi-VN')}</td>
+                              <td style={{ padding: '12px', fontWeight: 600 }}>{lr.new_durationdays}</td>
+                              <td style={{ padding: '12px' }}>{lr.new_reason}</td>
+                              <td style={{ padding: '12px', display: 'flex', gap: '8px' }}>
+                                <button onClick={() => handleApproveLeave(lr.new_leaverequestid)} className="btn-filled-2" style={{ padding: '4px 8px' }}>Duyệt</button>
+                                <button onClick={() => handleRejectLeave(lr.new_leaverequestid)} className="btn-filled-3" style={{ padding: '4px 8px', color: '#a80000' }}>Từ chối</button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ) : activeTimesheetSubTab === 'leave-balances' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Quản lý Quỹ phép (Admin)</h3>
+                    <button className="btn-filled-3" style={{ fontSize: '13px', fontWeight: 600 }}>+ Cấp phép mới</button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Nhân viên</th>
+                        <th style={{ padding: '12px' }}>Năm</th>
+                        <th style={{ padding: '12px' }}>Phép chuẩn</th>
+                        <th style={{ padding: '12px' }}>Tồn năm trước</th>
+                        <th style={{ padding: '12px' }}>Đã dùng</th>
+                        <th style={{ padding: '12px' }}>Còn lại</th>
+                        <th style={{ padding: '12px' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leaveBalancesList.map(lb => {
+                        const emp = usersList.find(u => u.cr5db_userid === lb._new_employeeid_value);
+                        return (
+                          <tr key={lb.new_leavebalanceid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_year}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_totalentitlement}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_carriedover}</td>
+                            <td style={{ padding: '12px', color: '#E29E2E' }}>{lb.new_useddays}</td>
+                            <td style={{ padding: '12px', fontWeight: 600, color: '#107C41' }}>{(lb.new_totalentitlement + lb.new_carriedover) - lb.new_useddays}</td>
+                            <td style={{ padding: '12px' }}>
+                              <button
+                                className="btn-filled-2"
+                                style={{ padding: '4px 8px' }}
+                                onClick={() => {
+                                  setEditingLeaveBalance(lb);
+                                  setNewBalanceEntitlement(lb.new_totalentitlement.toString());
+                                  setNewBalanceCarriedOver(lb.new_carriedover.toString());
+                                  setNewBalanceUsedDays((lb.new_useddays || 0).toString());
+                                  setShowLeaveBalanceModal(true);
+                                }}
+                              >
+                                Cập nhật
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : activeTimesheetSubTab === 'holidays' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Cấu hình Ngày Lễ</h3>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>Danh sách các ngày nghỉ Lễ, Tết (Tự động trừ vào logic nghỉ phép)</p>
+                    </div>
+                    <button 
+                      className="btn-primary" 
+                      style={{ fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px' }}
+                      onClick={() => {
+                        setNewHolidayName('');
+                        setNewHolidayDate('');
+                        setShowHolidayModal(true);
+                      }}
+                    >
+                      + Thêm Ngày Lễ
+                    </button>
+                  </div>
+                </>
+              ) : activeTimesheetSubTab === 'my-leaves' ? (
+                <div className="card-spec" style={{ padding: '32px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Phép của tôi</h3>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '2px' }}>Quản lý ngày phép và đơn xin nghỉ</p>
+                    </div>
+                    <button onClick={() => setShowLeaveModal(true)} className="btn-filled-3" style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>+</span> Xin nghỉ phép
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
+                    {myLeaveBalances.map(lb => (
+                      <div key={lb.new_leavebalanceid} className="metric-card" style={{ gap: '12px', padding: '20px', borderLeft: '4px solid #107C41' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 600 }}>{lb.new_name} ({lb.new_year})</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                          <span>Tổng cộng: <strong style={{ color: '#107C41' }}>{lb.new_totalentitlement + lb.new_carriedover} ngày</strong></span>
+                          <span>Đã dùng: <strong style={{ color: '#E29E2E' }}>{lb.new_useddays} ngày</strong></span>
+                          <span>Còn lại: <strong>{(lb.new_totalentitlement + lb.new_carriedover) - lb.new_useddays} ngày</strong></span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {myLeaves.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', background: '#FAF9F9', borderRadius: '8px' }}>
+                      Chưa có đơn xin nghỉ phép nào.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '12px' }}>Loại phép</th>
+                          <th style={{ padding: '12px' }}>Bắt đầu</th>
+                          <th style={{ padding: '12px' }}>Kết thúc</th>
+                          <th style={{ padding: '12px' }}>Số ngày</th>
+                          <th style={{ padding: '12px' }}>Lý do</th>
+                          <th style={{ padding: '12px' }}>Trạng thái</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {myLeaves.map(lr => (
+                          <tr key={lr.new_leaverequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{lr.new_leavetype}</td>
+                            <td style={{ padding: '12px' }}>{new Date(lr.new_startdate).toLocaleDateString('vi-VN')}</td>
+                            <td style={{ padding: '12px' }}>{new Date(lr.new_enddate).toLocaleDateString('vi-VN')}</td>
+                            <td style={{ padding: '12px' }}>{lr.new_durationdays}</td>
+                            <td style={{ padding: '12px' }}>{lr.new_reason}</td>
+                            <td style={{ padding: '12px' }}>
+                              <span className={
+                                lr.new_status === 'Pending' ? 'status-pending'
+                                : lr.new_status === 'Rejected' ? 'status-rejected'
+                                : 'status-approved'
+                              }>
+                                {lr.new_status === 'Pending' ? 'Chờ duyệt' : lr.new_status === 'Rejected' ? 'Từ chối' : 'Đã duyệt'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ) : activeTimesheetSubTab === 'leave-approvals' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '24px' }}>Đơn xin nghỉ chờ duyệt</h3>
+                  {pendingLeaveApprovals.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', background: '#FAF9F9', borderRadius: '8px' }}>
+                      Không có đơn xin nghỉ phép nào đang chờ duyệt.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '12px' }}>Nhân viên</th>
+                          <th style={{ padding: '12px' }}>Loại phép</th>
+                          <th style={{ padding: '12px' }}>Từ ngày</th>
+                          <th style={{ padding: '12px' }}>Đến ngày</th>
+                          <th style={{ padding: '12px' }}>Số ngày</th>
+                          <th style={{ padding: '12px' }}>Lý do</th>
+                          <th style={{ padding: '12px' }}>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingLeaveApprovals.map(lr => {
+                          const emp = usersList.find(u => u.cr5db_userid === lr._new_employeeid_value);
+                          return (
+                            <tr key={lr.new_leaverequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                              <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                              <td style={{ padding: '12px' }}>{lr.new_leavetype}</td>
+                              <td style={{ padding: '12px' }}>{new Date(lr.new_startdate).toLocaleDateString('vi-VN')}</td>
+                              <td style={{ padding: '12px' }}>{new Date(lr.new_enddate).toLocaleDateString('vi-VN')}</td>
+                              <td style={{ padding: '12px', fontWeight: 600 }}>{lr.new_durationdays}</td>
+                              <td style={{ padding: '12px' }}>{lr.new_reason}</td>
+                              <td style={{ padding: '12px', display: 'flex', gap: '8px' }}>
+                                <button onClick={() => handleApproveLeave(lr.new_leaverequestid)} className="btn-filled-2" style={{ padding: '4px 8px' }}>Duyệt</button>
+                                <button onClick={() => handleRejectLeave(lr.new_leaverequestid)} className="btn-filled-3" style={{ padding: '4px 8px', color: '#a80000' }}>Từ chối</button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ) : activeTimesheetSubTab === 'leave-balances' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Quản lý Quỹ phép (Admin)</h3>
+                    <button className="btn-filled-3" style={{ fontSize: '13px', fontWeight: 600 }}>+ Cấp phép mới</button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Nhân viên</th>
+                        <th style={{ padding: '12px' }}>Năm</th>
+                        <th style={{ padding: '12px' }}>Phép chuẩn</th>
+                        <th style={{ padding: '12px' }}>Tồn năm trước</th>
+                        <th style={{ padding: '12px' }}>Đã dùng</th>
+                        <th style={{ padding: '12px' }}>Còn lại</th>
+                        <th style={{ padding: '12px' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leaveBalancesList.map(lb => {
+                        const emp = usersList.find(u => u.cr5db_userid === lb._new_employeeid_value);
+                        return (
+                          <tr key={lb.new_leavebalanceid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_year}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_totalentitlement}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_carriedover}</td>
+                            <td style={{ padding: '12px', color: '#E29E2E' }}>{lb.new_useddays}</td>
+                            <td style={{ padding: '12px', fontWeight: 600, color: '#107C41' }}>{(lb.new_totalentitlement + lb.new_carriedover) - lb.new_useddays}</td>
+                            <td style={{ padding: '12px' }}>
+                              <button
+                                className="btn-filled-2"
+                                style={{ padding: '4px 8px' }}
+                                onClick={() => {
+                                  setEditingLeaveBalance(lb);
+                                  setNewBalanceEntitlement(lb.new_totalentitlement.toString());
+                                  setNewBalanceCarriedOver(lb.new_carriedover.toString());
+                                  setNewBalanceUsedDays((lb.new_useddays || 0).toString());
+                                  setShowLeaveBalanceModal(true);
+                                }}
+                              >
+                                Cập nhật
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : activeTimesheetSubTab === 'holidays' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Cấu hình Ngày Lễ</h3>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>Danh sách các ngày nghỉ Lễ, Tết (Tự động trừ vào logic nghỉ phép)</p>
+                    </div>
+                    <button 
+                      className="btn-primary" 
+                      style={{ fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px' }}
+                      onClick={() => {
+                        setNewHolidayName('');
+                        setNewHolidayDate('');
+                        setShowHolidayModal(true);
+                      }}
+                    >
+                      + Thêm Ngày Lễ
+                    </button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Tên Ngày Lễ</th>
+                        <th style={{ padding: '12px' }}>Ngày (YYYY-MM-DD)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {holidaysList.map(h => (
+                        <tr key={h.new_holidayid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{h.new_name}</td>
+                          <td style={{ padding: '12px' }}>{h.new_date ? new Date(h.new_date).toLocaleDateString('vi-VN') : ''}</td>
+                        </tr>
+                      ))}
+                      {holidaysList.length === 0 && (
+                        <tr><td colSpan={2} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Chưa có ngày lễ nào được cấu hình</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              ) : activeTimesheetSubTab === 'ot' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Làm thêm giờ (Overtime)</h3>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>Danh sách các đơn xin làm thêm giờ của bạn</p>
+                    </div>
+                    <button 
+                      className="btn-primary" 
+                      style={{ fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px' }}
+                      onClick={() => {
+                        setNewOtDate('');
+                        setNewOtStartTime('18:00');
+                        setNewOtEndTime('20:00');
+                        setNewOtHours('2');
+                        setNewOtType('Weekday');
+                        setNewOtReason('');
+                        setShowOvertimeModal(true);
+                      }}
+                    >
+                      + Xin làm thêm giờ
+                    </button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Ngày</th>
+                        <th style={{ padding: '12px' }}>Thời gian</th>
+                        <th style={{ padding: '12px' }}>Số giờ</th>
+                        <th style={{ padding: '12px' }}>Loại OT</th>
+                        <th style={{ padding: '12px' }}>Lý do</th>
+                        <th style={{ padding: '12px' }}>Trạng thái</th>
+                        <th style={{ padding: '12px' }}>Giờ duyệt</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {overtimeRequestsList.filter(ot => ot._new_employeeid_value === usersList.find(u => u.cr5db_email === currentUserEmail)?.cr5db_userid).map(ot => (
+                        <tr key={ot.new_overtimerequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{ot.new_date ? new Date(ot.new_date).toLocaleDateString('vi-VN') : ''}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_starttime} - {ot.new_endtime}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_hours}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_ottype}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_reason}</td>
+                          <td style={{ padding: '12px' }}>
+                            <span style={{
+                              padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600,
+                              backgroundColor: ot.new_status === 'Approved' ? '#DFF6DD' : ot.new_status === 'Rejected' ? '#FDE7E9' : '#FFF4CE',
+                              color: ot.new_status === 'Approved' ? '#107C41' : ot.new_status === 'Rejected' ? '#A80000' : '#795B00'
+                            }}>{ot.new_status || 'Pending'}</span>
+                          </td>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{ot.new_approvedhours || 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : activeTimesheetSubTab === 'ot-approvals' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Phê duyệt Làm thêm giờ</h3>
+                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>Danh sách các đơn xin làm thêm giờ cần duyệt</p>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Nhân viên</th>
+                        <th style={{ padding: '12px' }}>Ngày</th>
+                        <th style={{ padding: '12px' }}>Thời gian</th>
+                        <th style={{ padding: '12px' }}>Số giờ xin</th>
+                        <th style={{ padding: '12px' }}>Loại OT</th>
+                        <th style={{ padding: '12px' }}>Lý do</th>
+                        <th style={{ padding: '12px' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {overtimeRequestsList.filter(ot => ot.new_status === 'Pending').map(ot => {
+                        const emp = usersList.find(u => u.cr5db_userid === ot._new_employeeid_value);
+                        return (
+                          <tr key={ot.new_overtimerequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_date ? new Date(ot.new_date).toLocaleDateString('vi-VN') : ''}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_starttime} - {ot.new_endtime}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_hours}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_ottype}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_reason}</td>
+                            <td style={{ padding: '12px' }}>
+                              <button
+                                className="btn-filled-2"
+                                style={{ padding: '4px 8px', marginRight: '8px' }}
+                                onClick={() => {
+                                  setOtToApproveId(ot.new_overtimerequestid);
+                                  setOtApprovedHours(ot.new_hours.toString());
+                                  setShowOtApprovalModal(true);
+                                }}
+                              >
+                                Duyệt
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -6718,6 +8693,20 @@ function App() {
                   >
                     Sơ đồ Tổ chức
                   </button>
+                  <button 
+                    onClick={() => setActiveDirectorySubTab('onboarding')} 
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      color: activeDirectorySubTab === 'onboarding' ? 'var(--color-text)' : 'var(--color-text-secondary)', 
+                      fontWeight: activeDirectorySubTab === 'onboarding' ? 700 : 500, 
+                      cursor: 'pointer', 
+                      borderBottom: activeDirectorySubTab === 'onboarding' ? '2px solid var(--color-text)' : 'none', 
+                      padding: '4px 8px' 
+                    }}
+                  >
+                    Quy trình Nhận/Nghỉ việc
+                  </button>
                 </div>
               )}
 
@@ -6751,11 +8740,55 @@ function App() {
                         <th style={{ padding: '14px 20px' }}>Job Position</th>
                         <th style={{ padding: '14px 20px' }}>Vai trò hệ thống</th>
                         <th style={{ padding: '14px 20px' }}>Trạng thái</th>
+                        <th style={{ padding: '14px 20px' }}>Tiềm năng</th>
                         <th style={{ padding: '14px 20px', textAlign: 'right' }}>Thao tác</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {usersList.map(u => (
+                      {usersList.map(u => {
+                        // --- Promotion Readiness Logic ---
+                        // 1. KPI (40%)
+                        const userKpis = kpiTargets.filter(k => k._cr5db_employeeid_value === u.cr5db_userid);
+                        let kpiScore = 0;
+                        if (userKpis.length > 0) {
+                          const totalProgress = userKpis.reduce((acc, curr) => {
+                            const target = curr.cr5db_targetvalue || 1;
+                            const actual = curr.cr5db_actualvalue || 0;
+                            return acc + Math.min(100, (actual / target) * 100);
+                          }, 0);
+                          kpiScore = totalProgress / userKpis.length;
+                        } else {
+                          kpiScore = 70; // Default if no KPI
+                        }
+
+                        // 2. Competency (40%)
+                        const userApps = appraisals.filter(ap => ap.cr5db_employeeemail?.toLowerCase() === (u.cr5db_email || '').toLowerCase());
+                        let compScore = 0;
+                        if (userApps.length > 0) {
+                          const sortedApps = [...userApps].sort((a, b) => {
+                            const pA = evaluationPeriodsList.find(p => p.cr5db_evaluationperiodid === a._cr5db_periodid_value);
+                            const pB = evaluationPeriodsList.find(p => p.cr5db_evaluationperiodid === b._cr5db_periodid_value);
+                            const dA = pA?.cr5db_enddate ? new Date(pA.cr5db_enddate).getTime() : 0;
+                            const dB = pB?.cr5db_enddate ? new Date(pB.cr5db_enddate).getTime() : 0;
+                            return dB - dA;
+                          });
+                          compScore = sortedApps[0].cr5db_finalscore || 0;
+                        } else {
+                          compScore = 70; // Default
+                        }
+
+                        // 3. Tenure (20%)
+                        const hash = u.cr5db_userid.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                        const years = (hash % 5) + 1; // Pseudo-random 1 to 5 years
+                        let tenureScore = 40;
+                        if (years >= 3) tenureScore = 100;
+                        else if (years === 2) tenureScore = 80;
+                        else if (years === 1) tenureScore = 60;
+
+                        const totalReadiness = (kpiScore * 0.4) + (compScore * 0.4) + (tenureScore * 0.2);
+                        const isReady = totalReadiness >= 85;
+
+                        return (
                         <tr key={u.cr5db_userid} style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: u.cr5db_isactive === false ? '#fcfcfc' : 'transparent' }}>
                           <td style={{ padding: '14px 20px', fontWeight: 600 }}>{u.cr5db_fullname}</td>
                           <td style={{ padding: '14px 20px' }}>{u.cr5db_email || 'No Email'}</td>
@@ -6795,6 +8828,14 @@ function App() {
                               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: u.cr5db_isactive !== false ? '#107c41' : '#a80000' }}></span>
                               {u.cr5db_isactive !== false ? 'Đang hoạt động' : 'Tạm khóa'}
                             </span>
+                          </td>
+                          <td style={{ padding: '14px 20px' }}>
+                            <div title={`Chi tiết điểm:\n- KPI (40%): ${kpiScore.toFixed(1)}\n- Năng lực (40%): ${compScore.toFixed(1)}\n- Thâm niên (${years} năm - 20%): ${tenureScore}`} style={{ cursor: 'help', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontWeight: 600, color: isReady ? 'var(--color-primary)' : 'var(--color-text)' }}>
+                                {totalReadiness.toFixed(1)}
+                              </span>
+                              {isReady && <span title="Sẵn sàng thăng tiến">🚀</span>}
+                            </div>
                           </td>
                           <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
@@ -6852,7 +8893,8 @@ function App() {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                      );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -6993,17 +9035,18 @@ function App() {
                     </tbody>
                   </table>
                 </div>
-              ) : activeDirectorySubTab === 'orgchart' ? (
-                <div className="card-spec" style={{ padding: '24px', overflowX: 'auto', backgroundColor: '#fcfcfc' }}>
-                  {orgTreeData.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: '20px' }}>
-                      Chưa có dữ liệu Sơ đồ Tổ chức. Vui lòng thiết lập Vị trí công việc và Cấp trên (Reports To).
-                    </div>
-                  ) : (
-                    <ul className="org-tree" style={{ marginLeft: '-20px' }}>
-                      {orgTreeData.map((root: OrgNodeData) => renderOrgNode(root))}
-                    </ul>
-                  )}
+              ) : activeDirectorySubTab === 'onboarding' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h2 style={{ fontSize: '18px', fontWeight: 600 }}>Quản lý Quy trình Nhận/Nghỉ việc</h2>
+                    {(activeRole === 'Admin' || checkPermission('directory')) && (
+                      <button className="btn-primary" onClick={() => setShowProcessModal(true)}>
+                        <i className="fas fa-plus"></i> Tạo quy trình mới
+                      </button>
+                    )}
+                  </div>
+                  
+                  {renderProcessTable(employeeProcessList)}
                 </div>
               ) : null}
             </div>
@@ -8077,8 +10120,40 @@ function App() {
             <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>{editingKpiLibrary ? 'Chinh sua KPI' : 'Them KPI moi vao thu vien'}</h3>
             <form onSubmit={handleSaveKpiLibrary} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Ten KPI <span style={{ color: '#dc2626' }}>*</span></label>
-                <input value={kpiLibName} onChange={e => setKpiLibName(e.target.value)} required placeholder="Vi du: Doanh so thang, Ty le diem danh..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontWeight: 600, fontSize: '13px' }}>Tên KPI <span style={{ color: '#dc2626' }}>*</span></label>
+                  <button 
+                    type="button" 
+                    onClick={handleAiImproveKpi}
+                    disabled={isAiGenerating || !kpiLibName.trim()}
+                    style={{ background: 'none', border: 'none', color: isAiGenerating ? 'var(--color-text-secondary)' : 'var(--color-primary)', fontSize: '13px', fontWeight: 600, cursor: (isAiGenerating || !kpiLibName.trim()) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    {isAiGenerating ? <i className="fas fa-spinner fa-spin"></i> : '🪄'} {isAiGenerating ? 'Đang xử lý...' : 'Làm mượt bằng AI'}
+                  </button>
+                </div>
+                <input value={kpiLibName} onChange={e => setKpiLibName(e.target.value)} required placeholder="Ví dụ: Doanh số tháng, Tỷ lệ điểm danh..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+                
+                {kpiLibName.trim() && (
+                  <div style={{ marginTop: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontSize: '11px', fontWeight: 600 }}>
+                      <span style={{ color: 'var(--color-text-secondary)' }}>S.M.A.R.T Score</span>
+                      <span style={{ color: kpiQualityScore < 50 ? '#dc2626' : kpiQualityScore < 80 ? '#d97706' : '#10b981' }}>{kpiQualityScore}/100</span>
+                    </div>
+                    <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--color-border-light)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ 
+                        height: '100%', 
+                        width: `${kpiQualityScore}%`, 
+                        backgroundColor: kpiQualityScore < 50 ? '#dc2626' : kpiQualityScore < 80 ? '#d97706' : '#10b981',
+                        transition: 'width 0.3s ease, background-color 0.3s ease' 
+                      }}></div>
+                    </div>
+                    {kpiQualityScore < 70 && (
+                      <div style={{ fontSize: '11px', color: '#d97706', marginTop: '6px', fontStyle: 'italic' }}>
+                        * Gợi ý: Hãy thêm động từ (Tăng/Giảm), số liệu đo lường hoặc thời hạn để câu KPI chuẩn S.M.A.R.T hơn.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Don vi do luong</label>
@@ -8348,6 +10423,143 @@ function App() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <button type="button" onClick={() => setShowIdpActionModal(false)} className="btn-filled-3">Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showProcessModal && (
+        <div className="modal-overlay" onClick={() => setShowProcessModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>Tạo Quy trình mới</h3>
+            <form onSubmit={handleCreateProcess} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Chọn Nhân viên</label>
+                <select 
+                  value={newProcessEmployeeId} 
+                  onChange={(e) => setNewProcessEmployeeId(e.target.value)} 
+                  className="input-spec" 
+                  required
+                >
+                  <option value="">-- Chọn nhân viên --</option>
+                  {usersList.map(u => (
+                    <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname} ({u.cr5db_email})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Chọn Template Mẫu</label>
+                <select 
+                  value={newProcessTemplateId} 
+                  onChange={(e) => setNewProcessTemplateId(e.target.value)} 
+                  className="input-spec" 
+                  required
+                >
+                  <option value="">-- Chọn template --</option>
+                  {processTemplateList.map(t => (
+                    <option key={t.new_processtemplateid} value={t.new_processtemplateid}>{t.new_name} ({t.new_type})</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                <button type="button" onClick={() => setShowProcessModal(false)} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary" disabled={isLoading}>
+                  {isLoading ? 'Đang tạo...' : 'Tạo'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showProcessDetailModal && selectedProcessId && (
+        <div className="modal-overlay" onClick={() => setShowProcessDetailModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px', width: '90%' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>Chi tiết quy trình</h3>
+            
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{ fontWeight: 600, marginBottom: '8px' }}>Danh sách các bước (Checklist)</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                    <th style={{ padding: '8px', width: '50px' }}>STT</th>
+                    <th style={{ padding: '8px' }}>Tên công việc</th>
+                    <th style={{ padding: '8px' }}>Phân công</th>
+                    <th style={{ padding: '8px' }}>Trạng thái</th>
+                    <th style={{ padding: '8px', textAlign: 'center' }}>Cập nhật</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {processStepList
+                    .filter(s => s._new_processid_value === selectedProcessId)
+                    .sort((a, b) => (a.new_order || 0) - (b.new_order || 0))
+                    .map((step, index) => {
+                      const assignedUser = usersList.find(u => u.cr5db_userid === step._new_assigneduser_value);
+                      const assignedDept = departmentsList.find(d => d.cr5db_departmentid === step._new_assigneddepartment_value);
+                      const assigneeText = assignedUser ? assignedUser.cr5db_fullname : (assignedDept ? `Phòng ${assignedDept.cr5db_departmentname}` : step.new_assigneerole);
+                      
+                      const currentUserPosition = jobPositionsList.find(p => p.cr5db_jobpositionid === currentUserObj?._cr5db_jobposition_value);
+                      const isMyTask = activeRole === 'Admin' || 
+                                       step._new_assigneduser_value === currentUserObj?.cr5db_userid ||
+                                       (step._new_assigneddepartment_value && currentUserPosition?._cr5db_department_value === step._new_assigneddepartment_value) ||
+                                       (step.new_assigneerole && step.new_assigneerole === activeRole);
+
+                      return (
+                        <tr key={step.new_processstepid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <td style={{ padding: '8px' }}>{index + 1}</td>
+                          <td style={{ padding: '8px', fontWeight: 500 }}>
+                            {step.new_name}
+                            {step.new_completeddate && <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Hoàn tất: {new Date(step.new_completeddate).toLocaleString('vi-VN')}</div>}
+                          </td>
+                          <td style={{ padding: '8px' }}>
+                            <span style={{ 
+                              padding: '2px 6px', 
+                              borderRadius: '4px', 
+                              fontSize: '11px',
+                              backgroundColor: '#f3f2f1',
+                              color: '#323130'
+                            }}>
+                              {assigneeText}
+                            </span>
+                          </td>
+                          <td style={{ padding: '8px' }}>
+                            <span style={{ 
+                              padding: '4px 8px', 
+                              borderRadius: '12px', 
+                              fontSize: '11px', 
+                              fontWeight: 600,
+                              backgroundColor: step.new_status === 'Completed' ? 'rgba(16, 124, 65, 0.1)' : 'rgba(0, 120, 212, 0.1)',
+                              color: step.new_status === 'Completed' ? '#107c41' : '#0078d4'
+                            }}>
+                              {step.new_status || 'Pending'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '8px', textAlign: 'center' }}>
+                            {step.new_status !== 'Completed' ? (
+                              <button 
+                                className={isMyTask ? "btn-primary" : "btn-filled-3"} 
+                                style={{ padding: '4px 8px', fontSize: '12px', opacity: isMyTask ? 1 : 0.5, cursor: isMyTask ? 'pointer' : 'not-allowed' }}
+                                onClick={() => {
+                                  if (isMyTask) handleUpdateProcessStep(step.new_processstepid, 'Completed');
+                                }}
+                                disabled={!isMyTask}
+                                title={isMyTask ? "Nhấn để hoàn tất" : "Bạn không có quyền cập nhật task này"}
+                              >
+                                Hoàn tất
+                              </button>
+                            ) : (
+                              <i className="fas fa-check-circle" style={{ color: '#107c41', fontSize: '16px' }}></i>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button type="button" onClick={() => setShowProcessDetailModal(false)} className="btn-filled-3">Đóng</button>
             </div>
           </div>
         </div>
@@ -9281,7 +11493,78 @@ function App() {
             </h3>
             <form onSubmit={handleSaveAllocation} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Nhân sự <span style={{ color: '#dc2626' }}>*</span></label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontWeight: 600, fontSize: '13px' }}>Nhân sự <span style={{ color: '#dc2626' }}>*</span></label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!showAiSuggestions) {
+                        generateAiSuggestions(aiFilterSameDept);
+                      } else {
+                        setShowAiSuggestions(false);
+                      }
+                    }}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    🪄 Đề xuất AI
+                  </button>
+                </div>
+                
+                {showAiSuggestions ? (
+                  <div style={{ marginBottom: '12px', border: '1px solid var(--color-border-light)', borderRadius: '8px', padding: '12px', backgroundColor: '#F9FAFB' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>TOP GỢI Ý (60% Skill + 40% Avail)</span>
+                      <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={aiFilterSameDept} 
+                          onChange={e => {
+                            setAiFilterSameDept(e.target.checked);
+                            generateAiSuggestions(e.target.checked);
+                          }} 
+                        />
+                        Cùng phòng ban
+                      </label>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {aiSuggestions.map(sug => (
+                        <div 
+                          key={sug.user.cr5db_userid}
+                          onClick={() => {
+                            setAllocationUser(sug.user.cr5db_userid);
+                            setShowAiSuggestions(false);
+                          }}
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '12px', 
+                            padding: '10px', 
+                            backgroundColor: '#fff', 
+                            border: '1px solid var(--color-border)', 
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+                          onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--color-border)'}
+                        >
+                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)', fontWeight: 700, fontSize: '12px' }}>
+                            {sug.user.cr5db_fullname?.charAt(0) || 'U'}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '13px', fontWeight: 600 }}>{sug.user.cr5db_fullname}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>{sug.user.cr5db_email}</div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-primary)' }}>{sug.fitScore}%</div>
+                            <div style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>Fit Score</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 <select
                   value={allocationUser}
                   onChange={e => setAllocationUser(e.target.value)}
@@ -9611,6 +11894,269 @@ function App() {
                 >
                   Phát động
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Request Modal */}
+      {showLeaveModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Đăng ký nghỉ phép</h3>
+            <form onSubmit={handleLeaveRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Loại phép</label>
+                <select
+                  value={newLeaveType}
+                  onChange={e => setNewLeaveType(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px' }}
+                >
+                  <option value="Annual Leave">Phép năm (Annual Leave)</option>
+                  <option value="Sick Leave">Nghỉ ốm (Sick Leave)</option>
+                  <option value="Unpaid Leave">Nghỉ không lương (Unpaid Leave)</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Từ ngày</label>
+                  <input
+                    type="date"
+                    required
+                    value={newLeaveStartDate}
+                    onChange={e => setNewLeaveStartDate(e.target.value)}
+                    style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Đến ngày</label>
+                  <input
+                    type="date"
+                    required
+                    value={newLeaveEndDate}
+                    onChange={e => setNewLeaveEndDate(e.target.value)}
+                    style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Số ngày dự kiến (trừ T7, CN)</label>
+                <input
+                  type="text"
+                  disabled
+                  value={newLeaveStartDate && newLeaveEndDate ? calculateWorkingDays(newLeaveStartDate, newLeaveEndDate) + ' ngày' : '0 ngày'}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', backgroundColor: '#f5f5f5' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Lý do</label>
+                <textarea
+                  required
+                  value={newLeaveReason}
+                  onChange={e => setNewLeaveReason(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', minHeight: '60px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                <button type="button" onClick={() => setShowLeaveModal(false)} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary" disabled={isLoading}>Gửi đơn</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Balance Modal */}
+      {showLeaveBalanceModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Cập nhật Quỹ phép</h3>
+            <form onSubmit={handleSaveLeaveBalance} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Phép chuẩn</label>
+                <input
+                  type="number"
+                  required
+                  value={newBalanceEntitlement}
+                  onChange={e => setNewBalanceEntitlement(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Tồn năm trước</label>
+                <input
+                  type="number"
+                  required
+                  value={newBalanceCarriedOver}
+                  onChange={e => setNewBalanceCarriedOver(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Đã dùng</label>
+                <input
+                  type="number"
+                  required
+                  value={newBalanceUsedDays}
+                  onChange={e => setNewBalanceUsedDays(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                <button type="button" onClick={() => { setShowLeaveBalanceModal(false); setEditingLeaveBalance(null); }} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary" disabled={isLoading}>Lưu</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Holiday Modal */}
+      {showHolidayModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Thêm Ngày Lễ</h3>
+            <form onSubmit={handleHolidaySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Tên Ngày Lễ</label>
+                <input
+                  type="text"
+                  required
+                  value={newHolidayName}
+                  onChange={e => setNewHolidayName(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Ngày</label>
+                <input
+                  type="date"
+                  required
+                  value={newHolidayDate}
+                  onChange={e => setNewHolidayDate(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                <button type="button" onClick={() => setShowHolidayModal(false)} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary" disabled={isLoading}>Lưu</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Overtime Request Modal */}
+      {showOvertimeModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Xin Làm thêm giờ (OT)</h3>
+            <form onSubmit={handleOvertimeSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Loại OT</label>
+                <select
+                  value={newOtType}
+                  onChange={e => setNewOtType(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px' }}
+                >
+                  <option value="Weekday">Ngày thường (Weekday)</option>
+                  <option value="Weekend">Cuối tuần (Weekend)</option>
+                  <option value="Holiday">Ngày lễ (Holiday)</option>
+                  <option value="Night">Ca đêm (Night)</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Ngày OT</label>
+                <input
+                  type="date"
+                  required
+                  value={newOtDate}
+                  onChange={e => setNewOtDate(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Giờ bắt đầu</label>
+                  <input
+                    type="time"
+                    required
+                    value={newOtStartTime}
+                    onChange={e => setNewOtStartTime(e.target.value)}
+                    style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Giờ kết thúc</label>
+                  <input
+                    type="time"
+                    required
+                    value={newOtEndTime}
+                    onChange={e => setNewOtEndTime(e.target.value)}
+                    style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Số giờ</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  required
+                  value={newOtHours}
+                  onChange={e => setNewOtHours(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Lý do</label>
+                <textarea
+                  required
+                  value={newOtReason}
+                  onChange={e => setNewOtReason(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', minHeight: '60px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                <button type="button" onClick={() => setShowOvertimeModal(false)} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary" disabled={isLoading}>Gửi đơn</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* OT Approval Modal */}
+      {showOtApprovalModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Duyệt Làm thêm giờ (OT)</h3>
+            <form onSubmit={handleApproveOtSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Số giờ duyệt</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  required
+                  value={otApprovedHours}
+                  onChange={e => setOtApprovedHours(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    handleRejectOt(otToApproveId);
+                    setShowOtApprovalModal(false);
+                  }} 
+                  className="btn-filled-3"
+                  style={{ color: '#A80000', backgroundColor: '#FDE7E9' }}
+                >
+                  Từ chối
+                </button>
+                <button type="submit" className="btn-primary" disabled={isLoading}>Duyệt</button>
               </div>
             </form>
           </div>

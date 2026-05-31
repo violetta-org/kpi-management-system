@@ -764,7 +764,15 @@ import {
   Cr5db_projectissuesService,
   Cr5db_approvaldelegationsService,
   Cr5db_audittraillogsService,
-  Cr5db_changerequestsesService
+  Cr5db_changerequestsesService,
+  New_processtemplateService,
+  New_processtemplatestepService,
+  New_employeeprocessService,
+  New_processstepService,
+  New_leavebalanceService,
+  New_leaverequestService,
+  New_holidayService,
+  New_overtimerequestService
 } from '../generated';
 
 
@@ -807,7 +815,12 @@ const PLURAL_TO_SINGULAR: Record<string, string> = {
   "cr5db_roleassignments": "cr5db_roleassignment",
   "cr5db_systemroles": "cr5db_systemrole",
   "cr5db_taskownerships": "cr5db_taskownership",
-  "cr5db_timesheetaudits": "cr5db_timesheetaudit"
+  "cr5db_timesheetaudits": "cr5db_timesheetaudit",
+  "new_processtemplatesteps": "new_processtemplatestep",
+  "new_employeeprocesses": "new_employeeprocess",
+  "new_processsteps": "new_processstep",
+  "new_leavebalances": "new_leavebalance",
+  "new_leaverequests": "new_leaverequest"
 };
 
 export async function runWebSeeding(progressCallback: (status: string) => void): Promise<void> {
@@ -1124,7 +1137,7 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
           if (uId) {
             const allocData = await safeCreate(`ResourceAllocation[${email.split('@')[0]}]`, () => Cr5db_resourceallocationsService.create({
               cr5db_resourceallocation1: `Allocation for ${email.split('@')[0]}`,
-              cr5db_allocationpercentage: 100,
+              cr5db_allocationpercentage: email === "dev2@company.com" ? 150 : 100, // Charlie = 150% for overloaded demo
               "cr5db_UserID@odata.bind": bindOData("cr5db_users", uId),
               "cr5db_ProjectTeamID@odata.bind": bindOData("cr5db_projectteams", teamId)
             } as any));
@@ -1214,6 +1227,18 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
         "cr5db_TaskID@odata.bind": bindOData("cr5db_tasks", taskId)
       } as any));
     }
+
+    // Seed 5 active tasks for Charlie (Flight Risk/Workload Demo)
+    const charlieId = guids["users"]["dev2@company.com"];
+    for (let i = 1; i <= 5; i++) {
+      await safeCreate(`Task[Charlie Active Task ${i}]`, () => Cr5db_tasksService.create({
+        cr5db_taskname: `Nhiệm vụ chưa hoàn thành ${i} của Charlie`,
+        cr5db_description: `Demo Overloaded: Đây là task đang active số ${i}`,
+        cr5db_duedate: "2026-06-15T17:00:00Z",
+        cr5db_status: "In Progress",
+        "cr5db_AssigneeID@odata.bind": bindOData("cr5db_users", charlieId)
+      } as any));
+    }
   });
 
   // 13. Appraisals
@@ -1235,6 +1260,30 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
         cr5db_comment: "Nhân sự hoàn thành xuất sắc nhiệm vụ và đóng góp tích cực vào tiến trình thiết lập hệ thống.",
         "cr5db_AppraisalName@odata.bind": bindOData("cr5db_performanceappraisals", appraisalId),
         "cr5db_TargetId@odata.bind": bindOData("cr5db_kpitargets", guids["kpitarget"])
+      } as any));
+    }
+
+    // Seed low appraisal for Charlie (Flight Risk Demo)
+    const charlieId = guids["users"]["dev2@company.com"];
+    await safeCreate('PerformanceAppraisal[Charlie]', () => Cr5db_performanceappraisalsService.create({
+      cr5db_performanceappraisal1: "Đánh giá hiệu suất Charlie Q2/2026",
+      cr5db_selfscore: 70,
+      cr5db_finalscore: 55, // Low score < 60
+      "cr5db_EmployeeID@odata.bind": bindOData("cr5db_users", charlieId),
+      "cr5db_PeriodID@odata.bind": bindOData("cr5db_evaluationperiods", guids["periods"]?.[0])
+    } as any));
+  });
+
+  // 13.5. Leave Requests
+  await tryCall("Tạo dữ liệu Nghỉ phép (Leave Requests)...", async () => {
+    // Seed 2 Sick Leaves for Charlie (Flight Risk Demo)
+    const charlieId = guids["users"]["dev2@company.com"];
+    for (let i = 1; i <= 2; i++) {
+      await safeCreate(`LeaveRequest[Sick Leave ${i} Charlie]`, () => New_leaverequestService.create({
+        new_leaverequest1: `Nghỉ ốm lần ${i}`,
+        new_leavetype: "Sick Leave",
+        new_status: "Approved",
+        "new_EmployeeID@odata.bind": bindOData("cr5db_users", charlieId)
       } as any));
     }
   });
@@ -1322,7 +1371,134 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
     }
   });
 
+  // 16. Onboarding/Offboarding Templates
+  await tryCall("Tạo mẫu quy trình (Process Templates)...", async () => {
+    guids["templates"] = {};
+    
+    // Onboarding Template
+    const onboardingTpl = await safeCreate('ProcessTemplate[Onboarding Chuẩn]', () => New_processtemplateService.create({
+      new_name: "Quy trình Onboarding Tiêu chuẩn",
+      new_type: "Onboarding"
+    } as any));
+
+    if (onboardingTpl?.new_processtemplateid) {
+      const tplId = onboardingTpl.new_processtemplateid;
+      guids["templates"]["Onboarding"] = tplId;
+
+      const itDeptId = guids["depts"] && guids["depts"]["IT"];
+      const hrDeptId = guids["depts"] && guids["depts"]["HR"];
+
+      const steps = [
+        { new_name: "Chuẩn bị chỗ ngồi & Thiết bị", new_order: 1, ...(itDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", itDeptId) } : { new_assigneerole: "IT" }) },
+        { new_name: "Ký Hợp đồng thử việc", new_order: 2, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", hrDeptId) } : { new_assigneerole: "HR" }) },
+        { new_name: "Đào tạo hội nhập văn hóa", new_order: 3, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", hrDeptId) } : { new_assigneerole: "HR" }) },
+        { new_name: "Giới thiệu đội nhóm", new_assigneerole: "Manager", new_order: 4 },
+        { new_name: "Hoàn tất hồ sơ cá nhân", new_assigneerole: "Employee", new_order: 5 }
+      ];
+
+      for (const step of steps) {
+        await safeCreate(`TemplateStep[${step.new_name}]`, () => New_processtemplatestepService.create({
+          ...step,
+          "new_ProcessTemplate@odata.bind": bindOData("new_processtemplate", tplId)
+        } as any));
+      }
+    }
+
+    // Offboarding Template
+    const offboardingTpl = await safeCreate('ProcessTemplate[Offboarding Chuẩn]', () => New_processtemplateService.create({
+      new_name: "Quy trình Offboarding Tiêu chuẩn",
+      new_type: "Offboarding"
+    } as any));
+
+    if (offboardingTpl?.new_processtemplateid) {
+      const tplId = offboardingTpl.new_processtemplateid;
+      guids["templates"]["Offboarding"] = tplId;
+
+      const itDeptId = guids["depts"] && guids["depts"]["IT"];
+      const hrDeptId = guids["depts"] && guids["depts"]["HR"];
+
+      const steps = [
+        { new_name: "Bàn giao công việc & Tài liệu", new_assigneerole: "Employee", new_order: 1 },
+        { new_name: "Thu hồi thiết bị & Thẻ từ", new_order: 2, ...(itDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", itDeptId) } : { new_assigneerole: "IT" }) },
+        { new_name: "Khóa quyền truy cập hệ thống", new_order: 3, ...(itDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", itDeptId) } : { new_assigneerole: "IT" }) },
+        { new_name: "Thanh toán & Chốt lương", new_order: 4, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", hrDeptId) } : { new_assigneerole: "HR" }) },
+        { new_name: "Exit Interview (Phỏng vấn thôi việc)", new_order: 5, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", hrDeptId) } : { new_assigneerole: "HR" }) }
+      ];
+
+      for (const step of steps) {
+        await safeCreate(`TemplateStep[${step.new_name}]`, () => New_processtemplatestepService.create({
+          ...step,
+          "new_ProcessTemplate@odata.bind": bindOData("new_processtemplate", tplId)
+        } as any));
+      }
+    }
+  });
+
   progressCallback("Hoàn tất Seeding thành công!");
+  // 15. Leave Management (PTO & Requests)
+  await tryCall("Tạo Quỹ phép (PTO) và đơn xin nghỉ...", async () => {
+    const userEmails = Object.keys(guids["users"]);
+    for (const email of userEmails) {
+      const uId = guids["users"][email];
+      
+      // Tạo Quỹ phép 12 ngày cho mỗi user
+      await safeCreate(`LeaveBalance[${email}]`, () => New_leavebalanceService.create({
+        new_name: `Quỹ phép 2026 - ${email.split('@')[0]}`,
+        new_year: 2026,
+        new_totalentitlement: 12.0,
+        new_carriedover: 2.0,
+        new_useddays: 0,
+        "_new_employeeid_value@odata.bind": bindOData("cr5db_users", uId)
+      } as any));
+
+      // Tạo một đơn nghỉ phép mẫu cho dev1
+      if (email === "dev1@company.com") {
+        await safeCreate('LeaveRequest[SickLeave]', () => New_leaverequestService.create({
+          new_name: "Nghỉ ốm 1 ngày",
+          new_leavetype: "Sick Leave",
+          new_startdate: "2026-06-05T00:00:00Z",
+          new_enddate: "2026-06-05T23:59:59Z",
+          new_durationdays: 1.0,
+          new_reason: "Cảm cúm nặng",
+          new_status: "Pending",
+          "_new_employeeid_value@odata.bind": bindOData("cr5db_users", uId)
+        } as any));
+      }
+    }
+  });
+
+  // 16. Holidays & Overtime
+  await tryCall("Tạo dữ liệu ngày Lễ và Làm thêm giờ (OT)...", async () => {
+    // Tạo Ngày Lễ 2026
+    const holidays = [
+      { new_name: "Tết Dương Lịch 2026", new_date: "2026-01-01T00:00:00Z" },
+      { new_name: "Giỗ tổ Hùng Vương 2026", new_date: "2026-04-26T00:00:00Z" }, // Mùng 10/3 AL
+      { new_name: "Nghỉ bù Giỗ tổ", new_date: "2026-04-27T00:00:00Z" }, // Bù
+      { new_name: "Ngày Giải phóng miền Nam", new_date: "2026-04-30T00:00:00Z" },
+      { new_name: "Quốc tế Lao động", new_date: "2026-05-01T00:00:00Z" }
+    ];
+
+    for (const h of holidays) {
+      await safeCreate(`Holiday[${h.new_name}]`, () => New_holidayService.create(h as any));
+    }
+
+    // Tạo OT mẫu cho dev1
+    const bobId = guids["users"]["dev1@company.com"];
+    if (bobId) {
+      await safeCreate('OvertimeRequest[Weekend]', () => New_overtimerequestService.create({
+        new_name: "Làm thêm giờ fix lỗi Server T7",
+        new_date: "2026-05-30T00:00:00Z", // T7
+        new_starttime: "08:00",
+        new_endtime: "12:00",
+        new_hours: 4.0,
+        new_ottype: "Weekend",
+        new_reason: "Xử lý sự cố server khẩn cấp",
+        new_status: "Pending",
+        "_new_employeeid_value@odata.bind": bindOData("cr5db_users", bobId)
+      } as any));
+    }
+  });
+
 }
 
 export async function runWebCleanup(progressCallback: (status: string) => void): Promise<void> {
@@ -1435,6 +1611,16 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
   await tryDeleteAll("cr5db_audittraillogs", Cr5db_audittraillogsService);
   await tryDeleteAll("cr5db_approvalrouteses", Cr5db_approvalroutesesService);
   await tryDeleteAll("cr5db_changerequestses", Cr5db_changerequestsesService);
+
+  await tryDeleteAll("new_employeeprocess", New_employeeprocessService);
+  await tryDeleteAll("new_processtemplatestep", New_processtemplatestepService);
+  await tryDeleteAll("new_processtemplate", New_processtemplateService);
+  await tryDeleteAll("new_leaverequest", New_leaverequestService);
+  await tryDeleteAll("new_leavebalance", New_leavebalanceService);
+  await tryDeleteAll("new_processstep", New_processstepService);
+  await tryDeleteAll("new_employeeprocess", New_employeeprocessService);
+  await tryDeleteAll("new_holiday", New_holidayService);
+  await tryDeleteAll("new_overtimerequest", New_overtimerequestService);
 
   progressCallback("Dọn dẹp hoàn tất thành công!");
 }

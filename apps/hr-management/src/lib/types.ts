@@ -144,10 +144,56 @@ export interface AuditLog {
   createdbyname?: string;
 }
 
+export interface LeaveBalance {
+  new_leavebalanceid: string;
+  new_name: string;
+  new_year: number;
+  new_totalentitlement: number;
+  new_carriedover: number;
+  new_useddays: number;
+  _new_employeeid_value?: string;
+}
+
+export interface LeaveRequest {
+  new_leaverequestid: string;
+  new_name: string;
+  new_leavetype: string;
+  new_startdate: string;
+  new_enddate: string;
+  new_durationdays: number;
+  new_reason: string;
+  new_status: string; // 'Pending', 'Approved', 'Rejected'
+  _new_employeeid_value?: string;
+  _new_approverid_value?: string;
+  createdon?: string;
+}
+
+export interface Holiday {
+  new_holidayid: string;
+  new_name: string;
+  new_date: string;
+}
+
+export interface OvertimeRequest {
+  new_overtimerequestid: string;
+  new_name: string;
+  new_date: string;
+  new_starttime: string;
+  new_endtime: string;
+  new_hours: number;
+  new_ottype: string; // 'Weekday', 'Weekend', 'Holiday', 'Night'
+  new_reason: string;
+  new_status: string; // 'Pending', 'Approved', 'Rejected'
+  new_approvedhours?: number;
+  _new_employeeid_value?: string;
+  _new_approverid_value?: string;
+  createdon?: string;
+}
+
 export const FEATURE_TABS = [
   { id: 'dashboard', labelVi: 'Bảng điều khiển', labelEn: 'Dashboard' },
   { id: 'tasks', labelVi: 'Công việc', labelEn: 'Tasks' },
-  { id: 'timesheets', labelVi: 'Bảng chấm công', labelEn: 'Timesheets' },
+  { id: 'timesheets', labelVi: 'Chấm công & Phép', labelEn: 'Time & Attendance' },
   { id: 'kpi', labelVi: 'KPI của tôi', labelEn: 'My KPIs' },
   { id: 'performance', labelVi: 'Đánh giá hiệu suất', labelEn: 'Performance' },
   { id: 'companies', labelVi: 'Công ty', labelEn: 'Companies' },
