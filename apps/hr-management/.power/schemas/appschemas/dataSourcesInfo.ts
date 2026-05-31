@@ -284,5 +284,19 @@ export const dataSourcesInfo = {
     "primaryKey": "new_competencyassessmentid",
     "dataSourceType": "Dataverse",
     "apis": {}
+  },
+  "new_idp": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_idpid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_idpaction": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_idp_actionid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
   }
 };

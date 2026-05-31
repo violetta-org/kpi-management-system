@@ -27,6 +27,8 @@ import { New_bonusmatrixService } from '../generated/services/New_bonusmatrixSer
 import { New_competencycatalogService } from '../generated/services/New_competencycatalogService';
 import { New_jobcompetencyService } from '../generated/services/New_jobcompetencyService';
 import { New_competencyassessmentService } from '../generated/services/New_competencyassessmentService';
+import { New_idpService } from '../generated/services/New_idpService';
+import { New_idpactionService } from '../generated/services/New_idpactionService';
 import type { User, Task, HeadcountRequest, KPITarget, PermissionGroup, EvaluationPeriod, BonusMatrix } from '../lib/types';
 
 /** All setters useLiveData needs to push fetched data into shared state */
@@ -63,6 +65,8 @@ export interface LiveDataSetters {
   setCompetencyCatalogList: (v: any[]) => void;
   setJobCompetenciesList: (v: any[]) => void;
   setCompetencyAssessmentsList: (v: any[]) => void;
+  setIdpList: (v: any[]) => void;
+  setIdpActionList: (v: any[]) => void;
   setDefaultGroups: (v: string) => void;
   setDefaultGroupsDbId: (v: string) => void;
   // Default select setters populated on first load
@@ -157,7 +161,9 @@ export function useLiveData(setters: LiveDataSetters) {
         rawBonusMatrix,
         rawCompetencyCatalogs,
         rawJobCompetencies,
-        rawCompetencyAssessments
+        rawCompetencyAssessments,
+        rawIdps,
+        rawIdpActions
       ] = await Promise.all([
         safeGet<User>('Users', Cr5db_usersService.getAll),
         safeGet('Departments', Cr5db_departmentsService.getAll),
@@ -185,7 +191,9 @@ export function useLiveData(setters: LiveDataSetters) {
         safeGet<BonusMatrix>('Bonus Matrix', New_bonusmatrixService.getAll),
         safeGet('Competency Catalog', New_competencycatalogService.getAll),
         safeGet('Job Competencies', New_jobcompetencyService.getAll),
-        safeGet('Competency Assessments', New_competencyassessmentService.getAll)
+        safeGet('Competency Assessments', New_competencyassessmentService.getAll),
+        safeGet('IDPs', New_idpService.getAll),
+        safeGet('IDP Actions', New_idpactionService.getAll)
       ]);
 
       if (loadErrors.length > 0) {
@@ -547,6 +555,8 @@ export function useLiveData(setters: LiveDataSetters) {
         cr5db_islocked: !!p.cr5db_islocked
       }));
       setters.setEvaluationPeriodsList(mappedPeriods);
+      setters.setIdpList(rawIdps);
+      setters.setIdpActionList(rawIdpActions);
 
     } catch (err: any) {
       console.error('Initialization error: ', err);

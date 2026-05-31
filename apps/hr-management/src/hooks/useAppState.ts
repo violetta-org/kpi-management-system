@@ -101,7 +101,15 @@ export function useAppState() {
 
   // ── Sub-Tabs ─────────────────────────────────────────────────────────────
   const [activeTimesheetSubTab, setActiveTimesheetSubTab] = useState<'my' | 'approvals'>('my');
-  const [activePerformanceSubTab, setActivePerformanceSubTab] = useState<'my' | 'team' | 'cycles' | 'competency'>('my');
+  const [activePerformanceSubTab, setActivePerformanceSubTab] = useState<'my' | 'team' | 'cycles' | 'competency' | 'idp'>('my');
+
+  // IDP states
+  const [idpList, setIdpList] = useState<any[]>([]);
+  const [idpActionList, setIdpActionList] = useState<any[]>([]);
+  const [showIdpModal, setShowIdpModal] = useState(false);
+  const [editingIdp, setEditingIdp] = useState<any>(null);
+  const [showIdpActionModal, setShowIdpActionModal] = useState(false);
+  const [editingIdpAction, setEditingIdpAction] = useState<any>(null);
   const [activeResourcesSubTab, setActiveResourcesSubTab] = useState<'allocations' | 'projects'>('allocations');
   const [collapsedProjects, setCollapsedProjects] = useState<{ [key: string]: boolean }>({});
   const [activeKpiSubTab, setActiveKpiSubTab] = useState<'overview' | 'charts'>('overview');
@@ -377,6 +385,14 @@ export function useAppState() {
     collapsedProjects, setCollapsedProjects,
     activeKpiSubTab, setActiveKpiSubTab,
     kpiTimeRange, setKpiTimeRange,
+
+    // IDP
+    idpList, setIdpList,
+    idpActionList, setIdpActionList,
+    showIdpModal, setShowIdpModal,
+    editingIdp, setEditingIdp,
+    showIdpActionModal, setShowIdpActionModal,
+    editingIdpAction, setEditingIdpAction,
 
     // Employee Directory
     activeDirectorySubTab, setActiveDirectorySubTab,

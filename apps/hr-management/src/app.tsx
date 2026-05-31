@@ -294,6 +294,11 @@ function App() {
     collapsedProjects, setCollapsedProjects,
     activeKpiSubTab, setActiveKpiSubTab,
     kpiTimeRange, setKpiTimeRange,
+    idpList, setIdpList,
+    idpActionList, setIdpActionList,
+    showIdpModal, setShowIdpModal,
+    editingIdp, setEditingIdp,
+    showIdpActionModal, setShowIdpActionModal,
     activeDirectorySubTab, setActiveDirectorySubTab,
     showEmployeeModal, setShowEmployeeModal,
     editingEmployee, setEditingEmployee,
@@ -1000,7 +1005,8 @@ function App() {
     setSelectedDeptCompanyId, setNewTimesheetTaskId,
     setPermissionGroups, setDefaultGroups,
     setDefaultGroupsDbId, setBonusMatrixList,
-    setCompetencyCatalogList, setJobCompetenciesList, setCompetencyAssessmentsList
+    setCompetencyCatalogList, setJobCompetenciesList, setCompetencyAssessmentsList,
+    setIdpList, setIdpActionList
   });
 
   // ── Approval Engine ───────────────────────────────────────────────────────
@@ -1337,6 +1343,40 @@ function App() {
     } catch (err) {
       console.error(err);
       alert("Không thể nộp bản đánh giá.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveIdp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const { New_idpService } = await import('./generated/services/New_idpService');
+      const payload: any = {
+        new_idp1: "IDP - " + (currentUserObj?.cr5db_fullname || "User"),
+        new_status: "Bản nháp",
+        "new_EmployeeId@odata.bind": `/cr5db_userses(${currentUserObj?.cr5db_userid})`,
+      };
+      await New_idpService.create(payload);
+      await fetchLiveValues();
+      setShowIdpModal(false);
+    } catch (err: any) {
+      alert("Lỗi khi lưu IDP: " + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteIdpAction = async (id: string) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa hành động này?")) return;
+    setIsLoading(true);
+    try {
+      const { New_idpactionService } = await import('./generated/services/New_idpactionService');
+      await New_idpactionService.delete(id);
+      await fetchLiveValues();
+    } catch (err: any) {
+      alert("Lỗi khi xóa IDP Action: " + err.message);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -4624,6 +4664,9 @@ function App() {
                 <button onClick={() => setActivePerformanceSubTab('competency')} style={{ background: 'none', border: 'none', color: activePerformanceSubTab === 'competency' ? 'var(--color-text)' : 'var(--color-text-secondary)', fontWeight: activePerformanceSubTab === 'competency' ? 700 : 500, cursor: 'pointer', borderBottom: activePerformanceSubTab === 'competency' ? '2px solid var(--color-text)' : 'none', padding: '4px 8px' }}>
                   Đánh giá Năng lực
                 </button>
+                <button onClick={() => setActivePerformanceSubTab('idp')} style={{ background: 'none', border: 'none', color: activePerformanceSubTab === 'idp' ? 'var(--color-text)' : 'var(--color-text-secondary)', fontWeight: activePerformanceSubTab === 'idp' ? 700 : 500, cursor: 'pointer', borderBottom: activePerformanceSubTab === 'idp' ? '2px solid var(--color-text)' : 'none', padding: '4px 8px' }}>
+                  Phát triển cá nhân (IDP)
+                </button>
                 {activeRole !== 'Employee' && (
                   <>
                     <button onClick={() => setActivePerformanceSubTab('team')} style={{ background: 'none', border: 'none', color: activePerformanceSubTab === 'team' ? 'var(--color-text)' : 'var(--color-text-secondary)', fontWeight: activePerformanceSubTab === 'team' ? 700 : 500, cursor: 'pointer', borderBottom: activePerformanceSubTab === 'team' ? '2px solid var(--color-text)' : 'none', padding: '4px 8px' }}>
@@ -4933,6 +4976,51 @@ function App() {
                       </tbody>
                     </table>
                   )}
+                </div>
+              ) : activePerformanceSubTab === 'idp' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: 600 }}>Kế hoạch phát triển cá nhân (IDP)</h3>
+                    {activeRole === 'Employee' && (
+                      <button onClick={() => setShowIdpModal(true)} className="btn-primary">+ Tạo IDP mới</button>
+                    )}
+                  </div>
+                  <div className="large-card" style={{ padding: '0' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '14px 20px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Tên Kế hoạch</th>
+                          <th style={{ padding: '14px 20px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Trạng thái</th>
+                          <th style={{ padding: '14px 20px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Nhân viên</th>
+                          <th style={{ padding: '14px 20px', fontWeight: 600, color: 'var(--color-text-secondary)', textAlign: 'right' }}>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {idpList.filter(idp => activeRole === 'Admin' || idp._new_employeeid_value === currentUserObj?.cr5db_userid).map(idp => {
+                          const emp = usersList.find(u => u.cr5db_userid === idp._new_employeeid_value);
+                          return (
+                            <tr key={idp.new_idpid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                              <td style={{ padding: '14px 20px', fontWeight: 600 }}>{idp.new_idp1}</td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <span className={`status-badge ${idp.new_status === 'Hoàn thành' ? 'status-completed' : 'status-pending'}`}>
+                                  {idp.new_status || 'Bản nháp'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 20px' }}>{emp?.cr5db_fullname}</td>
+                              <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                                <button className="btn-filled-3" style={{ padding: '6px 12px', fontSize: '13px' }} onClick={() => {
+                                  setEditingIdp(idp);
+                                  setShowIdpActionModal(true);
+                                }}>
+                                  Xem chi tiết Action
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -7726,6 +7814,82 @@ function App() {
       )}
 
       {/* Company Modal */}
+      {showIdpModal && (
+        <div className="modal-overlay" onClick={() => setShowIdpModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>Tạo IDP mới</h3>
+            <p style={{ marginBottom: '16px', color: 'var(--color-text-secondary)' }}>
+              Nhân viên tạo bản nháp IDP cho chu kỳ hiện tại.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button type="button" onClick={() => setShowIdpModal(false)} className="btn-filled-3">Hủy</button>
+              <button onClick={handleSaveIdp} className="btn-primary" disabled={isLoading}>
+                {isLoading ? 'Đang lưu...' : 'Tạo mới'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showIdpActionModal && editingIdp && (
+        <div className="modal-overlay" onClick={() => setShowIdpActionModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>Chi tiết Kế hoạch phát triển: {editingIdp.new_idp1}</h3>
+            
+            <div style={{ marginBottom: '24px' }}>
+              <h4 style={{ fontWeight: 600, marginBottom: '8px' }}>Danh sách Hành động (Actions)</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                    <th style={{ padding: '8px' }}>Tên hành động</th>
+                    <th style={{ padding: '8px' }}>Trạng thái</th>
+                    <th style={{ padding: '8px', textAlign: 'right' }}>Xóa</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {idpActionList.filter(a => a._new_idpid_value === editingIdp.new_idpid).length === 0 && (
+                    <tr>
+                      <td colSpan={3} style={{ padding: '8px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Chưa có hành động nào.</td>
+                    </tr>
+                  )}
+                  {idpActionList.filter(a => a._new_idpid_value === editingIdp.new_idpid).map(a => (
+                    <tr key={a.new_idp_actionid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <td style={{ padding: '8px' }}>{a.new_actionname}</td>
+                      <td style={{ padding: '8px' }}>{a.new_status || 'Chưa thực hiện'}</td>
+                      <td style={{ padding: '8px', textAlign: 'right' }}>
+                        <button onClick={() => handleDeleteIdpAction(a.new_idp_actionid)} className="btn-filled-3" style={{ color: '#a80000', borderColor: '#a80000', padding: '4px 8px', fontSize: '12px' }}>
+                          Xóa
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button className="btn-filled-3" style={{ marginTop: '12px' }} onClick={() => {
+                const name = prompt('Nhập tên hành động mới:');
+                if (name) {
+                  setIsLoading(true);
+                  import('./generated/services/New_idpactionService').then(({ New_idpactionService }) => {
+                    New_idpactionService.create({
+                      new_actionname: name,
+                      new_status: 'Chưa thực hiện',
+                      "new_IDPId@odata.bind": `/new_idps(${editingIdp.new_idpid})`
+                    }).then(() => {
+                      // Workaround: Call global fetch directly
+                      window.location.reload();
+                    });
+                  });
+                }
+              }}>+ Thêm hành động</button>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button type="button" onClick={() => setShowIdpActionModal(false)} className="btn-filled-3">Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCompanyModal && (
         <div className="modal-overlay">
           <div className="modal-content">
