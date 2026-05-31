@@ -239,6 +239,10 @@ function App() {
   const [showAiSuggestions, setShowAiSuggestions] = React.useState(false);
   const [aiSuggestions, setAiSuggestions] = React.useState<any[]>([]);
   const [aiFilterSameDept, setAiFilterSameDept] = React.useState(false);
+  
+  // AI KPI Generator states
+  const [isAiGenerating, setIsAiGenerating] = React.useState(false);
+  const [kpiQualityScore, setKpiQualityScore] = React.useState(0);
 
   // KPI custom date filter states
   const [kpiCustomStartDate, setKpiCustomStartDate] = React.useState('2026-05-01');
@@ -689,7 +693,7 @@ function App() {
       }
     },
     risk_alerts: {
-      title: language === 'vi' ? 'Cảnh báo rủi ro KPI (Risk Assessment)' : 'KPI Risk Alerts',
+      title: language === 'vi' ? 'KPI Risk Predictor' : 'KPI Risk Predictor',
       size: 'medium',
       roles: ['Admin', 'Employee'],
       render: () => {
@@ -697,37 +701,72 @@ function App() {
           ? kpiTargets.filter(k => k.cr5db_user_email?.toLowerCase() === currentUserEmail.toLowerCase())
           : kpiTargets;
           
+        const now = Date.now();
+        
         const risks = myKpis.map(k => {
           const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-          const rate = calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
-          return { k, rate };
-        }).filter(item => item.rate < 100);
+          const rate = calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
+          
+          // Determine Time Percent
+          let timePercent = 0;
+          let evaluationPeriod = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === k.cr5db_period);
+          if (evaluationPeriod && evaluationPeriod.cr5db_startdate && evaluationPeriod.cr5db_enddate) {
+            const start = new Date(evaluationPeriod.cr5db_startdate).getTime();
+            const end = new Date(evaluationPeriod.cr5db_enddate).getTime();
+            if (end > start) {
+              const elapsed = now - start;
+              const total = end - start;
+              timePercent = Math.max(0, Math.min(100, Math.round((elapsed / total) * 100)));
+            }
+          }
+          
+          let status = 'On Track';
+          if (rate < 100) {
+            if (timePercent > rate + 20) {
+              status = 'High Risk';
+            } else if (timePercent > rate + 10) {
+              status = 'At Risk';
+            }
+          }
+          
+          return { k, rate, timePercent, status };
+        }).filter(item => item.status !== 'On Track');
         
-        const behind = risks.filter(item => item.rate < 50);
-        const atRisk = risks.filter(item => item.rate >= 50 && item.rate < 100);
+        const behind = risks.filter(item => item.status === 'High Risk');
+        const atRisk = risks.filter(item => item.status === 'At Risk');
+        
+        // Sort by biggest gap
+        risks.sort((a, b) => (b.timePercent - b.rate) - (a.timePercent - a.rate));
         
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ display: 'flex', gap: '12px' }}>
               <div style={{ flex: 1, backgroundColor: '#FFF4CE', border: '1px solid #795B00', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
                 <div style={{ fontSize: '20px', fontWeight: 700, color: '#795B00' }}>{atRisk.length}</div>
-                <div style={{ fontSize: '11px', color: '#795B00', fontWeight: 600 }}>At Risk (50-99%)</div>
+                <div style={{ fontSize: '11px', color: '#795B00', fontWeight: 600 }}>At Risk (+10% lag)</div>
               </div>
               <div style={{ flex: 1, backgroundColor: '#FDE7E9', border: '1px solid #A80000', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
                 <div style={{ fontSize: '20px', fontWeight: 700, color: '#A80000' }}>{behind.length}</div>
-                <div style={{ fontSize: '11px', color: '#A80000', fontWeight: 600 }}>Behind (&lt;50%)</div>
+                <div style={{ fontSize: '11px', color: '#A80000', fontWeight: 600 }}>High Risk (+20% lag)</div>
               </div>
             </div>
             
             <div style={{ maxHeight: '120px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {risks.slice(0, 3).map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '6px', borderBottom: '1px solid var(--color-border-light)' }}>
-                  <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>{item.k.cr5db_kpiname}</span>
-                  <span style={{ fontWeight: 700, color: item.rate < 50 ? '#A80000' : '#795B00' }}>{item.rate}%</span>
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', padding: '8px', backgroundColor: item.status === 'High Risk' ? '#FDF3F3' : '#FFFAF0', border: `1px solid ${item.status === 'High Risk' ? '#F3D6D6' : '#F3E5CD'}`, borderRadius: '6px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
+                    <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.k.cr5db_kpiname}</span>
+                    <span style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>
+                      Prog: <strong style={{ color: 'var(--color-primary)' }}>{item.rate}%</strong> | Time: <strong>{item.timePercent}%</strong>
+                    </span>
+                  </div>
+                  <div style={{ marginLeft: '8px', padding: '4px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, color: '#fff', backgroundColor: item.status === 'High Risk' ? '#dc2626' : '#d97706', whiteSpace: 'nowrap' }}>
+                    {item.status === 'High Risk' ? 'NGUY CƠ CAO' : 'CẢNH BÁO'}
+                  </div>
                 </div>
               ))}
               {risks.length > 3 && (
-                <div style={{ fontSize: '11px', textAlign: 'center', color: 'var(--color-text-secondary)', cursor: 'pointer' }} onClick={() => setActiveTab('kpi')}>
+                <div style={{ fontSize: '11px', textAlign: 'center', color: 'var(--color-text-secondary)', cursor: 'pointer', marginTop: '4px' }} onClick={() => setActiveTab('kpi')}>
                   {language === 'vi' ? `Xem thêm ${risks.length - 3} cảnh báo...` : `View ${risks.length - 3} more alerts...`}
                 </div>
               )}
@@ -2422,6 +2461,67 @@ function App() {
       console.error(err);
       alert("Lỗi xóa: " + (err.message || err));
       setIsLoading(false);
+    }
+  };
+  // AI KPI Generator Logic
+  const evaluateKpiSmartScore = (name: string, unit: string) => {
+    let score = 0;
+    const lowerName = name.toLowerCase();
+    
+    // 1. Specific (30%): Action verbs
+    const actionVerbs = ['tăng', 'giảm', 'cải thiện', 'hoàn thành', 'duy trì', 'xây dựng', 'đạt', 'tối ưu', 'tạo', 'phát triển'];
+    if (actionVerbs.some(v => lowerName.includes(v))) {
+      score += 30;
+    }
+
+    // 2. Measurable (40%): Numbers or units
+    const hasNumbers = /\d/.test(lowerName);
+    const hasUnit = unit && unit !== '%' && unit.trim().length > 0;
+    const hasMeasureWords = ['tỷ', 'triệu', 'phần trăm', '%', 'vnd', 'usd', 'người', 'giờ', 'ngày'];
+    if (hasNumbers || hasUnit || hasMeasureWords.some(w => lowerName.includes(w))) {
+      score += 40;
+    }
+
+    // 3. Attainable/Relevant (20%): Reasonable length
+    if (name.trim().length > 15) {
+      score += 20;
+    }
+
+    // 4. Time-bound (10%): Time keywords
+    const timeWords = ['tháng', 'quý', 'năm', 'kỳ', 'tuần', 'ngày', 'trước', 'deadline'];
+    if (timeWords.some(w => lowerName.includes(w))) {
+      score += 10;
+    }
+
+    return score;
+  };
+
+  React.useEffect(() => {
+    if (showKpiLibraryModal) {
+      setKpiQualityScore(evaluateKpiSmartScore(kpiLibName, kpiLibUnit));
+    }
+  }, [kpiLibName, kpiLibUnit, showKpiLibraryModal]);
+
+  const handleAiImproveKpi = async () => {
+    if (!kpiLibName.trim()) return;
+    setIsAiGenerating(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/improve-kpi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kpiText: kpiLibName })
+      });
+      const data = await response.json();
+      if (data.result) {
+        setKpiLibName(data.result);
+      } else if (data.error) {
+        alert("Lỗi AI: " + data.error);
+      }
+    } catch (err) {
+      console.error("AI Error:", err);
+      alert("Không thể kết nối đến Backend AI (Cổng 3001). Vui lòng đảm bảo server.js đang chạy.");
+    } finally {
+      setIsAiGenerating(false);
     }
   };
 
@@ -8677,8 +8777,40 @@ function App() {
             <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>{editingKpiLibrary ? 'Chinh sua KPI' : 'Them KPI moi vao thu vien'}</h3>
             <form onSubmit={handleSaveKpiLibrary} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Ten KPI <span style={{ color: '#dc2626' }}>*</span></label>
-                <input value={kpiLibName} onChange={e => setKpiLibName(e.target.value)} required placeholder="Vi du: Doanh so thang, Ty le diem danh..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontWeight: 600, fontSize: '13px' }}>Tên KPI <span style={{ color: '#dc2626' }}>*</span></label>
+                  <button 
+                    type="button" 
+                    onClick={handleAiImproveKpi}
+                    disabled={isAiGenerating || !kpiLibName.trim()}
+                    style={{ background: 'none', border: 'none', color: isAiGenerating ? 'var(--color-text-secondary)' : 'var(--color-primary)', fontSize: '13px', fontWeight: 600, cursor: (isAiGenerating || !kpiLibName.trim()) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    {isAiGenerating ? <i className="fas fa-spinner fa-spin"></i> : '🪄'} {isAiGenerating ? 'Đang xử lý...' : 'Làm mượt bằng AI'}
+                  </button>
+                </div>
+                <input value={kpiLibName} onChange={e => setKpiLibName(e.target.value)} required placeholder="Ví dụ: Doanh số tháng, Tỷ lệ điểm danh..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+                
+                {kpiLibName.trim() && (
+                  <div style={{ marginTop: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontSize: '11px', fontWeight: 600 }}>
+                      <span style={{ color: 'var(--color-text-secondary)' }}>S.M.A.R.T Score</span>
+                      <span style={{ color: kpiQualityScore < 50 ? '#dc2626' : kpiQualityScore < 80 ? '#d97706' : '#10b981' }}>{kpiQualityScore}/100</span>
+                    </div>
+                    <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--color-border-light)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ 
+                        height: '100%', 
+                        width: `${kpiQualityScore}%`, 
+                        backgroundColor: kpiQualityScore < 50 ? '#dc2626' : kpiQualityScore < 80 ? '#d97706' : '#10b981',
+                        transition: 'width 0.3s ease, background-color 0.3s ease' 
+                      }}></div>
+                    </div>
+                    {kpiQualityScore < 70 && (
+                      <div style={{ fontSize: '11px', color: '#d97706', marginTop: '6px', fontStyle: 'italic' }}>
+                        * Gợi ý: Hãy thêm động từ (Tăng/Giảm), số liệu đo lường hoặc thời hạn để câu KPI chuẩn S.M.A.R.T hơn.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Don vi do luong</label>
