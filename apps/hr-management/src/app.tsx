@@ -7439,11 +7439,18 @@ function App() {
                   style={{ height: '38px', padding: '6px 12px' }}
                 >
                   <option value="">-- Chưa phân công --</option>
-                  {jobPositionsList.map(pos => (
-                    <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>
-                      {pos.cr5db_positionname}
-                    </option>
-                  ))}
+                  {jobPositionsList.map(pos => {
+                    const dept = departmentsList.find(d => d.cr5db_departmentid === pos._cr5db_department_value);
+                    const company = dept ? companiesList.find(c => c.cr5db_companyid === dept._cr5db_companyid_value) : null;
+                    const deptPart = dept ? dept.cr5db_departmentname : 'Dùng chung';
+                    const compPart = company ? ` - ${company.cr5db_companyname}` : '';
+                    const displayLabel = `${pos.cr5db_positionname} (${deptPart}${compPart})`;
+                    return (
+                      <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>
+                        {displayLabel}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
