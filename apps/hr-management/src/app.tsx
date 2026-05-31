@@ -33,6 +33,8 @@ import { New_jobcompetencyService } from './generated/services/New_jobcompetency
 import { New_competencyassessmentService } from './generated/services/New_competencyassessmentService';
 import { New_leaverequestService } from './generated/services/New_leaverequestService';
 import { New_leavebalanceService } from './generated/services/New_leavebalanceService';
+import { New_holidayService } from './generated/services/New_holidayService';
+import { New_overtimerequestService } from './generated/services/New_overtimerequestService';
 
 import { calculateKpiAchievementRate } from './utils/kpiLogic';
 
@@ -211,6 +213,21 @@ function App() {
     newBalanceCarriedOver, setNewBalanceCarriedOver,
     newBalanceUsedDays, setNewBalanceUsedDays,
 
+    holidaysList, setHolidaysList,
+    overtimeRequestsList, setOvertimeRequestsList,
+    showHolidayModal, setShowHolidayModal,
+    newHolidayName, setNewHolidayName,
+    newHolidayDate, setNewHolidayDate,
+    showOvertimeModal, setShowOvertimeModal,
+    newOtDate, setNewOtDate,
+    newOtStartTime, setNewOtStartTime,
+    newOtEndTime, setNewOtEndTime,
+    newOtHours, setNewOtHours,
+    newOtType, setNewOtType,
+    newOtReason, setNewOtReason,
+    showOtApprovalModal, setShowOtApprovalModal,
+    otToApproveId, setOtToApproveId,
+    otApprovedHours, setOtApprovedHours,
     showKpiModal, setShowKpiModal,
     editingKpi, setEditingKpi,
     kpiTargetName, setKpiTargetName,
@@ -1133,7 +1150,8 @@ function App() {
     setIdpList, setIdpActionList,
     setProcessTemplateList, setProcessTemplateStepList,
     setEmployeeProcessList, setProcessStepList,
-    setLeaveBalancesList, setLeaveRequestsList
+    setLeaveBalancesList, setLeaveRequestsList,
+    setHolidaysList, setOvertimeRequestsList
   });
 
   // ── Approval Engine ───────────────────────────────────────────────────────
@@ -1926,6 +1944,87 @@ function App() {
     } catch (err) {
       console.error(err);
       alert('Lỗi khi cập nhật quỹ phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleHolidaySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newHolidayName.trim() || !newHolidayDate) return;
+    try {
+      setIsLoading(true);
+      await New_holidayService.create({
+        new_name: newHolidayName,
+        new_date: new Date(newHolidayDate).toISOString()
+      });
+      setShowHolidayModal(false);
+      setNewHolidayName('');
+      setNewHolidayDate('');
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi thêm ngày lễ.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleOvertimeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOtDate || !newOtStartTime || !newOtEndTime || !newOtHours || !newOtReason.trim()) {
+      alert('Vui lòng điền đầy đủ thông tin OT.');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await New_overtimerequestService.create({
+        new_name: `OT ${newOtDate} - ${currentUserName}`,
+        new_date: new Date(newOtDate).toISOString(),
+        new_starttime: newOtStartTime,
+        new_endtime: newOtEndTime,
+        new_hours: parseFloat(newOtHours),
+        new_ottype: newOtType,
+        new_reason: newOtReason,
+        new_status: 'Pending',
+        "_new_employeeid_value@odata.bind": `/cr5db_userses(${currentUserId})`
+      } as any);
+      setShowOvertimeModal(false);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi gửi đơn OT.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleApproveOtSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otToApproveId) return;
+    try {
+      setIsLoading(true);
+      await New_overtimerequestService.update(otToApproveId, {
+        new_status: 'Approved',
+        new_approvedhours: parseFloat(otApprovedHours) || 0
+      });
+      setShowOtApprovalModal(false);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi duyệt OT.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleRejectOt = async (otId: string) => {
+    try {
+      setIsLoading(true);
+      await New_overtimerequestService.update(otId, {
+        new_status: 'Rejected',
+        new_approvedhours: 0
+      });
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi từ chối OT.');
       setIsLoading(false);
     }
   };
@@ -3685,9 +3784,21 @@ function App() {
     
     let workingDays = 0;
     const current = new Date(start);
+    
+    // Tạo mảng các chuỗi YYYY-MM-DD của ngày Lễ để tra cứu nhanh
+    const holidayDates = holidaysList.map(h => {
+      const d = parseDateOnly(h.new_date);
+      return d ? d.toISOString().split('T')[0] : null;
+    }).filter(d => d !== null);
+
     while (current <= end) {
       const dayOfWeek = current.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      const currentIso = current.toISOString().split('T')[0];
+      
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isHoliday = holidayDates.includes(currentIso);
+
+      if (!isWeekend && !isHoliday) {
         workingDays++;
       }
       current.setDate(current.getDate() + 1);
@@ -4420,6 +4531,55 @@ function App() {
                     Quản lý Quỹ phép
                   </button>
                 )}
+                <button
+                  onClick={() => setActiveTimesheetSubTab('ot')}
+                  style={{
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    backgroundColor: activeTimesheetSubTab === 'ot' ? '#FAF9F9' : 'transparent',
+                    color: activeTimesheetSubTab === 'ot' ? 'var(--color-text)' : 'var(--color-text-secondary)'
+                  }}
+                >
+                  Xin OT
+                </button>
+                {(activeRole === 'Admin' || checkPermission('resources')) && (
+                  <button
+                    onClick={() => setActiveTimesheetSubTab('ot-approvals')}
+                    style={{
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      backgroundColor: activeTimesheetSubTab === 'ot-approvals' ? '#FAF9F9' : 'transparent',
+                      color: activeTimesheetSubTab === 'ot-approvals' ? 'var(--color-text)' : 'var(--color-text-secondary)'
+                    }}
+                  >
+                    Duyệt OT
+                  </button>
+                )}
+                {activeRole === 'Admin' && (
+                  <button
+                    onClick={() => setActiveTimesheetSubTab('holidays')}
+                    style={{
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      backgroundColor: activeTimesheetSubTab === 'holidays' ? '#FAF9F9' : 'transparent',
+                      color: activeTimesheetSubTab === 'holidays' ? 'var(--color-text)' : 'var(--color-text-secondary)'
+                    }}
+                  >
+                    Cấu hình Ngày Lễ
+                  </button>
+                )}
               </div>
 
               {activeTimesheetSubTab === 'my' ? (
@@ -4686,6 +4846,149 @@ function App() {
                                 }}
                               >
                                 Cập nhật
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : activeTimesheetSubTab === 'holidays' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Cấu hình Ngày Lễ</h3>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>Danh sách các ngày nghỉ Lễ, Tết (Tự động trừ vào logic nghỉ phép)</p>
+                    </div>
+                    <button 
+                      className="btn-primary" 
+                      style={{ fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px' }}
+                      onClick={() => {
+                        setNewHolidayName('');
+                        setNewHolidayDate('');
+                        setShowHolidayModal(true);
+                      }}
+                    >
+                      + Thêm Ngày Lễ
+                    </button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Tên Ngày Lễ</th>
+                        <th style={{ padding: '12px' }}>Ngày (YYYY-MM-DD)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {holidaysList.map(h => (
+                        <tr key={h.new_holidayid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{h.new_name}</td>
+                          <td style={{ padding: '12px' }}>{h.new_date ? new Date(h.new_date).toLocaleDateString('vi-VN') : ''}</td>
+                        </tr>
+                      ))}
+                      {holidaysList.length === 0 && (
+                        <tr><td colSpan={2} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Chưa có ngày lễ nào được cấu hình</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              ) : activeTimesheetSubTab === 'ot' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Làm thêm giờ (Overtime)</h3>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>Danh sách các đơn xin làm thêm giờ của bạn</p>
+                    </div>
+                    <button 
+                      className="btn-primary" 
+                      style={{ fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px' }}
+                      onClick={() => {
+                        setNewOtDate('');
+                        setNewOtStartTime('18:00');
+                        setNewOtEndTime('20:00');
+                        setNewOtHours('2');
+                        setNewOtType('Weekday');
+                        setNewOtReason('');
+                        setShowOvertimeModal(true);
+                      }}
+                    >
+                      + Xin làm thêm giờ
+                    </button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Ngày</th>
+                        <th style={{ padding: '12px' }}>Thời gian</th>
+                        <th style={{ padding: '12px' }}>Số giờ</th>
+                        <th style={{ padding: '12px' }}>Loại OT</th>
+                        <th style={{ padding: '12px' }}>Lý do</th>
+                        <th style={{ padding: '12px' }}>Trạng thái</th>
+                        <th style={{ padding: '12px' }}>Giờ duyệt</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {overtimeRequestsList.filter(ot => ot._new_employeeid_value === usersList.find(u => u.cr5db_email === currentUserEmail)?.cr5db_userid).map(ot => (
+                        <tr key={ot.new_overtimerequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{ot.new_date ? new Date(ot.new_date).toLocaleDateString('vi-VN') : ''}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_starttime} - {ot.new_endtime}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_hours}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_ottype}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_reason}</td>
+                          <td style={{ padding: '12px' }}>
+                            <span style={{
+                              padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600,
+                              backgroundColor: ot.new_status === 'Approved' ? '#DFF6DD' : ot.new_status === 'Rejected' ? '#FDE7E9' : '#FFF4CE',
+                              color: ot.new_status === 'Approved' ? '#107C41' : ot.new_status === 'Rejected' ? '#A80000' : '#795B00'
+                            }}>{ot.new_status || 'Pending'}</span>
+                          </td>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{ot.new_approvedhours || 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : activeTimesheetSubTab === 'ot-approvals' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Phê duyệt Làm thêm giờ</h3>
+                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>Danh sách các đơn xin làm thêm giờ cần duyệt</p>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Nhân viên</th>
+                        <th style={{ padding: '12px' }}>Ngày</th>
+                        <th style={{ padding: '12px' }}>Thời gian</th>
+                        <th style={{ padding: '12px' }}>Số giờ xin</th>
+                        <th style={{ padding: '12px' }}>Loại OT</th>
+                        <th style={{ padding: '12px' }}>Lý do</th>
+                        <th style={{ padding: '12px' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {overtimeRequestsList.filter(ot => ot.new_status === 'Pending').map(ot => {
+                        const emp = usersList.find(u => u.cr5db_userid === ot._new_employeeid_value);
+                        return (
+                          <tr key={ot.new_overtimerequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_date ? new Date(ot.new_date).toLocaleDateString('vi-VN') : ''}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_starttime} - {ot.new_endtime}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_hours}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_ottype}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_reason}</td>
+                            <td style={{ padding: '12px' }}>
+                              <button
+                                className="btn-filled-2"
+                                style={{ padding: '4px 8px', marginRight: '8px' }}
+                                onClick={() => {
+                                  setOtToApproveId(ot.new_overtimerequestid);
+                                  setOtApprovedHours(ot.new_hours.toString());
+                                  setShowOtApprovalModal(true);
+                                }}
+                              >
+                                Duyệt
                               </button>
                             </td>
                           </tr>
@@ -10016,6 +10319,157 @@ function App() {
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
                 <button type="button" onClick={() => { setShowLeaveBalanceModal(false); setEditingLeaveBalance(null); }} className="btn-filled-3">Hủy</button>
                 <button type="submit" className="btn-primary" disabled={isLoading}>Lưu</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Holiday Modal */}
+      {showHolidayModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Thêm Ngày Lễ</h3>
+            <form onSubmit={handleHolidaySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Tên Ngày Lễ</label>
+                <input
+                  type="text"
+                  required
+                  value={newHolidayName}
+                  onChange={e => setNewHolidayName(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Ngày</label>
+                <input
+                  type="date"
+                  required
+                  value={newHolidayDate}
+                  onChange={e => setNewHolidayDate(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                <button type="button" onClick={() => setShowHolidayModal(false)} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary" disabled={isLoading}>Lưu</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Overtime Request Modal */}
+      {showOvertimeModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Xin Làm thêm giờ (OT)</h3>
+            <form onSubmit={handleOvertimeSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Loại OT</label>
+                <select
+                  value={newOtType}
+                  onChange={e => setNewOtType(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px' }}
+                >
+                  <option value="Weekday">Ngày thường (Weekday)</option>
+                  <option value="Weekend">Cuối tuần (Weekend)</option>
+                  <option value="Holiday">Ngày lễ (Holiday)</option>
+                  <option value="Night">Ca đêm (Night)</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Ngày OT</label>
+                <input
+                  type="date"
+                  required
+                  value={newOtDate}
+                  onChange={e => setNewOtDate(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Giờ bắt đầu</label>
+                  <input
+                    type="time"
+                    required
+                    value={newOtStartTime}
+                    onChange={e => setNewOtStartTime(e.target.value)}
+                    style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Giờ kết thúc</label>
+                  <input
+                    type="time"
+                    required
+                    value={newOtEndTime}
+                    onChange={e => setNewOtEndTime(e.target.value)}
+                    style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Số giờ</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  required
+                  value={newOtHours}
+                  onChange={e => setNewOtHours(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Lý do</label>
+                <textarea
+                  required
+                  value={newOtReason}
+                  onChange={e => setNewOtReason(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', minHeight: '60px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                <button type="button" onClick={() => setShowOvertimeModal(false)} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary" disabled={isLoading}>Gửi đơn</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* OT Approval Modal */}
+      {showOtApprovalModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Duyệt Làm thêm giờ (OT)</h3>
+            <form onSubmit={handleApproveOtSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Số giờ duyệt</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  required
+                  value={otApprovedHours}
+                  onChange={e => setOtApprovedHours(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    handleRejectOt(otToApproveId);
+                    setShowOtApprovalModal(false);
+                  }} 
+                  className="btn-filled-3"
+                  style={{ color: '#A80000', backgroundColor: '#FDE7E9' }}
+                >
+                  Từ chối
+                </button>
+                <button type="submit" className="btn-primary" disabled={isLoading}>Duyệt</button>
               </div>
             </form>
           </div>
