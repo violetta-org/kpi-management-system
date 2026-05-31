@@ -3830,30 +3830,13 @@ function App() {
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  {selectedFilterProject && selectedFilterProject !== 'All Projects' && (
-                    <AIGenerateButton 
-                      label="✨ Phân rã Task với AI"
-                      onClick={async () => {
-                        const existingTasks = tasks
-                          .filter(t => t.cr5db_project_name === selectedFilterProject)
-                          .map(t => t.cr5db_taskname);
-                        return await AIService.breakdownProjectTasks(selectedFilterProject, existingTasks);
-                      }}
-                      onSuccess={(text) => {
-                        alert(`Gợi ý từ AI cho dự án ${selectedFilterProject}:\n\n${text}`);
-                      }}
-                      style={{ height: '36px', boxSizing: 'border-box' }}
-                    />
-                  )}
-                  <button 
-                    onClick={() => setShowTaskModal(true)} 
-                    className="new-task-btn"
-                    style={{ height: '36px', borderRadius: '6px', border: 'none', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: '#000000', color: '#ffffff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxSizing: 'border-box' }}
-                  >
-                    <span>+</span> {t('tasks.addNew')}
-                  </button>
-                </div>
+                <button 
+                  onClick={() => setShowTaskModal(true)} 
+                  className="new-task-btn"
+                  style={{ height: '36px', borderRadius: '6px', border: 'none', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: '#000000', color: '#ffffff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxSizing: 'border-box' }}
+                >
+                  <span>+</span> {t('tasks.addNew')}
+                </button>
               </div>
 
               {/* Info Banner (Alert) */}
@@ -3890,22 +3873,39 @@ function App() {
                 </div>
                 
                 {/* Project Filter */}
-                <div className="task-filter-select-wrapper">
-                  <select
-                    value={selectedFilterProject}
-                    onChange={(e) => setSelectedFilterProject(e.target.value)}
-                    style={{ width: '100%', height: '36px', border: '1px solid #000000', borderRadius: '6px', padding: '8px 12px', fontSize: '14px', fontWeight: 400, color: '#000000', backgroundColor: '#ffffff', cursor: 'pointer', appearance: 'none', boxSizing: 'border-box' }}
-                  >
-                    <option value="All Projects">{language === 'vi' ? 'Tất cả Dự án' : 'All Projects'}</option>
-                    {Array.from(new Set(tasks.map(t => t.cr5db_project_name).filter(Boolean))).map(proj => (
-                      <option key={proj} value={proj}>{proj}</option>
-                    ))}
-                  </select>
-                  <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#000000', display: 'flex', alignItems: 'center' }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </span>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <div className="task-filter-select-wrapper">
+                    <select
+                      value={selectedFilterProject}
+                      onChange={(e) => setSelectedFilterProject(e.target.value)}
+                      style={{ width: '100%', height: '36px', border: '1px solid #000000', borderRadius: '6px', padding: '8px 12px', fontSize: '14px', fontWeight: 400, color: '#000000', backgroundColor: '#ffffff', cursor: 'pointer', appearance: 'none', boxSizing: 'border-box' }}
+                    >
+                      <option value="All Projects">{language === 'vi' ? 'Tất cả Dự án' : 'All Projects'}</option>
+                      {Array.from(new Set(tasks.map(t => t.cr5db_project_name).filter(Boolean))).map(proj => (
+                        <option key={proj} value={proj}>{proj}</option>
+                      ))}
+                    </select>
+                    <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#000000', display: 'flex', alignItems: 'center' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </span>
+                  </div>
+                  {selectedFilterProject && selectedFilterProject !== 'All Projects' && (
+                    <AIGenerateButton 
+                      label="✨ Phân rã Task với AI"
+                      onClick={async () => {
+                        const existingTasks = tasks
+                          .filter(t => t.cr5db_project_name === selectedFilterProject)
+                          .map(t => t.cr5db_taskname);
+                        return await AIService.breakdownProjectTasks(selectedFilterProject, existingTasks);
+                      }}
+                      onSuccess={(text) => {
+                        alert(`Gợi ý từ AI cho dự án ${selectedFilterProject}:\n\n${text}`);
+                      }}
+                      style={{ height: '36px', boxSizing: 'border-box' }}
+                    />
+                  )}
                 </div>
               </div>
 
