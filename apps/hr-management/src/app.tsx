@@ -30,7 +30,7 @@ import { Cr5db_systemparametersService } from './generated/services/Cr5db_system
 
 import { calculateKpiAchievementRate } from './utils/kpiLogic';
 
-export const getPeriodStatus = (p: any): { text: string; bg: string; color: string } => {
+const getPeriodStatus = (p: EvaluationPeriod): { text: string; bg: string; color: string } => {
   if (p.cr5db_islocked) {
     return { text: "🔒 Đã khóa (Locked)", bg: "#FDE7E9", color: "#A80000" };
   }
@@ -119,7 +119,7 @@ const BellIcon = () => (
 // );
 
 import { FEATURE_TABS, hasTabPermission } from './lib/types';
-import type { User, Task, PermissionGroup } from './lib/types';
+import type { User, Task, PermissionGroup, EvaluationPeriod } from './lib/types';
 import { getTranslation } from './lib/locales';
 
 function App() {
