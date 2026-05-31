@@ -859,6 +859,100 @@ function App() {
         );
       }
     },
+    flight_risk_detector: {
+      title: language === 'vi' ? 'Flight Risk Detector' : 'Flight Risk Detector',
+      size: 'medium',
+      roles: ['Admin', 'HRManager'],
+      render: () => {
+        const risks = usersList.map(u => {
+          let riskScore = 0;
+          let riskFactors: string[] = [];
+          
+          // 1. Burnout (40%)
+          const userAllocs = resourceAllocationsList.filter(a => a._cr5db_userid_value === u.cr5db_userid);
+          const totalAlloc = userAllocs.reduce((sum, a) => sum + (a.cr5db_allocationpercentage || 0), 0);
+          const activeTasks = tasks.filter(t => t.cr5db_assignee_email?.toLowerCase() === (u.cr5db_email || '').toLowerCase() && t.cr5db_status !== 'Completed');
+          if (totalAlloc > 100 || activeTasks.length >= 5) {
+            riskScore += 40;
+            riskFactors.push('Đang quá tải (Burnout)');
+          }
+
+          // 2. Leave Patterns (30%)
+          const userLeaves = leaveRequestsList.filter(lr => lr._new_employeeid_value === u.cr5db_userid);
+          const sickLeaves = userLeaves.filter(lr => lr.new_leavetype === 'Sick Leave' || lr.new_leavetype === 'Unpaid Leave');
+          if (sickLeaves.length >= 2 || userLeaves.length >= 4) {
+            riskScore += 30;
+            riskFactors.push('Xin nghỉ thất thường');
+          }
+
+          // 3. Appraisal Trend (30%)
+          const userApps = appraisals.filter(ap => ap.cr5db_employeeemail?.toLowerCase() === (u.cr5db_email || '').toLowerCase());
+          let compScore = 0;
+          if (userApps.length > 0) {
+            const sortedApps = [...userApps].sort((a, b) => {
+              const pA = evaluationPeriodsList.find(p => p.cr5db_evaluationperiodid === a._cr5db_periodid_value);
+              const pB = evaluationPeriodsList.find(p => p.cr5db_evaluationperiodid === b._cr5db_periodid_value);
+              const dA = pA?.cr5db_enddate ? new Date(pA.cr5db_enddate).getTime() : 0;
+              const dB = pB?.cr5db_enddate ? new Date(pB.cr5db_enddate).getTime() : 0;
+              return dB - dA;
+            });
+            compScore = sortedApps[0].cr5db_finalscore || 0;
+          }
+          const hash = u.cr5db_userid.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+          const tenureYears = (hash % 5) + 1; // Pseudo-random 1 to 5 years
+
+          if (compScore > 0 && compScore < 60) {
+            riskScore += 30;
+            riskFactors.push('Điểm đánh giá thấp');
+          } else if (compScore >= 85 && tenureYears >= 3) {
+            riskScore += 30;
+            riskFactors.push('Nguy cơ nhảy việc (Giỏi & Lâu năm)');
+          }
+
+          let riskLevel: 'High' | 'Medium' | 'Low' = 'Low';
+          if (riskScore >= 70) riskLevel = 'High';
+          else if (riskScore >= 40) riskLevel = 'Medium';
+
+          return { user: u, riskScore, riskFactors, riskLevel };
+        });
+
+        // Filter out Low risk and sort by score descending
+        const atRiskUsers = risks.filter(r => r.riskLevel !== 'Low').sort((a, b) => b.riskScore - a.riskScore).slice(0, 5);
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-secondary)', paddingBottom: '4px', borderBottom: '1px solid var(--color-border-light)' }}>
+              <span>Nhân sự</span>
+              <span>Mức độ Rủi ro</span>
+            </div>
+            
+            {atRiskUsers.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)', fontSize: '12px' }}>Không phát hiện rủi ro nghỉ việc đáng kể.</div>
+            ) : (
+              atRiskUsers.map((r, idx) => {
+                let badgeColor = r.riskLevel === 'High' ? '#dc2626' : '#d97706';
+                let badgeBg = r.riskLevel === 'High' ? '#FDF3F3' : '#FFFAF0';
+                
+                return (
+                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px', backgroundColor: badgeBg, borderRadius: '6px', border: `1px solid ${r.riskLevel === 'High' ? '#F3D6D6' : '#F3E5CD'}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 600, fontSize: '12px' }}>{r.user.cr5db_fullname}</span>
+                      <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, color: '#fff', backgroundColor: badgeColor }}>
+                        {r.riskLevel === 'High' ? 'RỦI RO CAO' : 'TIỀM ẨN'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span><strong>Tỷ lệ:</strong> <span style={{ color: badgeColor, fontWeight: 600 }}>{r.riskScore}%</span></span>
+                      <span><strong>Dấu hiệu:</strong> {r.riskFactors.join(', ')}</span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        );
+      }
+    },
     strategic_alignment: {
       title: language === 'vi' ? 'Bản đồ căn chỉnh mục tiêu chiến lược' : 'Strategic Goal Alignment Map',
       size: 'large',
@@ -2609,6 +2703,57 @@ function App() {
     }
   };
 
+    // 2. Measurable (40%): Numbers or units
+    const hasNumbers = /\d/.test(lowerName);
+    const hasUnit = unit && unit !== '%' && unit.trim().length > 0;
+    const hasMeasureWords = ['tỷ', 'triệu', 'phần trăm', '%', 'vnd', 'usd', 'người', 'giờ', 'ngày'];
+    if (hasNumbers || hasUnit || hasMeasureWords.some(w => lowerName.includes(w))) {
+      score += 40;
+    }
+
+    // 3. Attainable/Relevant (20%): Reasonable length
+    if (name.trim().length > 15) {
+      score += 20;
+    }
+
+    // 4. Time-bound (10%): Time keywords
+    const timeWords = ['tháng', 'quý', 'năm', 'kỳ', 'tuần', 'ngày', 'trước', 'deadline'];
+    if (timeWords.some(w => lowerName.includes(w))) {
+      score += 10;
+    }
+
+    return score;
+  };
+
+  React.useEffect(() => {
+    if (showKpiLibraryModal) {
+      setKpiQualityScore(evaluateKpiSmartScore(kpiLibName, kpiLibUnit));
+    }
+  }, [kpiLibName, kpiLibUnit, showKpiLibraryModal]);
+
+  const handleAiImproveKpi = async () => {
+    if (!kpiLibName.trim()) return;
+    setIsAiGenerating(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/improve-kpi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kpiText: kpiLibName })
+      });
+      const data = await response.json();
+      if (data.result) {
+        setKpiLibName(data.result);
+      } else if (data.error) {
+        alert("Lỗi AI: " + data.error);
+      }
+    } catch (err) {
+      console.error("AI Error:", err);
+      alert("Không thể kết nối đến Backend AI (Cổng 3001). Vui lòng đảm bảo server.js đang chạy.");
+    } finally {
+      setIsAiGenerating(false);
+    }
+  };
+
   // KPI Library CRUD
    const handleSaveKpiLibrary = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -3664,6 +3809,39 @@ function App() {
           return userPos?._cr5db_department_value === currentUserDeptId;
         });
       }
+    }
+    
+    const scoredUsers = pool.map(u => {
+      // 1. Calculate Availability
+      const userAllocations = resourceAllocationsList.filter(a => a._cr5db_userid_value === u.cr5db_userid);
+      const totalAllocation = userAllocations.reduce((sum, a) => sum + (Number(a.cr5db_allocationpercentage) || 0), 0);
+      const availability = Math.max(0, 100 - totalAllocation);
+      
+      // 2. Skill Match (Deterministic pseudo-random 40-95 for demo)
+      const emailLen = u.cr5db_email ? u.cr5db_email.length : 10;
+      const skillMatch = 40 + ((emailLen * 13) % 55); 
+      
+      // 3. Combine: 60% Skill Match + 40% Availability
+      const fitScore = Math.round((skillMatch * 0.6) + (availability * 0.4));
+      
+      return {
+        user: u,
+        availability,
+        skillMatch,
+        fitScore
+      };
+    });
+    
+    scoredUsers.sort((a, b) => b.fitScore - a.fitScore);
+    setAiSuggestions(scoredUsers.slice(0, 3));
+    setShowAiSuggestions(true);
+  };
+
+  const handleSaveAllocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!allocationUser || !allocationProject) {
+      alert("Vui lòng chọn đầy đủ nhân sự và dự án.");
+      return;
     }
     
     const scoredUsers = pool.map(u => {
@@ -4957,6 +5135,297 @@ function App() {
                       <span>+</span> Xin nghỉ phép
                     </button>
                   </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
+                    {myLeaveBalances.map(lb => (
+                      <div key={lb.new_leavebalanceid} className="metric-card" style={{ gap: '12px', padding: '20px', borderLeft: '4px solid #107C41' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 600 }}>{lb.new_name} ({lb.new_year})</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                          <span>Tổng cộng: <strong style={{ color: '#107C41' }}>{lb.new_totalentitlement + lb.new_carriedover} ngày</strong></span>
+                          <span>Đã dùng: <strong style={{ color: '#E29E2E' }}>{lb.new_useddays} ngày</strong></span>
+                          <span>Còn lại: <strong>{(lb.new_totalentitlement + lb.new_carriedover) - lb.new_useddays} ngày</strong></span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {myLeaves.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', background: '#FAF9F9', borderRadius: '8px' }}>
+                      Chưa có đơn xin nghỉ phép nào.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '12px' }}>Loại phép</th>
+                          <th style={{ padding: '12px' }}>Bắt đầu</th>
+                          <th style={{ padding: '12px' }}>Kết thúc</th>
+                          <th style={{ padding: '12px' }}>Số ngày</th>
+                          <th style={{ padding: '12px' }}>Lý do</th>
+                          <th style={{ padding: '12px' }}>Trạng thái</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {myLeaves.map(lr => (
+                          <tr key={lr.new_leaverequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{lr.new_leavetype}</td>
+                            <td style={{ padding: '12px' }}>{new Date(lr.new_startdate).toLocaleDateString('vi-VN')}</td>
+                            <td style={{ padding: '12px' }}>{new Date(lr.new_enddate).toLocaleDateString('vi-VN')}</td>
+                            <td style={{ padding: '12px' }}>{lr.new_durationdays}</td>
+                            <td style={{ padding: '12px' }}>{lr.new_reason}</td>
+                            <td style={{ padding: '12px' }}>
+                              <span className={
+                                lr.new_status === 'Pending' ? 'status-pending'
+                                : lr.new_status === 'Rejected' ? 'status-rejected'
+                                : 'status-approved'
+                              }>
+                                {lr.new_status === 'Pending' ? 'Chờ duyệt' : lr.new_status === 'Rejected' ? 'Từ chối' : 'Đã duyệt'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ) : activeTimesheetSubTab === 'leave-approvals' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '24px' }}>Đơn xin nghỉ chờ duyệt</h3>
+                  {pendingLeaveApprovals.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', background: '#FAF9F9', borderRadius: '8px' }}>
+                      Không có đơn xin nghỉ phép nào đang chờ duyệt.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '12px' }}>Nhân viên</th>
+                          <th style={{ padding: '12px' }}>Loại phép</th>
+                          <th style={{ padding: '12px' }}>Từ ngày</th>
+                          <th style={{ padding: '12px' }}>Đến ngày</th>
+                          <th style={{ padding: '12px' }}>Số ngày</th>
+                          <th style={{ padding: '12px' }}>Lý do</th>
+                          <th style={{ padding: '12px' }}>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingLeaveApprovals.map(lr => {
+                          const emp = usersList.find(u => u.cr5db_userid === lr._new_employeeid_value);
+                          return (
+                            <tr key={lr.new_leaverequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                              <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                              <td style={{ padding: '12px' }}>{lr.new_leavetype}</td>
+                              <td style={{ padding: '12px' }}>{new Date(lr.new_startdate).toLocaleDateString('vi-VN')}</td>
+                              <td style={{ padding: '12px' }}>{new Date(lr.new_enddate).toLocaleDateString('vi-VN')}</td>
+                              <td style={{ padding: '12px', fontWeight: 600 }}>{lr.new_durationdays}</td>
+                              <td style={{ padding: '12px' }}>{lr.new_reason}</td>
+                              <td style={{ padding: '12px', display: 'flex', gap: '8px' }}>
+                                <button onClick={() => handleApproveLeave(lr.new_leaverequestid)} className="btn-filled-2" style={{ padding: '4px 8px' }}>Duyệt</button>
+                                <button onClick={() => handleRejectLeave(lr.new_leaverequestid)} className="btn-filled-3" style={{ padding: '4px 8px', color: '#a80000' }}>Từ chối</button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ) : activeTimesheetSubTab === 'leave-balances' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Quản lý Quỹ phép (Admin)</h3>
+                    <button className="btn-filled-3" style={{ fontSize: '13px', fontWeight: 600 }}>+ Cấp phép mới</button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Nhân viên</th>
+                        <th style={{ padding: '12px' }}>Năm</th>
+                        <th style={{ padding: '12px' }}>Phép chuẩn</th>
+                        <th style={{ padding: '12px' }}>Tồn năm trước</th>
+                        <th style={{ padding: '12px' }}>Đã dùng</th>
+                        <th style={{ padding: '12px' }}>Còn lại</th>
+                        <th style={{ padding: '12px' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leaveBalancesList.map(lb => {
+                        const emp = usersList.find(u => u.cr5db_userid === lb._new_employeeid_value);
+                        return (
+                          <tr key={lb.new_leavebalanceid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_year}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_totalentitlement}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_carriedover}</td>
+                            <td style={{ padding: '12px', color: '#E29E2E' }}>{lb.new_useddays}</td>
+                            <td style={{ padding: '12px', fontWeight: 600, color: '#107C41' }}>{(lb.new_totalentitlement + lb.new_carriedover) - lb.new_useddays}</td>
+                            <td style={{ padding: '12px' }}>
+                              <button
+                                className="btn-filled-2"
+                                style={{ padding: '4px 8px' }}
+                                onClick={() => {
+                                  setEditingLeaveBalance(lb);
+                                  setNewBalanceEntitlement(lb.new_totalentitlement.toString());
+                                  setNewBalanceCarriedOver(lb.new_carriedover.toString());
+                                  setNewBalanceUsedDays((lb.new_useddays || 0).toString());
+                                  setShowLeaveBalanceModal(true);
+                                }}
+                              >
+                                Cập nhật
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : activeTimesheetSubTab === 'holidays' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Cấu hình Ngày Lễ</h3>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>Danh sách các ngày nghỉ Lễ, Tết (Tự động trừ vào logic nghỉ phép)</p>
+                    </div>
+                    <button 
+                      className="btn-primary" 
+                      style={{ fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px' }}
+                      onClick={() => {
+                        setNewHolidayName('');
+                        setNewHolidayDate('');
+                        setShowHolidayModal(true);
+                      }}
+                    >
+                      + Thêm Ngày Lễ
+                    </button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Tên Ngày Lễ</th>
+                        <th style={{ padding: '12px' }}>Ngày (YYYY-MM-DD)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {holidaysList.map(h => (
+                        <tr key={h.new_holidayid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{h.new_name}</td>
+                          <td style={{ padding: '12px' }}>{h.new_date ? new Date(h.new_date).toLocaleDateString('vi-VN') : ''}</td>
+                        </tr>
+                      ))}
+                      {holidaysList.length === 0 && (
+                        <tr><td colSpan={2} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Chưa có ngày lễ nào được cấu hình</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              ) : activeTimesheetSubTab === 'ot' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Làm thêm giờ (Overtime)</h3>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>Danh sách các đơn xin làm thêm giờ của bạn</p>
+                    </div>
+                    <button 
+                      className="btn-primary" 
+                      style={{ fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px' }}
+                      onClick={() => {
+                        setNewOtDate('');
+                        setNewOtStartTime('18:00');
+                        setNewOtEndTime('20:00');
+                        setNewOtHours('2');
+                        setNewOtType('Weekday');
+                        setNewOtReason('');
+                        setShowOvertimeModal(true);
+                      }}
+                    >
+                      + Xin làm thêm giờ
+                    </button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Ngày</th>
+                        <th style={{ padding: '12px' }}>Thời gian</th>
+                        <th style={{ padding: '12px' }}>Số giờ</th>
+                        <th style={{ padding: '12px' }}>Loại OT</th>
+                        <th style={{ padding: '12px' }}>Lý do</th>
+                        <th style={{ padding: '12px' }}>Trạng thái</th>
+                        <th style={{ padding: '12px' }}>Giờ duyệt</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {overtimeRequestsList.filter(ot => ot._new_employeeid_value === usersList.find(u => u.cr5db_email === currentUserEmail)?.cr5db_userid).map(ot => (
+                        <tr key={ot.new_overtimerequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{ot.new_date ? new Date(ot.new_date).toLocaleDateString('vi-VN') : ''}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_starttime} - {ot.new_endtime}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_hours}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_ottype}</td>
+                          <td style={{ padding: '12px' }}>{ot.new_reason}</td>
+                          <td style={{ padding: '12px' }}>
+                            <span style={{
+                              padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600,
+                              backgroundColor: ot.new_status === 'Approved' ? '#DFF6DD' : ot.new_status === 'Rejected' ? '#FDE7E9' : '#FFF4CE',
+                              color: ot.new_status === 'Approved' ? '#107C41' : ot.new_status === 'Rejected' ? '#A80000' : '#795B00'
+                            }}>{ot.new_status || 'Pending'}</span>
+                          </td>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{ot.new_approvedhours || 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : activeTimesheetSubTab === 'ot-approvals' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Phê duyệt Làm thêm giờ</h3>
+                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '4px' }}>Danh sách các đơn xin làm thêm giờ cần duyệt</p>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Nhân viên</th>
+                        <th style={{ padding: '12px' }}>Ngày</th>
+                        <th style={{ padding: '12px' }}>Thời gian</th>
+                        <th style={{ padding: '12px' }}>Số giờ xin</th>
+                        <th style={{ padding: '12px' }}>Loại OT</th>
+                        <th style={{ padding: '12px' }}>Lý do</th>
+                        <th style={{ padding: '12px' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {overtimeRequestsList.filter(ot => ot.new_status === 'Pending').map(ot => {
+                        const emp = usersList.find(u => u.cr5db_userid === ot._new_employeeid_value);
+                        return (
+                          <tr key={ot.new_overtimerequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_date ? new Date(ot.new_date).toLocaleDateString('vi-VN') : ''}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_starttime} - {ot.new_endtime}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_hours}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_ottype}</td>
+                            <td style={{ padding: '12px' }}>{ot.new_reason}</td>
+                            <td style={{ padding: '12px' }}>
+                              <button
+                                className="btn-filled-2"
+                                style={{ padding: '4px 8px', marginRight: '8px' }}
+                                onClick={() => {
+                                  setOtToApproveId(ot.new_overtimerequestid);
+                                  setOtApprovedHours(ot.new_hours.toString());
+                                  setShowOtApprovalModal(true);
+                                }}
+                              >
+                                Duyệt
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </div>
+          )}
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
                     {myLeaveBalances.map(lb => (
