@@ -3830,30 +3830,13 @@ function App() {
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  {selectedFilterProject && selectedFilterProject !== 'All Projects' && (
-                    <AIGenerateButton 
-                      label="✨ Phân rã Task với AI"
-                      onClick={async () => {
-                        const existingTasks = tasks
-                          .filter(t => t.cr5db_project_name === selectedFilterProject)
-                          .map(t => t.cr5db_taskname);
-                        return await AIService.breakdownProjectTasks(selectedFilterProject, existingTasks);
-                      }}
-                      onSuccess={(text) => {
-                        alert(`Gợi ý từ AI cho dự án ${selectedFilterProject}:\n\n${text}`);
-                      }}
-                      style={{ height: '36px', boxSizing: 'border-box' }}
-                    />
-                  )}
-                  <button 
-                    onClick={() => setShowTaskModal(true)} 
-                    className="new-task-btn"
-                    style={{ height: '36px', borderRadius: '6px', border: 'none', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: '#000000', color: '#ffffff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxSizing: 'border-box' }}
-                  >
-                    <span>+</span> {t('tasks.addNew')}
-                  </button>
-                </div>
+                <button 
+                  onClick={() => setShowTaskModal(true)} 
+                  className="new-task-btn"
+                  style={{ height: '36px', borderRadius: '6px', border: 'none', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: '#000000', color: '#ffffff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxSizing: 'border-box' }}
+                >
+                  <span>+</span> {t('tasks.addNew')}
+                </button>
               </div>
 
               {/* Info Banner (Alert) */}
