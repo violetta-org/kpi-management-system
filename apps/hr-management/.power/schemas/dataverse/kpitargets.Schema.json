@@ -240,6 +240,13 @@
           "required": true,
           "maxLength": 100
         },
+        "new_activetaskslimit": {
+          "type": "string",
+          "title": "Active Tasks Limit",
+          "x-ms-dataverse-attribute": "new_activetaskslimit",
+          "x-ms-dataverse-type": "IntegerType",
+          "x-ms-schema-name": "new_ActiveTasksLimit"
+        },
         "new_parentkpi": {
           "type": "string",
           "title": "Parent Kpi",
@@ -263,6 +270,13 @@
           "x-ms-dataverse-type": "StringType",
           "x-ms-schema-name": "new_RollupMethod",
           "maxLength": 100
+        },
+        "new_standardhourslimit": {
+          "type": "string",
+          "title": "Standard Hours Limit",
+          "x-ms-dataverse-attribute": "new_standardhourslimit",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "new_StandardHoursLimit"
         },
         "overriddencreatedon": {
           "type": "string",

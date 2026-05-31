@@ -24,6 +24,8 @@ export interface Task {
   _cr5db_objectivename_value?: string;
   _cr5db_projectphaseid_value?: string;
   _cr5db_assigneeid_value?: string;
+  _new_kpitarget_value?: string;
+  new_kpitargetname?: string;
   createdbyname?: string;
   _createdby_value?: string;
   modifiedon?: string;
@@ -62,9 +64,13 @@ export interface KPITarget {
   _cr5db_parentobjective_value?: string;
   _cr5db_employeeid_value?: string;
   _cr5db_kpicode_value?: string;
-  _cr5db_parentkpi_value?: string;
-  cr5db_rollupmethod?: string;
-  cr5db_employee_name?: string;
+  _new_parentkpi_value?: string;
+  new_rollupmethod?: string;
+  new_standardhourslimit?: number;
+  new_activetaskslimit?: number;
+  currentActiveTasks?: number;
+  currentLoggedHours?: number;
+  hasCapacityAlert?: boolean;
 }
 
 export interface BonusMatrix {
@@ -125,7 +131,7 @@ export interface JobPosition {
   cr5db_currentheadcount?: number;
   cr5db_actualheadcount?: number;
   cr5db_departmentname?: string;
-  cr5db_actualheadcount?: number;
+  new_actualheadcount?: number;
 }
 
 export interface AuditLog {

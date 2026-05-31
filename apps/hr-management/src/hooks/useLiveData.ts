@@ -454,6 +454,8 @@ export function useLiveData(setters: LiveDataSetters) {
           _cr5db_objectivename_value: t._cr5db_objectivename_value || undefined,
           _cr5db_projectphaseid_value: t._cr5db_projectphaseid_value || undefined,
           _cr5db_assigneeid_value: t._cr5db_assigneeid_value || undefined,
+          _new_kpitarget_value: t._new_kpitarget_value || undefined,
+          new_kpitargetname: t.new_kpitargetname || '',
           createdbyname: t.createdbyname || '',
           _createdby_value: t._createdby_value || ''
         };
@@ -512,7 +514,11 @@ export function useLiveData(setters: LiveDataSetters) {
               }
             }
           } else if (formula === '#HOURS_LOGGED') {
-            const userTimesheets = rawTimesheets.filter((ts: any) => ts._cr5db_userid_value === k._cr5db_employeeid_value);
+            const userTimesheets = rawTimesheets.filter((ts: any) => 
+              ts._cr5db_userid_value === k._cr5db_employeeid_value &&
+              ts.statecode === 1 &&
+              !ts.cr5db_timesheetlog1?.startsWith('[Từ chối]')
+            );
             const period = rawEvaluationPeriods.find((ep: any) => ep.cr5db_evaluationperiodid === parentObjective?._cr5db_periodname_value);
             if (period) {
               const start = period.cr5db_startdate ? new Date(period.cr5db_startdate) : null;
@@ -528,6 +534,26 @@ export function useLiveData(setters: LiveDataSetters) {
             }
           }
         }
+
+        // Calculate workload capacity metrics for this KPI target
+        const kpiTasks = mappedTasks.filter(t => t._new_kpitarget_value === k.cr5db_kpitargetid);
+        const activeKpiTasks = kpiTasks.filter(t => t.cr5db_status !== 'Completed');
+        const currentActiveTasks = activeKpiTasks.length;
+
+        const kpiTaskIds = kpiTasks.map(t => t.cr5db_taskid);
+        const kpiTimesheets = rawTimesheets.filter((ts: any) => 
+          ts._cr5db_taskid_value && 
+          kpiTaskIds.includes(ts._cr5db_taskid_value) &&
+          ts.statecode === 1 &&
+          !ts.cr5db_timesheetlog1?.startsWith('[Từ chối]')
+        );
+        const currentLoggedHours = kpiTimesheets.reduce((sum: number, ts: any) => sum + (ts.cr5db_actualhoursworked || 0), 0);
+
+        const standardHoursLimit = k.new_standardhourslimit || 0;
+        const activeTasksLimit = k.new_activetaskslimit || 0;
+        const hasCapacityAlert = (activeTasksLimit > 0 && currentActiveTasks > activeTasksLimit) ||
+                                 (standardHoursLimit > 0 && currentLoggedHours > standardHoursLimit);
+
         return {
           cr5db_kpitargetid: k.cr5db_kpitargetid,
           cr5db_kpiname: k.cr5db_kpitarget1 || libraryItem?.cr5db_kpiname || 'Mục tiêu KPI',
@@ -540,7 +566,12 @@ export function useLiveData(setters: LiveDataSetters) {
           cr5db_objective_name: parentObjective?.cr5db_objective1 || 'Chưa liên kết',
           _cr5db_parentobjective_value: k._cr5db_parentobjective_value || undefined,
           _cr5db_employeeid_value: k._cr5db_employeeid_value || undefined,
-          _cr5db_kpicode_value: k._cr5db_kpicode_value || undefined
+          _cr5db_kpicode_value: k._cr5db_kpicode_value || undefined,
+          new_standardhourslimit: k.new_standardhourslimit || 0,
+          new_activetaskslimit: k.new_activetaskslimit || 0,
+          currentActiveTasks,
+          currentLoggedHours,
+          hasCapacityAlert
         };
       });
       setters.setKpiTargets(mappedKpis);
@@ -548,12 +579,15 @@ export function useLiveData(setters: LiveDataSetters) {
       // Map Timesheets
       const mappedTimesheets = (timesheetsResponse.data || []).map((ts: any) => {
         const user = allUsers.find((u: User) => u.cr5db_userid === ts._cr5db_userid_value);
+        const taskObj = mappedTasks.find((t: any) => t.cr5db_taskid === ts._cr5db_taskid_value);
+        
         return {
           cr5db_timesheetlogid: ts.cr5db_timesheetlogid,
           cr5db_timesheetlog1: ts.cr5db_timesheetlog1,
           cr5db_actualhoursworked: ts.cr5db_actualhoursworked || 0,
           cr5db_logdate: ts.cr5db_logdate || '',
-          cr5db_taskname: ts.cr5db_taskidname || 'Không thuộc dự án',
+          cr5db_taskname: taskObj?.cr5db_taskname || ts.cr5db_taskidname || 'Không xác định',
+          _cr5db_taskid_value: ts._cr5db_taskid_value,
           cr5db_username: ts.cr5db_useridname || user?.cr5db_fullname || 'Thành viên',
           cr5db_useremail: user?.cr5db_email || '',
           statecode: ts.statecode,
