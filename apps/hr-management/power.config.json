@@ -7,7 +7,7 @@
   "description": " ",
   "buildPath": "./dist",
   "buildEntryPoint": "index.html",
-  "localAppUrl": "http://localhost:3000",
+  "localAppUrl": "http://127.0.0.1:3000",
   "logoPath": "Default",
   "connectionReferences": {},
   "databaseReferences": {

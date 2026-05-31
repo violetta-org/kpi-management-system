@@ -348,8 +348,23 @@ function App() {
 
   const t = (key: string) => getTranslation(key, language);
 
-  const resolveKpiActualValue = React.useCallback((k: any): number => {
+  const resolveKpiActualValue = React.useCallback((k: any, visited = new Set<string>()): number => {
     if (!k) return 0;
+    if (visited.has(k.cr5db_kpitargetid)) return 0; // Prevent infinite loops
+    visited.add(k.cr5db_kpitargetid);
+
+    const rollupMethod = k.cr5db_rollupmethod;
+    if (rollupMethod === 'Sum' || rollupMethod === 'Average') {
+      const children = kpiTargets.filter(child => child._cr5db_parentkpi_value === k.cr5db_kpitargetid);
+      if (children.length > 0) {
+        let sum = 0;
+        children.forEach(child => {
+          sum += resolveKpiActualValue(child, visited);
+        });
+        return rollupMethod === 'Sum' ? sum : sum / children.length;
+      }
+    }
+
     const kpiName = k.cr5db_kpiname || '';
     const kpiCode = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value)?.cr5db_kpicatalogcode || '';
     const email = k.cr5db_user_email || '';
@@ -401,7 +416,7 @@ function App() {
     }
     
     return k.cr5db_actualvalue || 0;
-  }, [tasks, timesheets, objectivesList, kpiLibrariesList, evaluationPeriodsList]);
+  }, [tasks, timesheets, objectivesList, kpiLibrariesList, evaluationPeriodsList, kpiTargets]);
 
   // Widgets registry
   const widgetsRegistry: { [key: string]: { title: string; size: 'small' | 'medium' | 'large'; roles: string[]; render: () => React.ReactNode } } = {
@@ -2865,9 +2880,11 @@ function App() {
         cr5db_targetvalue: Number(kpiTargetValue),
         cr5db_actualvalue: Number(kpiActualValue),
         cr5db_weightpercentage: Number(kpiWeight),
+        cr5db_rollupmethod: kpiRollupMethod,
         "cr5db_EmployeeID@odata.bind": `/cr5db_users(${kpiEmployeeId})`,
         "cr5db_ParentObjective@odata.bind": `/cr5db_objectives(${kpiObjectiveId})`,
-        "cr5db_KPICode@odata.bind": `/cr5db_kpilibraries(${kpiLibraryId})`
+        "cr5db_KPICode@odata.bind": `/cr5db_kpilibraries(${kpiLibraryId})`,
+        ...(kpiParentKpiId ? { "cr5db_parentkpi@odata.bind": `/cr5db_kpitargets(${kpiParentKpiId})` } : {})
       };
 
       if (editingKpi) {
@@ -2917,6 +2934,8 @@ function App() {
       setKpiEmployeeId('');
       setKpiObjectiveId('');
       setKpiLibraryId('');
+      setKpiParentKpiId('');
+      setKpiRollupMethod('Manual');
       setKpiPeriod(evaluationPeriodsList[0]?.cr5db_evaluationperiod1 || 'Q2/2026');
     } catch (err) {
       console.error(err);
@@ -3013,8 +3032,7 @@ function App() {
             data[name] = { quota: 0, actual: 0 };
           }
           data[name].quota += pos.cr5db_headcountquota || 0;
-          const actualCount = usersList.filter(u => u._cr5db_jobposition_value === pos.cr5db_jobpositionid && u.cr5db_isactive !== false).length;
-          data[name].actual += actualCount;
+          data[name].actual += getJobPositionActualCount(pos.cr5db_jobpositionid);
         }
       }
     });
@@ -3029,7 +3047,8 @@ function App() {
   const totalQuotaCount = jobPositionsList.reduce((acc, curr) => acc + (curr.cr5db_headcountquota || 0), 0);
   
   const getJobPositionActualCount = (posId: string) => {
-    return usersList.filter(u => u._cr5db_jobposition_value === posId && u.cr5db_isactive !== false).length;
+    const pos = jobPositionsList.find(p => p.cr5db_jobpositionid === posId);
+    return pos?.cr5db_actualheadcount ? Number(pos.cr5db_actualheadcount) : 0;
   };
   
   const totalActualCount = jobPositionsList.reduce((acc, curr) => acc + getJobPositionActualCount(curr.cr5db_jobpositionid), 0);
@@ -3973,23 +3992,42 @@ function App() {
                               </tr>
                             </thead>
                             <tbody>
-                              {userKpis.map(k => {
-                                const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                                const rate = calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.new_direction);
-                                const employeeName = usersList.find(u => u.cr5db_userid === k._cr5db_employeeid_value)?.cr5db_fullname || k.cr5db_user_email.split('@')[0];
-                                const isLocked = getObjectivePeriodLockStatus(k._cr5db_parentobjective_value);
+                                {userKpis.map(k => {
+                                  const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
+                                  const actualVal = resolveKpiActualValue(k);
+                                  const rate = calculateKpiAchievementRate(k.cr5db_targetvalue || 0, actualVal, kpiLib?.new_direction);
+                                  const employeeName = usersList.find(u => u.cr5db_userid === k._cr5db_employeeid_value)?.cr5db_fullname || k.cr5db_user_email.split('@')[0];
+                                  const isLocked = getObjectivePeriodLockStatus(k._cr5db_parentobjective_value);
+                                  const parentKpi = k._cr5db_parentkpi_value ? kpiTargets.find(p => p.cr5db_kpitargetid === k._cr5db_parentkpi_value) : null;
                                 return (
                                   <tr key={k.cr5db_kpitargetid} style={{ borderBottom: '1px solid var(--color-border)' }}>
                                     <td style={{ padding: '14px 20px', fontWeight: 600 }}>
-                                      {k.cr5db_kpiname}
-                                      {isLocked && <span style={{ marginLeft: '6px', color: '#a80000' }} title="Chu kỳ đã bị khóa">🔒</span>}
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <div>
+                                          {k.cr5db_kpiname}
+                                          {isLocked && <span style={{ marginLeft: '6px', color: '#a80000' }} title="Chu kỳ đã bị khóa">🔒</span>}
+                                        </div>
+                                        {parentKpi && (
+                                          <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
+                                            Parent: {parentKpi.cr5db_kpiname}
+                                          </div>
+                                        )}
+                                      </div>
                                     </td>
                                     {activeRole !== 'Employee' && <td style={{ padding: '14px 20px' }}>{employeeName}</td>}
                                     <td style={{ padding: '14px 20px' }}>{k.cr5db_objective_name || 'Chưa liên kết'}</td>
                                     <td style={{ padding: '14px 20px' }}>{k.cr5db_period}</td>
                                     <td style={{ padding: '14px 20px' }}>{k.cr5db_weightpercentage}%</td>
                                     <td style={{ padding: '14px 20px' }}>{k.cr5db_targetvalue} {k.cr5db_unit}</td>
-                                    <td style={{ padding: '14px 20px', fontWeight: 600 }}>{k.cr5db_actualvalue} {k.cr5db_unit}</td>
+                                    <td style={{ padding: '14px 20px', fontWeight: 600 }}>
+                                      {actualVal} {k.cr5db_unit}
+                                      {(k.cr5db_rollupmethod === 'Sum' || k.cr5db_rollupmethod === 'Average') && (
+                                        <div style={{ fontSize: '10px', color: 'var(--color-primary)', marginTop: '2px', fontWeight: 500 }}>
+                                          (Auto: {k.cr5db_rollupmethod})
+                                        </div>
+                                      )}
+                                    </td>
                                     <td style={{ padding: '14px 20px' }}>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                         <span style={{ fontWeight: 700, color: rate >= 100 ? '#107C41' : (rate >= 50 ? '#D83B01' : 'var(--color-primary)') }}>{rate}%</span>
@@ -4014,6 +4052,8 @@ function App() {
                                             onClick={() => {
                                               setEditingKpi(k);
                                               setKpiActualValue(k.cr5db_actualvalue);
+                                              setKpiParentKpiId(k._cr5db_parentkpi_value || '');
+                                              setKpiRollupMethod(k.cr5db_rollupmethod || 'Manual');
                                               setShowKpiModal(true);
                                             }}
                                             className="btn-filled-3"
@@ -4036,6 +4076,8 @@ function App() {
                                                 setKpiEmployeeId(k._cr5db_employeeid_value || '');
                                                 setKpiObjectiveId(k._cr5db_parentobjective_value || '');
                                                 setKpiLibraryId(k._cr5db_kpicode_value || '');
+                                                setKpiParentKpiId(k._cr5db_parentkpi_value || '');
+                                                setKpiRollupMethod(k.cr5db_rollupmethod || 'Manual');
                                                 setShowKpiModal(true);
                                               }}
                                               className="btn-filled-3"
@@ -4778,7 +4820,7 @@ function App() {
                       const parentPosition = pos._cr5db_reportstopositionid_value ? jobPositionsList.find(p => p.cr5db_jobpositionid === pos._cr5db_reportstopositionid_value) : null;
                       const reportsToDisplay = parentPosition ? parentPosition.cr5db_positionname : '-';
                       const quota = pos.cr5db_headcountquota || 0;
-                      const actual = usersList.filter(u => u._cr5db_jobposition_value === pos.cr5db_jobpositionid && u.cr5db_isactive !== false).length;
+                      const actual = pos.cr5db_actualheadcount ? Number(pos.cr5db_actualheadcount) : 0;
                       let statusText = 'At Quota';
                       let statusColor = '#107C41';
                       if (actual > quota) { statusText = 'Over Quota'; statusColor = '#a80000'; }
@@ -7930,6 +7972,42 @@ function App() {
                         {objectivesList.filter(o => !kpiPeriod || o.cr5db_periodnamename === kpiPeriod || !o.cr5db_periodnamename || o.cr5db_objectiveid === kpiObjectiveId).length === 0 && (
                           <option value="">Không có mục tiêu nào trong chu kỳ này</option>
                         )}
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Liên kết KPI cấp trên (Parent KPI)</label>
+                      <select 
+                        value={kpiParentKpiId} 
+                        onChange={(e) => setKpiParentKpiId(e.target.value)} 
+                        className="input-spec"
+                        style={{ height: '38px', padding: '6px 12px' }}
+                      >
+                        <option value="">-- Không có (KPI độc lập) --</option>
+                        {kpiTargets
+                          .filter(k => k.cr5db_kpitargetid !== editingKpi?.cr5db_kpitargetid) // Không chọn chính nó
+                          .filter(k => !kpiPeriod || k.cr5db_period === kpiPeriod) // Cùng chu kỳ
+                          .map(k => (
+                          <option key={k.cr5db_kpitargetid} value={k.cr5db_kpitargetid}>
+                            {k.cr5db_kpiname} ({k.cr5db_employee_name || 'No Assignee'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Phương pháp tính điểm (Rollup Method)</label>
+                      <select 
+                        value={kpiRollupMethod} 
+                        onChange={(e) => setKpiRollupMethod(e.target.value)} 
+                        className="input-spec"
+                        style={{ height: '38px', padding: '6px 12px' }}
+                        required
+                      >
+                        <option value="Manual">Manual (Nhập tay / Chỉ xem liên kết)</option>
+                        <option value="Average">Average (Trung bình cộng các KPI con)</option>
+                        <option value="Sum">Sum (Cộng dồn Actual của các KPI con)</option>
                       </select>
                     </div>
                   </div>
