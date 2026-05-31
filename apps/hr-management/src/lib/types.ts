@@ -75,6 +75,34 @@ export interface BonusMatrix {
   _new_evaluationperiod_value?: string;
 }
 
+export interface CompetencyCatalog {
+  new_competencycatalogid: string;
+  new_competencyname: string;
+  new_competencytype: string;
+  new_description: string;
+  new_maxlevel: number;
+}
+
+export interface JobCompetency {
+  new_jobcompetencyid: string;
+  new_requiredlevel: number;
+  new_weight?: number;
+  _new_jobpositionid_value: string;
+  _new_competencyid_value: string;
+}
+
+export interface CompetencyAssessment {
+  new_competencyassessmentid: string;
+  new_selfscore: number;
+  new_managerscore: number;
+  new_finalscore: number;
+  new_managercomment: string;
+  new_evidence: string;
+  _new_employeeid_value: string;
+  _new_evaluationperiodid_value: string;
+  _new_competencyid_value: string;
+}
+
 export interface Company {
   cr5db_companyid: string;
   cr5db_companycode: string;
