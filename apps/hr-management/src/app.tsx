@@ -13,6 +13,7 @@ import { Cr5db_headcountrequestsService } from './generated/services/Cr5db_headc
 import { Cr5db_departmentsService } from './generated/services/Cr5db_departmentsService';
 import { Cr5db_timesheetlogsService } from './generated/services/Cr5db_timesheetlogsService';
 import { Cr5db_performanceappraisalsService } from './generated/services/Cr5db_performanceappraisalsService';
+import { Cr5db_systemnotificationsService } from './generated/services/Cr5db_systemnotificationsService';
 import { Cr5db_companiesService } from './generated/services/Cr5db_companiesService';
 import { Cr5db_positioncatalogsService } from './generated/services/Cr5db_positioncatalogsService';
 import { Cr5db_jobpositionsService } from './generated/services/Cr5db_jobpositionsService';
@@ -1934,6 +1935,28 @@ function App() {
           "cr5db_UserID@odata.bind": `/cr5db_users(${allocationUser})`,
           "cr5db_ProjectTeamID@odata.bind": `/cr5db_projectteams(${teamId})`
         } as any);
+
+        // Send notification for Update
+        const recipientOwnerId = user?.ownerid || (user as any)?._ownerid_value;
+        if (recipientOwnerId) {
+          await Cr5db_systemnotificationsService.create({
+            cr5db_systemnotification1: 'Thay đổi phân bổ dự án',
+            cr5db_content: `Phân bổ của bạn trong dự án "${pName}" đã được cập nhật thành ${allocationPercentage}% bởi Admin.`,
+            cr5db_deeplinkurl: '#resources',
+            cr5db_isread: false,
+            ownerid: recipientOwnerId,
+            owneridtype: user?.owneridtype || 'systemusers',
+            statecode: 0
+          }).catch(e => console.error('Notification error:', e));
+        }
+
+        // Audit log
+        await Cr5db_audittraillogsService.create({
+          cr5db_logname: 'Resource Allocation Updated',
+          cr5db_actionexecuted: `Updated allocation for ${uName} in ${pName} to ${allocationPercentage}%`,
+          cr5db_changedfromvalue: `Old percentage: ${editingAllocation.cr5db_allocationpercentage}%`,
+          cr5db_changedtovalue: `New percentage: ${allocationPercentage}%`
+        } as any).catch(e => console.error('Audit trail error:', e));
       } else {
         await Cr5db_resourceallocationsService.create({
           cr5db_resourceallocation1: name,
@@ -1942,6 +1965,28 @@ function App() {
           "cr5db_ProjectTeamID@odata.bind": `/cr5db_projectteams(${teamId})`,
           statecode: 0
         } as any);
+
+        // Send notification for Create
+        const recipientOwnerId = user?.ownerid || (user as any)?._ownerid_value;
+        if (recipientOwnerId) {
+          await Cr5db_systemnotificationsService.create({
+            cr5db_systemnotification1: 'Phân bổ dự án mới',
+            cr5db_content: `Bạn đã được phân bổ vào dự án "${pName}" với tỷ lệ ${allocationPercentage}% bởi Admin.`,
+            cr5db_deeplinkurl: '#resources',
+            cr5db_isread: false,
+            ownerid: recipientOwnerId,
+            owneridtype: user?.owneridtype || 'systemusers',
+            statecode: 0
+          }).catch(e => console.error('Notification error:', e));
+        }
+
+        // Audit log
+        await Cr5db_audittraillogsService.create({
+          cr5db_logname: 'Resource Allocation Created',
+          cr5db_actionexecuted: `Allocated ${uName} to project team ${pName} at ${allocationPercentage}%`,
+          cr5db_changedfromvalue: 'None',
+          cr5db_changedtovalue: `Allocation: ${name} (${allocationPercentage}%)`
+        } as any).catch(e => console.error('Audit trail error:', e));
       }
 
       setShowAllocationModal(false);
@@ -1963,7 +2008,36 @@ function App() {
     if (!confirmDelete) return;
     try {
       setIsLoading(true);
+      const targetAlloc = resourceAllocationsList.find(a => a.cr5db_resourceallocationid === allocationId);
       await Cr5db_resourceallocationsService.delete(allocationId);
+
+      // Send notification for Delete
+      if (targetAlloc) {
+        const userId = targetAlloc._cr5db_userid_value || '';
+        const recipientUser = usersList.find(u => u.cr5db_userid === userId);
+        const recipientOwnerId = recipientUser?.ownerid || (recipientUser as any)?._ownerid_value;
+        const groupName = targetAlloc.cr5db_projectteamidname || 'dự án';
+        if (recipientOwnerId) {
+          await Cr5db_systemnotificationsService.create({
+            cr5db_systemnotification1: 'Xóa phân bổ dự án',
+            cr5db_content: `Bạn đã được rút khỏi phân bổ nhân sự của "${groupName}" bởi Admin.`,
+            cr5db_deeplinkurl: '#resources',
+            cr5db_isread: false,
+            ownerid: recipientOwnerId,
+            owneridtype: recipientUser?.owneridtype || 'systemusers',
+            statecode: 0
+          }).catch(e => console.error('Notification error:', e));
+        }
+
+        // Audit log
+        await Cr5db_audittraillogsService.create({
+          cr5db_logname: 'Resource Allocation Deleted',
+          cr5db_actionexecuted: `Removed allocation for ${recipientUser?.cr5db_fullname || 'User'} from project team ${groupName}`,
+          cr5db_changedfromvalue: `Allocation percentage: ${targetAlloc.cr5db_allocationpercentage}%`,
+          cr5db_changedtovalue: 'Deleted'
+        } as any).catch(e => console.error('Audit trail error:', e));
+      }
+
       await fetchLiveValues();
       alert("Xóa phân bổ nhân sự thành công!");
     } catch (err: any) {
