@@ -350,7 +350,8 @@ function App() {
 
   const t = (key: string) => getTranslation(key, language);
 
-  const resolveKpiActualValue = React.useCallback((k: any, visited = new Set<string>()): number => {
+  const resolveKpiActualValue = React.useMemo(() => {
+    const fn = (k: any, visited = new Set<string>()): number => {
     if (!k) return 0;
     if (visited.has(k.cr5db_kpitargetid)) return 0; // Prevent infinite loops
     visited.add(k.cr5db_kpitargetid);
@@ -361,7 +362,7 @@ function App() {
       if (children.length > 0) {
         let sum = 0;
         children.forEach(child => {
-          sum += resolveKpiActualValue(child, visited);
+          sum += fn(child, visited);
         });
         return rollupMethod === 'Sum' ? sum : sum / children.length;
       }
@@ -418,6 +419,8 @@ function App() {
     }
     
     return k.cr5db_actualvalue || 0;
+    };
+    return fn;
   }, [tasks, timesheets, objectivesList, kpiLibrariesList, evaluationPeriodsList, kpiTargets]);
 
   // Widgets registry
