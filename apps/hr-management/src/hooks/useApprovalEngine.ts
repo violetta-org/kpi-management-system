@@ -193,12 +193,15 @@ export function resolveApprover(
         const nextPos = jobPositionsList.find(p => p.cr5db_jobpositionid === reportsTo);
         reportsTo = nextPos?._cr5db_reportstopositionid_value;
       }
-      const resolvedId = approverUser?.cr5db_userid || fallbackAdminId;
+      if (!approverUser) {
+        throw new Error("Không tìm thấy Quản lý trực tiếp (Reports To) trong sơ đồ tổ chức. Vui lòng liên hệ HR để cập nhật Job Position.");
+      }
+      const resolvedId = approverUser.cr5db_userid;
       return {
         defaultApproverId: resolvedId,
         validApprovers: generalApproversList.some(u => u.cr5db_userid === resolvedId)
           ? generalApproversList
-          : (approverUser ? [approverUser, ...generalApproversList] : generalApproversList)
+          : [approverUser, ...generalApproversList]
       };
     }
     case 'SPECIFIC_ROLE': {
@@ -219,14 +222,19 @@ export function resolveApprover(
     }
     case 'DEPARTMENT_HEAD': {
       const myPos = jobPositionsList.find(p => p.cr5db_jobpositionid === requester._cr5db_jobposition_value);
-      if (!myPos?._cr5db_department_value) return { defaultApproverId: fallbackAdminId, validApprovers: generalApproversList };
+      if (!myPos?._cr5db_department_value) {
+        throw new Error("Người gửi không thuộc phòng ban nào. Không thể xác định Trưởng phòng.");
+      }
       const deptPositions = jobPositionsList.filter(p => p._cr5db_department_value === myPos._cr5db_department_value);
       const headPos = deptPositions.find(p => !p._cr5db_reportstopositionid_value) || deptPositions[0];
       const matchedHead = headPos ? usersList.find(u => u._cr5db_jobposition_value === headPos.cr5db_jobpositionid) : undefined;
-      const resolvedId = matchedHead?.cr5db_userid || fallbackAdminId;
+      if (!matchedHead) {
+        throw new Error("Không tìm thấy Trưởng phòng. Vui lòng liên hệ HR để cập nhật cơ cấu phòng ban.");
+      }
+      const resolvedId = matchedHead.cr5db_userid;
       return {
         defaultApproverId: resolvedId,
-        validApprovers: matchedHead ? [matchedHead, ...generalApproversList.filter(u => u.cr5db_userid !== resolvedId)] : generalApproversList
+        validApprovers: [matchedHead, ...generalApproversList.filter(u => u.cr5db_userid !== resolvedId)]
       };
     }
     case 'SPECIFIC_USER': {
@@ -260,6 +268,12 @@ export function buildApprovalEngine(ctx: ApprovalEngineContext) {
       if (res && res.error) {
         throw new Error(res.error.message || `Lỗi khi thực hiện ${operation} trên ${entityName}`);
       }
+      await Cr5db_audittraillogsService.create({ 
+        cr5db_logname: `Admin Direct ${operation}`, 
+        cr5db_actionexecuted: description || `Admin executed ${operation} on ${entityName}`, 
+        cr5db_changedfromvalue: oldValue ? JSON.stringify(oldValue) : '', 
+        cr5db_changedtovalue: payload ? JSON.stringify(payload) : '' 
+      } as any).catch(e => console.error('Audit log error:', e));
       await ctx.fetchLiveValues();
       return res;
     }

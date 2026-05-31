@@ -19,6 +19,7 @@ export interface Task {
   cr5db_assignee_name: string;
   cr5db_project_name: string;
   cr5db_due_date: string;
+  cr5db_completeddate?: string;
   _cr5db_parenttask_value?: string;
   _cr5db_objectivename_value?: string;
   _cr5db_projectphaseid_value?: string;
@@ -149,4 +150,3 @@ export function hasTabPermission(
 
   return false;
 }
-
