@@ -23,6 +23,8 @@ export interface Cr5db_kpitargetsBase {
   cr5db_targetvalue?: number;
   cr5db_weightpercentage?: number;
   importsequencenumber?: number;
+  "new_ParentKpi@odata.bind"?: string;
+  new_rollupmethod?: string;
   overriddencreatedon?: string;
   ownerid: string;
   owneridtype: string;
@@ -47,6 +49,7 @@ export interface Cr5db_kpitargets extends Cr5db_kpitargetsBase {
   modifiedon?: string;
   modifiedonbehalfbyname?: string;
   modifiedonbehalfbyyominame: string;
+  new_parentkpiname?: string;
   owneridname: string;
   owneridyominame: string;
   owningbusinessunitname: string;
@@ -67,6 +70,8 @@ export interface Cr5db_kpitargets extends Cr5db_kpitargetsBase {
   _modifiedby_value?: string;
   modifiedonbehalfby?: object;
   _modifiedonbehalfby_value?: string;
+  new_parentkpi?: object;
+  _new_parentkpi_value?: string;
   owningbusinessunit?: object;
   _owningbusinessunit_value?: string;
   owningteam?: object;
