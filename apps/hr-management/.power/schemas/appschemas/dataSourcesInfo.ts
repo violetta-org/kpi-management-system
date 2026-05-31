@@ -326,5 +326,19 @@ export const dataSourcesInfo = {
     "primaryKey": "new_processstepid",
     "dataSourceType": "Dataverse",
     "apis": {}
+  },
+  "new_leavebalance": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_leavebalanceid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_leaverequest": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_leaverequestid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
   }
 };

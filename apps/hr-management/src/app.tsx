@@ -31,6 +31,8 @@ import { New_bonusmatrixService } from './generated/services/New_bonusmatrixServ
 import { New_competencycatalogService } from './generated/services/New_competencycatalogService';
 import { New_jobcompetencyService } from './generated/services/New_jobcompetencyService';
 import { New_competencyassessmentService } from './generated/services/New_competencyassessmentService';
+import { New_leaverequestService } from './generated/services/New_leaverequestService';
+import { New_leavebalanceService } from './generated/services/New_leavebalanceService';
 
 import { calculateKpiAchievementRate } from './utils/kpiLogic';
 
@@ -265,6 +267,8 @@ function App() {
     projectRisks, setProjectRisks,
     appraisals, setAppraisals,
     systemNotifications, setSystemNotifications,
+    leaveBalancesList, setLeaveBalancesList,
+    leaveRequestsList, setLeaveRequestsList,
     companiesList, setCompaniesList,
     positionCatalogList, setPositionCatalogList,
     jobPositionsList, setJobPositionsList,
@@ -275,6 +279,17 @@ function App() {
     approvalRoutesList, setApprovalRoutesList,
     changeRequestsList, setChangeRequestsList,
     projectTeamsList, setProjectTeamsList,
+    showLeaveModal, setShowLeaveModal,
+    newLeaveType, setNewLeaveType,
+    newLeaveStartDate, setNewLeaveStartDate,
+    newLeaveEndDate, setNewLeaveEndDate,
+    newLeaveReason, setNewLeaveReason,
+    showLeaveBalanceModal, setShowLeaveBalanceModal,
+    editingLeaveBalance, setEditingLeaveBalance,
+    newBalanceEntitlement, setNewBalanceEntitlement,
+    newBalanceCarriedOver, setNewBalanceCarriedOver,
+    newBalanceUsedDays, setNewBalanceUsedDays,
+
     showKpiModal, setShowKpiModal,
     editingKpi, setEditingKpi,
     kpiTargetName, setKpiTargetName,
@@ -1132,7 +1147,8 @@ function App() {
     setCompetencyCatalogList, setJobCompetenciesList, setCompetencyAssessmentsList,
     setIdpList, setIdpActionList,
     setProcessTemplateList, setProcessTemplateStepList,
-    setEmployeeProcessList, setProcessStepList
+    setEmployeeProcessList, setProcessStepList,
+    setLeaveBalancesList, setLeaveRequestsList
   });
 
   // ── Approval Engine ───────────────────────────────────────────────────────
@@ -1830,6 +1846,101 @@ function App() {
     } catch (err) {
       console.error(err);
       alert('Lỗi khi từ chối timesheet.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleLeaveRequestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLeaveStartDate || !newLeaveEndDate || !newLeaveReason.trim()) {
+      alert('Vui lòng điền đầy đủ thông tin (Ngày bắt đầu, kết thúc, lý do).');
+      return;
+    }
+    const days = calculateWorkingDays(newLeaveStartDate, newLeaveEndDate);
+    if (days <= 0) {
+      alert('Khoảng thời gian không hợp lệ hoặc không có ngày làm việc.');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      await New_leaverequestService.create({
+        new_name: `Nghỉ ${newLeaveType} - ${currentUserName}`,
+        new_leavetype: newLeaveType,
+        new_startdate: new Date(newLeaveStartDate).toISOString(),
+        new_enddate: new Date(newLeaveEndDate).toISOString(),
+        new_durationdays: days,
+        new_reason: newLeaveReason,
+        new_status: 'Pending',
+        "_new_employeeid_value@odata.bind": `/cr5db_userses(${currentUserId})`
+      } as any);
+      setShowLeaveModal(false);
+      setNewLeaveStartDate('');
+      setNewLeaveEndDate('');
+      setNewLeaveReason('');
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi gửi đơn xin nghỉ phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleApproveLeave = async (leaveId: string) => {
+    try {
+      setIsLoading(true);
+      const leave = leaveRequestsList.find(lr => lr.new_leaverequestid === leaveId);
+      if (leave) {
+        await New_leaverequestService.update(leaveId, {
+          new_status: 'Approved'
+        });
+        if (leave.new_leavetype === 'Annual Leave') {
+          // Trừ vào quỹ phép (cộng vào số ngày đã dùng)
+          const balance = leaveBalancesList.find(lb => lb._new_employeeid_value === leave._new_employeeid_value && lb.new_year === new Date(leave.new_startdate).getFullYear());
+          if (balance) {
+            await New_leavebalanceService.update(balance.new_leavebalanceid, {
+              new_useddays: (balance.new_useddays || 0) + leave.new_durationdays
+            });
+          }
+        }
+      }
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi duyệt phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleRejectLeave = async (leaveId: string) => {
+    try {
+      setIsLoading(true);
+      await New_leaverequestService.update(leaveId, {
+        new_status: 'Rejected'
+      });
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi từ chối phép.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveLeaveBalance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLeaveBalance) return;
+    try {
+      setIsLoading(true);
+      await New_leavebalanceService.update(editingLeaveBalance.new_leavebalanceid, {
+        new_totalentitlement: parseInt(newBalanceEntitlement) || 0,
+        new_carriedover: parseInt(newBalanceCarriedOver) || 0,
+        new_useddays: parseInt(newBalanceUsedDays) || 0
+      });
+      setShowLeaveBalanceModal(false);
+      setEditingLeaveBalance(null);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert('Lỗi khi cập nhật quỹ phép.');
       setIsLoading(false);
     }
   };
@@ -3587,6 +3698,23 @@ function App() {
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   };
 
+  const calculateWorkingDays = (startDate: string, endDate: string) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (start > end) return 0;
+    
+    let workingDays = 0;
+    const current = new Date(start);
+    while (current <= end) {
+      const dayOfWeek = current.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        workingDays++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    return workingDays;
+  };
+
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -3613,6 +3741,13 @@ function App() {
   const avgDaily = totalEntries > 0 ? Math.round(totalHoursThisWeek / totalEntries) : 0;
 
   const pendingApprovalsTimesheets = timesheets.filter(ts => ts.statecode === 0);
+
+  // Leave calculations
+  const currentUserId = currentUserObj ? currentUserObj.cr5db_userid : '';
+
+  const myLeaveBalances = leaveBalancesList.filter(lb => lb._new_employeeid_value === currentUserId);
+  const myLeaves = leaveRequestsList.filter(lr => lr._new_employeeid_value === currentUserId);
+  const pendingLeaveApprovals = leaveRequestsList.filter(lr => lr.new_status === 'Pending');
 
   // Group job positions by company for Bar Chart
   const getCompanyHeadcounts = () => {
@@ -4222,8 +4357,8 @@ function App() {
                 </div>
               </div>
 
-              {/* Sub navigation button tabs matching Image 3 */}
-              <div style={{ display: 'flex', gap: '12px' }}>
+              {/* Sub navigation button tabs */}
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                 <button
                   onClick={() => setActiveTimesheetSubTab('my')}
                   style={{
@@ -4253,7 +4388,56 @@ function App() {
                       color: activeTimesheetSubTab === 'approvals' ? 'var(--color-text)' : 'var(--color-text-secondary)'
                     }}
                   >
-                    {t('timesheets.approvals')}
+                    Duyệt chấm công
+                  </button>
+                )}
+                <button
+                  onClick={() => setActiveTimesheetSubTab('my-leaves')}
+                  style={{
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    backgroundColor: activeTimesheetSubTab === 'my-leaves' ? '#FAF9F9' : 'transparent',
+                    color: activeTimesheetSubTab === 'my-leaves' ? 'var(--color-text)' : 'var(--color-text-secondary)'
+                  }}
+                >
+                  Phép của tôi
+                </button>
+                {(activeRole === 'Admin' || checkPermission('resources')) && (
+                  <button
+                    onClick={() => setActiveTimesheetSubTab('leave-approvals')}
+                    style={{
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      backgroundColor: activeTimesheetSubTab === 'leave-approvals' ? '#FAF9F9' : 'transparent',
+                      color: activeTimesheetSubTab === 'leave-approvals' ? 'var(--color-text)' : 'var(--color-text-secondary)'
+                    }}
+                  >
+                    Duyệt nghỉ phép
+                  </button>
+                )}
+                {activeRole === 'Admin' && (
+                  <button
+                    onClick={() => setActiveTimesheetSubTab('leave-balances')}
+                    style={{
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 16px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      backgroundColor: activeTimesheetSubTab === 'leave-balances' ? '#FAF9F9' : 'transparent',
+                      color: activeTimesheetSubTab === 'leave-balances' ? 'var(--color-text)' : 'var(--color-text-secondary)'
+                    }}
+                  >
+                    Quản lý Quỹ phép
                   </button>
                 )}
               </div>
@@ -4316,7 +4500,7 @@ function App() {
                     </table>
                   )}
                 </div>
-              ) : (
+              ) : activeTimesheetSubTab === 'approvals' ? (
                 <>
                   <div className="large-card" style={{ padding: '24px' }}>
                     {pendingApprovalsTimesheets.length === 0 ? (
@@ -4374,7 +4558,163 @@ function App() {
                     )}
                   </div>
                 </>
-              )}
+              ) : activeTimesheetSubTab === 'my-leaves' ? (
+                <div className="card-spec" style={{ padding: '32px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Phép của tôi</h3>
+                      <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '2px' }}>Quản lý ngày phép và đơn xin nghỉ</p>
+                    </div>
+                    <button onClick={() => setShowLeaveModal(true)} className="btn-filled-3" style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>+</span> Xin nghỉ phép
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
+                    {myLeaveBalances.map(lb => (
+                      <div key={lb.new_leavebalanceid} className="metric-card" style={{ gap: '12px', padding: '20px', borderLeft: '4px solid #107C41' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 600 }}>{lb.new_name} ({lb.new_year})</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                          <span>Tổng cộng: <strong style={{ color: '#107C41' }}>{lb.new_totalentitlement + lb.new_carriedover} ngày</strong></span>
+                          <span>Đã dùng: <strong style={{ color: '#E29E2E' }}>{lb.new_useddays} ngày</strong></span>
+                          <span>Còn lại: <strong>{(lb.new_totalentitlement + lb.new_carriedover) - lb.new_useddays} ngày</strong></span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {myLeaves.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', background: '#FAF9F9', borderRadius: '8px' }}>
+                      Chưa có đơn xin nghỉ phép nào.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '12px' }}>Loại phép</th>
+                          <th style={{ padding: '12px' }}>Bắt đầu</th>
+                          <th style={{ padding: '12px' }}>Kết thúc</th>
+                          <th style={{ padding: '12px' }}>Số ngày</th>
+                          <th style={{ padding: '12px' }}>Lý do</th>
+                          <th style={{ padding: '12px' }}>Trạng thái</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {myLeaves.map(lr => (
+                          <tr key={lr.new_leaverequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{lr.new_leavetype}</td>
+                            <td style={{ padding: '12px' }}>{new Date(lr.new_startdate).toLocaleDateString('vi-VN')}</td>
+                            <td style={{ padding: '12px' }}>{new Date(lr.new_enddate).toLocaleDateString('vi-VN')}</td>
+                            <td style={{ padding: '12px' }}>{lr.new_durationdays}</td>
+                            <td style={{ padding: '12px' }}>{lr.new_reason}</td>
+                            <td style={{ padding: '12px' }}>
+                              <span className={
+                                lr.new_status === 'Pending' ? 'status-pending'
+                                : lr.new_status === 'Rejected' ? 'status-rejected'
+                                : 'status-approved'
+                              }>
+                                {lr.new_status === 'Pending' ? 'Chờ duyệt' : lr.new_status === 'Rejected' ? 'Từ chối' : 'Đã duyệt'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ) : activeTimesheetSubTab === 'leave-approvals' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '24px' }}>Đơn xin nghỉ chờ duyệt</h3>
+                  {pendingLeaveApprovals.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)', background: '#FAF9F9', borderRadius: '8px' }}>
+                      Không có đơn xin nghỉ phép nào đang chờ duyệt.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '12px' }}>Nhân viên</th>
+                          <th style={{ padding: '12px' }}>Loại phép</th>
+                          <th style={{ padding: '12px' }}>Từ ngày</th>
+                          <th style={{ padding: '12px' }}>Đến ngày</th>
+                          <th style={{ padding: '12px' }}>Số ngày</th>
+                          <th style={{ padding: '12px' }}>Lý do</th>
+                          <th style={{ padding: '12px' }}>Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingLeaveApprovals.map(lr => {
+                          const emp = usersList.find(u => u.cr5db_userid === lr._new_employeeid_value);
+                          return (
+                            <tr key={lr.new_leaverequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                              <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                              <td style={{ padding: '12px' }}>{lr.new_leavetype}</td>
+                              <td style={{ padding: '12px' }}>{new Date(lr.new_startdate).toLocaleDateString('vi-VN')}</td>
+                              <td style={{ padding: '12px' }}>{new Date(lr.new_enddate).toLocaleDateString('vi-VN')}</td>
+                              <td style={{ padding: '12px', fontWeight: 600 }}>{lr.new_durationdays}</td>
+                              <td style={{ padding: '12px' }}>{lr.new_reason}</td>
+                              <td style={{ padding: '12px', display: 'flex', gap: '8px' }}>
+                                <button onClick={() => handleApproveLeave(lr.new_leaverequestid)} className="btn-filled-2" style={{ padding: '4px 8px' }}>Duyệt</button>
+                                <button onClick={() => handleRejectLeave(lr.new_leaverequestid)} className="btn-filled-3" style={{ padding: '4px 8px', color: '#a80000' }}>Từ chối</button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ) : activeTimesheetSubTab === 'leave-balances' ? (
+                <div className="large-card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Quản lý Quỹ phép (Admin)</h3>
+                    <button className="btn-filled-3" style={{ fontSize: '13px', fontWeight: 600 }}>+ Cấp phép mới</button>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                        <th style={{ padding: '12px' }}>Nhân viên</th>
+                        <th style={{ padding: '12px' }}>Năm</th>
+                        <th style={{ padding: '12px' }}>Phép chuẩn</th>
+                        <th style={{ padding: '12px' }}>Tồn năm trước</th>
+                        <th style={{ padding: '12px' }}>Đã dùng</th>
+                        <th style={{ padding: '12px' }}>Còn lại</th>
+                        <th style={{ padding: '12px' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leaveBalancesList.map(lb => {
+                        const emp = usersList.find(u => u.cr5db_userid === lb._new_employeeid_value);
+                        return (
+                          <tr key={lb.new_leavebalanceid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_year}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_totalentitlement}</td>
+                            <td style={{ padding: '12px' }}>{lb.new_carriedover}</td>
+                            <td style={{ padding: '12px', color: '#E29E2E' }}>{lb.new_useddays}</td>
+                            <td style={{ padding: '12px', fontWeight: 600, color: '#107C41' }}>{(lb.new_totalentitlement + lb.new_carriedover) - lb.new_useddays}</td>
+                            <td style={{ padding: '12px' }}>
+                              <button
+                                className="btn-filled-2"
+                                style={{ padding: '4px 8px' }}
+                                onClick={() => {
+                                  setEditingLeaveBalance(lb);
+                                  setNewBalanceEntitlement(lb.new_totalentitlement.toString());
+                                  setNewBalanceCarriedOver(lb.new_carriedover.toString());
+                                  setNewBalanceUsedDays((lb.new_useddays || 0).toString());
+                                  setShowLeaveBalanceModal(true);
+                                }}
+                              >
+                                Cập nhật
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -9630,6 +9970,118 @@ function App() {
                 >
                   Phát động
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Request Modal */}
+      {showLeaveModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Đăng ký nghỉ phép</h3>
+            <form onSubmit={handleLeaveRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Loại phép</label>
+                <select
+                  value={newLeaveType}
+                  onChange={e => setNewLeaveType(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px' }}
+                >
+                  <option value="Annual Leave">Phép năm (Annual Leave)</option>
+                  <option value="Sick Leave">Nghỉ ốm (Sick Leave)</option>
+                  <option value="Unpaid Leave">Nghỉ không lương (Unpaid Leave)</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Từ ngày</label>
+                  <input
+                    type="date"
+                    required
+                    value={newLeaveStartDate}
+                    onChange={e => setNewLeaveStartDate(e.target.value)}
+                    style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Đến ngày</label>
+                  <input
+                    type="date"
+                    required
+                    value={newLeaveEndDate}
+                    onChange={e => setNewLeaveEndDate(e.target.value)}
+                    style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Số ngày dự kiến (trừ T7, CN)</label>
+                <input
+                  type="text"
+                  disabled
+                  value={newLeaveStartDate && newLeaveEndDate ? calculateWorkingDays(newLeaveStartDate, newLeaveEndDate) + ' ngày' : '0 ngày'}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', backgroundColor: '#f5f5f5' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Lý do</label>
+                <textarea
+                  required
+                  value={newLeaveReason}
+                  onChange={e => setNewLeaveReason(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', minHeight: '60px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                <button type="button" onClick={() => setShowLeaveModal(false)} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary" disabled={isLoading}>Gửi đơn</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Balance Modal */}
+      {showLeaveBalanceModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Cập nhật Quỹ phép</h3>
+            <form onSubmit={handleSaveLeaveBalance} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Phép chuẩn</label>
+                <input
+                  type="number"
+                  required
+                  value={newBalanceEntitlement}
+                  onChange={e => setNewBalanceEntitlement(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Tồn năm trước</label>
+                <input
+                  type="number"
+                  required
+                  value={newBalanceCarriedOver}
+                  onChange={e => setNewBalanceCarriedOver(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Đã dùng</label>
+                <input
+                  type="number"
+                  required
+                  value={newBalanceUsedDays}
+                  onChange={e => setNewBalanceUsedDays(e.target.value)}
+                  style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                <button type="button" onClick={() => { setShowLeaveBalanceModal(false); setEditingLeaveBalance(null); }} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary" disabled={isLoading}>Lưu</button>
               </div>
             </form>
           </div>

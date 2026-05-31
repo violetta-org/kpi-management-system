@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { User, Task, HeadcountRequest, KPITarget, Company, PositionCatalog, JobPosition, AuditLog, PermissionGroup, EvaluationPeriod } from '../lib/types';
+import type { User, Task, HeadcountRequest, KPITarget, Company, PositionCatalog, JobPosition, AuditLog, PermissionGroup, EvaluationPeriod, LeaveBalance, LeaveRequest } from '../lib/types';
 
 export type ActiveTab =
   | 'dashboard' | 'tasks' | 'timesheets' | 'kpi' | 'performance'
@@ -45,6 +45,8 @@ export function useAppState() {
   const [projectRisks, setProjectRisks] = useState<any[]>([]);
   const [appraisals, setAppraisals] = useState<any[]>([]);
   const [systemNotifications, setSystemNotifications] = useState<any[]>([]);
+  const [leaveBalancesList, setLeaveBalancesList] = useState<LeaveBalance[]>([]);
+  const [leaveRequestsList, setLeaveRequestsList] = useState<LeaveRequest[]>([]);
 
   // ── Master Lists ─────────────────────────────────────────────────────────
   const [companiesList, setCompaniesList] = useState<Company[]>([]);
@@ -100,7 +102,7 @@ export function useAppState() {
   const [kpiPeriod, setKpiPeriod] = useState('Q2/2026');
 
   // ── Sub-Tabs ─────────────────────────────────────────────────────────────
-  const [activeTimesheetSubTab, setActiveTimesheetSubTab] = useState<'my' | 'approvals'>('my');
+  const [activeTimesheetSubTab, setActiveTimesheetSubTab] = useState<'my' | 'approvals' | 'my-leaves' | 'leave-approvals' | 'leave-balances'>('my');
   const [activePerformanceSubTab, setActivePerformanceSubTab] = useState<'my' | 'team' | 'cycles' | 'competency' | 'idp'>('my');
 
   // IDP states
@@ -171,6 +173,19 @@ export function useAppState() {
   const [selectedFilterProject, setSelectedFilterProject] = useState('All Projects');
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // ── Leave Management Modals ────────────────────────────────────────────────
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [newLeaveType, setNewLeaveType] = useState('Annual Leave');
+  const [newLeaveStartDate, setNewLeaveStartDate] = useState('');
+  const [newLeaveEndDate, setNewLeaveEndDate] = useState('');
+  const [newLeaveReason, setNewLeaveReason] = useState('');
+
+  const [showLeaveBalanceModal, setShowLeaveBalanceModal] = useState(false);
+  const [editingLeaveBalance, setEditingLeaveBalance] = useState<LeaveBalance | null>(null);
+  const [newBalanceEntitlement, setNewBalanceEntitlement] = useState('12');
+  const [newBalanceCarriedOver, setNewBalanceCarriedOver] = useState('0');
+  const [newBalanceUsedDays, setNewBalanceUsedDays] = useState('0');
 
   // ── Task Modal ───────────────────────────────────────────────────────────
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -383,6 +398,17 @@ export function useAppState() {
     projectTeamsList, setProjectTeamsList,
 
     // KPI CRUD
+    showLeaveModal, setShowLeaveModal,
+    newLeaveType, setNewLeaveType,
+    newLeaveStartDate, setNewLeaveStartDate,
+    newLeaveEndDate, setNewLeaveEndDate,
+    newLeaveReason, setNewLeaveReason,
+    showLeaveBalanceModal, setShowLeaveBalanceModal,
+    editingLeaveBalance, setEditingLeaveBalance,
+    newBalanceEntitlement, setNewBalanceEntitlement,
+    newBalanceCarriedOver, setNewBalanceCarriedOver,
+    newBalanceUsedDays, setNewBalanceUsedDays,
+
     showKpiModal, setShowKpiModal,
     editingKpi, setEditingKpi,
     kpiTargetName, setKpiTargetName,
@@ -608,6 +634,10 @@ export function useAppState() {
     newAppraisalEmployeeId, setNewAppraisalEmployeeId,
     newAppraisalEvaluatorId, setNewAppraisalEvaluatorId,
     newAppraisalPeriodId, setNewAppraisalPeriodId,
+
+    // Leaves
+    leaveBalancesList, setLeaveBalancesList,
+    leaveRequestsList, setLeaveRequestsList,
 
     // Language localization
     language, setLanguage, toggleLanguage,

@@ -768,7 +768,9 @@ import {
   New_processtemplateService,
   New_processtemplatestepService,
   New_employeeprocessService,
-  New_processstepService
+  New_processstepService,
+  New_leavebalanceService,
+  New_leaverequestService
 } from '../generated';
 
 
@@ -811,7 +813,12 @@ const PLURAL_TO_SINGULAR: Record<string, string> = {
   "cr5db_roleassignments": "cr5db_roleassignment",
   "cr5db_systemroles": "cr5db_systemrole",
   "cr5db_taskownerships": "cr5db_taskownership",
-  "cr5db_timesheetaudits": "cr5db_timesheetaudit"
+  "cr5db_timesheetaudits": "cr5db_timesheetaudit",
+  "new_processtemplatesteps": "new_processtemplatestep",
+  "new_employeeprocesses": "new_employeeprocess",
+  "new_processsteps": "new_processstep",
+  "new_leavebalances": "new_leavebalance",
+  "new_leaverequests": "new_leaverequest"
 };
 
 export async function runWebSeeding(progressCallback: (status: string) => void): Promise<void> {
@@ -1390,6 +1397,38 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
   });
 
   progressCallback("Hoàn tất Seeding thành công!");
+  // 15. Leave Management (PTO & Requests)
+  await tryCall("Tạo Quỹ phép (PTO) và đơn xin nghỉ...", async () => {
+    const userEmails = Object.keys(guids["users"]);
+    for (const email of userEmails) {
+      const uId = guids["users"][email];
+      
+      // Tạo Quỹ phép 12 ngày cho mỗi user
+      await safeCreate(`LeaveBalance[${email}]`, () => New_leavebalanceService.create({
+        new_name: `Quỹ phép 2026 - ${email.split('@')[0]}`,
+        new_year: 2026,
+        new_totalentitlement: 12.0,
+        new_carriedover: 2.0,
+        new_useddays: 0,
+        "_new_employeeid_value@odata.bind": bindOData("cr5db_users", uId)
+      } as any));
+
+      // Tạo một đơn nghỉ phép mẫu cho dev1
+      if (email === "dev1@company.com") {
+        await safeCreate('LeaveRequest[SickLeave]', () => New_leaverequestService.create({
+          new_name: "Nghỉ ốm 1 ngày",
+          new_leavetype: "Sick Leave",
+          new_startdate: "2026-06-05T00:00:00Z",
+          new_enddate: "2026-06-05T23:59:59Z",
+          new_durationdays: 1.0,
+          new_reason: "Cảm cúm nặng",
+          new_status: "Pending",
+          "_new_employeeid_value@odata.bind": bindOData("cr5db_users", uId)
+        } as any));
+      }
+    }
+  });
+
 }
 
 export async function runWebCleanup(progressCallback: (status: string) => void): Promise<void> {
@@ -1503,8 +1542,11 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
   await tryDeleteAll("cr5db_approvalrouteses", Cr5db_approvalroutesesService);
   await tryDeleteAll("cr5db_changerequestses", Cr5db_changerequestsesService);
 
+  await tryDeleteAll("new_employeeprocess", New_employeeprocessService);
   await tryDeleteAll("new_processtemplatestep", New_processtemplatestepService);
   await tryDeleteAll("new_processtemplate", New_processtemplateService);
+  await tryDeleteAll("new_leaverequest", New_leaverequestService);
+  await tryDeleteAll("new_leavebalance", New_leavebalanceService);
   await tryDeleteAll("new_processstep", New_processstepService);
   await tryDeleteAll("new_employeeprocess", New_employeeprocessService);
 

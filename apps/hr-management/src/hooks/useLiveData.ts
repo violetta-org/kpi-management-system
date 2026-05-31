@@ -31,6 +31,8 @@ import { New_idpService } from '../generated/services/New_idpService';
 import { New_idpactionService } from '../generated/services/New_idpactionService';
 import { New_processtemplateService } from '../generated/services/New_processtemplateService';
 import { New_processtemplatestepService } from '../generated/services/New_processtemplatestepService';
+import { New_leavebalanceService } from '../generated/services/New_leavebalanceService';
+import { New_leaverequestService } from '../generated/services/New_leaverequestService';
 import { New_employeeprocessService } from '../generated/services/New_employeeprocessService';
 import { New_processstepService } from '../generated/services/New_processstepService';
 import type { User, Task, HeadcountRequest, KPITarget, PermissionGroup, EvaluationPeriod, BonusMatrix } from '../lib/types';
@@ -75,6 +77,8 @@ export interface LiveDataSetters {
   setProcessTemplateStepList: (v: any[]) => void;
   setEmployeeProcessList: (v: any[]) => void;
   setProcessStepList: (v: any[]) => void;
+  setLeaveBalancesList: (v: any[]) => void;
+  setLeaveRequestsList: (v: any[]) => void;
   setDefaultGroups: (v: string) => void;
   setDefaultGroupsDbId: (v: string) => void;
   // Default select setters populated on first load
@@ -175,7 +179,9 @@ export function useLiveData(setters: LiveDataSetters) {
         rawProcessTemplates,
         rawProcessTemplateSteps,
         rawEmployeeProcesses,
-        rawProcessSteps
+        rawProcessSteps,
+        rawLeaveBalances,
+        rawLeaveRequests
       ] = await Promise.all([
         safeGet<User>('Users', Cr5db_usersService.getAll),
         safeGet('Departments', Cr5db_departmentsService.getAll),
@@ -209,7 +215,9 @@ export function useLiveData(setters: LiveDataSetters) {
         safeGet('Process Templates', New_processtemplateService.getAll),
         safeGet('Process Template Steps', New_processtemplatestepService.getAll),
         safeGet('Employee Processes', New_employeeprocessService.getAll),
-        safeGet('Process Steps', New_processstepService.getAll)
+        safeGet('Process Steps', New_processstepService.getAll),
+        safeGet('Leave Balances', New_leavebalanceService.getAll),
+        safeGet('Leave Requests', New_leaverequestService.getAll)
       ]);
 
       if (loadErrors.length > 0) {
@@ -577,6 +585,8 @@ export function useLiveData(setters: LiveDataSetters) {
       setters.setProcessTemplateStepList(rawProcessTemplateSteps);
       setters.setEmployeeProcessList(rawEmployeeProcesses);
       setters.setProcessStepList(rawProcessSteps);
+      setters.setLeaveBalancesList(rawLeaveBalances);
+      setters.setLeaveRequestsList(rawLeaveRequests);
 
     } catch (err: any) {
       console.error('Initialization error: ', err);
