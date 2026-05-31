@@ -770,7 +770,9 @@ import {
   New_employeeprocessService,
   New_processstepService,
   New_leavebalanceService,
-  New_leaverequestService
+  New_leaverequestService,
+  New_holidayService,
+  New_overtimerequestService
 } from '../generated';
 
 
@@ -1429,6 +1431,38 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
     }
   });
 
+  // 16. Holidays & Overtime
+  await tryCall("Tạo dữ liệu ngày Lễ và Làm thêm giờ (OT)...", async () => {
+    // Tạo Ngày Lễ 2026
+    const holidays = [
+      { new_name: "Tết Dương Lịch 2026", new_date: "2026-01-01T00:00:00Z" },
+      { new_name: "Giỗ tổ Hùng Vương 2026", new_date: "2026-04-26T00:00:00Z" }, // Mùng 10/3 AL
+      { new_name: "Nghỉ bù Giỗ tổ", new_date: "2026-04-27T00:00:00Z" }, // Bù
+      { new_name: "Ngày Giải phóng miền Nam", new_date: "2026-04-30T00:00:00Z" },
+      { new_name: "Quốc tế Lao động", new_date: "2026-05-01T00:00:00Z" }
+    ];
+
+    for (const h of holidays) {
+      await safeCreate(`Holiday[${h.new_name}]`, () => New_holidayService.create(h as any));
+    }
+
+    // Tạo OT mẫu cho dev1
+    const bobId = guids["users"]["dev1@company.com"];
+    if (bobId) {
+      await safeCreate('OvertimeRequest[Weekend]', () => New_overtimerequestService.create({
+        new_name: "Làm thêm giờ fix lỗi Server T7",
+        new_date: "2026-05-30T00:00:00Z", // T7
+        new_starttime: "08:00",
+        new_endtime: "12:00",
+        new_hours: 4.0,
+        new_ottype: "Weekend",
+        new_reason: "Xử lý sự cố server khẩn cấp",
+        new_status: "Pending",
+        "_new_employeeid_value@odata.bind": bindOData("cr5db_users", bobId)
+      } as any));
+    }
+  });
+
 }
 
 export async function runWebCleanup(progressCallback: (status: string) => void): Promise<void> {
@@ -1549,6 +1583,8 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
   await tryDeleteAll("new_leavebalance", New_leavebalanceService);
   await tryDeleteAll("new_processstep", New_processstepService);
   await tryDeleteAll("new_employeeprocess", New_employeeprocessService);
+  await tryDeleteAll("new_holiday", New_holidayService);
+  await tryDeleteAll("new_overtimerequest", New_overtimerequestService);
 
   progressCallback("Dọn dẹp hoàn tất thành công!");
 }

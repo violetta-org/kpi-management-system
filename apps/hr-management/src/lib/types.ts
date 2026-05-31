@@ -162,6 +162,28 @@ export interface LeaveRequest {
   createdon?: string;
 }
 
+export interface Holiday {
+  new_holidayid: string;
+  new_name: string;
+  new_date: string;
+}
+
+export interface OvertimeRequest {
+  new_overtimerequestid: string;
+  new_name: string;
+  new_date: string;
+  new_starttime: string;
+  new_endtime: string;
+  new_hours: number;
+  new_ottype: string; // 'Weekday', 'Weekend', 'Holiday', 'Night'
+  new_reason: string;
+  new_status: string; // 'Pending', 'Approved', 'Rejected'
+  new_approvedhours?: number;
+  _new_employeeid_value?: string;
+  _new_approverid_value?: string;
+  createdon?: string;
+}
+
 export const FEATURE_TABS = [
   { id: 'dashboard', labelVi: 'Bảng điều khiển', labelEn: 'Dashboard' },
   { id: 'tasks', labelVi: 'Công việc', labelEn: 'Tasks' },

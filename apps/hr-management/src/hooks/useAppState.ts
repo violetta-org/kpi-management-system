@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { User, Task, HeadcountRequest, KPITarget, Company, PositionCatalog, JobPosition, AuditLog, PermissionGroup, EvaluationPeriod, LeaveBalance, LeaveRequest } from '../lib/types';
+import type { User, Task, HeadcountRequest, KPITarget, Company, PositionCatalog, JobPosition, AuditLog, PermissionGroup, EvaluationPeriod, LeaveBalance, LeaveRequest, Holiday, OvertimeRequest } from '../lib/types';
 
 export type ActiveTab =
   | 'dashboard' | 'tasks' | 'timesheets' | 'kpi' | 'performance'
@@ -47,6 +47,8 @@ export function useAppState() {
   const [systemNotifications, setSystemNotifications] = useState<any[]>([]);
   const [leaveBalancesList, setLeaveBalancesList] = useState<LeaveBalance[]>([]);
   const [leaveRequestsList, setLeaveRequestsList] = useState<LeaveRequest[]>([]);
+  const [holidaysList, setHolidaysList] = useState<Holiday[]>([]);
+  const [overtimeRequestsList, setOvertimeRequestsList] = useState<OvertimeRequest[]>([]);
 
   // ── Master Lists ─────────────────────────────────────────────────────────
   const [companiesList, setCompaniesList] = useState<Company[]>([]);
@@ -102,7 +104,7 @@ export function useAppState() {
   const [kpiPeriod, setKpiPeriod] = useState('Q2/2026');
 
   // ── Sub-Tabs ─────────────────────────────────────────────────────────────
-  const [activeTimesheetSubTab, setActiveTimesheetSubTab] = useState<'my' | 'approvals' | 'my-leaves' | 'leave-approvals' | 'leave-balances'>('my');
+  const [activeTimesheetSubTab, setActiveTimesheetSubTab] = useState<'my' | 'approvals' | 'my-leaves' | 'leave-approvals' | 'leave-balances' | 'holidays' | 'ot' | 'ot-approvals'>('my');
   const [activePerformanceSubTab, setActivePerformanceSubTab] = useState<'my' | 'team' | 'cycles' | 'competency' | 'idp'>('my');
 
   // IDP states
@@ -186,6 +188,22 @@ export function useAppState() {
   const [newBalanceEntitlement, setNewBalanceEntitlement] = useState('12');
   const [newBalanceCarriedOver, setNewBalanceCarriedOver] = useState('0');
   const [newBalanceUsedDays, setNewBalanceUsedDays] = useState('0');
+
+  // ── Holiday & Overtime Modals ──────────────────────────────────────────────
+  const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [newHolidayName, setNewHolidayName] = useState('');
+  const [newHolidayDate, setNewHolidayDate] = useState('');
+
+  const [showOvertimeModal, setShowOvertimeModal] = useState(false);
+  const [newOtDate, setNewOtDate] = useState('');
+  const [newOtStartTime, setNewOtStartTime] = useState('18:00');
+  const [newOtEndTime, setNewOtEndTime] = useState('20:00');
+  const [newOtHours, setNewOtHours] = useState('2');
+  const [newOtType, setNewOtType] = useState('Weekday');
+  const [newOtReason, setNewOtReason] = useState('');
+  const [showOtApprovalModal, setShowOtApprovalModal] = useState(false);
+  const [otToApproveId, setOtToApproveId] = useState('');
+  const [otApprovedHours, setOtApprovedHours] = useState('0');
 
   // ── Task Modal ───────────────────────────────────────────────────────────
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -638,6 +656,23 @@ export function useAppState() {
     // Leaves
     leaveBalancesList, setLeaveBalancesList,
     leaveRequestsList, setLeaveRequestsList,
+    holidaysList, setHolidaysList,
+    overtimeRequestsList, setOvertimeRequestsList,
+
+    // Holiday & Overtime Modals
+    showHolidayModal, setShowHolidayModal,
+    newHolidayName, setNewHolidayName,
+    newHolidayDate, setNewHolidayDate,
+    showOvertimeModal, setShowOvertimeModal,
+    newOtDate, setNewOtDate,
+    newOtStartTime, setNewOtStartTime,
+    newOtEndTime, setNewOtEndTime,
+    newOtHours, setNewOtHours,
+    newOtType, setNewOtType,
+    newOtReason, setNewOtReason,
+    showOtApprovalModal, setShowOtApprovalModal,
+    otToApproveId, setOtToApproveId,
+    otApprovedHours, setOtApprovedHours,
 
     // Language localization
     language, setLanguage, toggleLanguage,

@@ -35,7 +35,9 @@ import { New_leavebalanceService } from '../generated/services/New_leavebalanceS
 import { New_leaverequestService } from '../generated/services/New_leaverequestService';
 import { New_employeeprocessService } from '../generated/services/New_employeeprocessService';
 import { New_processstepService } from '../generated/services/New_processstepService';
-import type { User, Task, HeadcountRequest, KPITarget, PermissionGroup, EvaluationPeriod, BonusMatrix } from '../lib/types';
+import { New_holidayService } from '../generated/services/New_holidayService';
+import { New_overtimerequestService } from '../generated/services/New_overtimerequestService';
+import type { User, Task, HeadcountRequest, KPITarget, PermissionGroup, EvaluationPeriod, BonusMatrix, Holiday, OvertimeRequest } from '../lib/types';
 
 /** All setters useLiveData needs to push fetched data into shared state */
 export interface LiveDataSetters {
@@ -56,6 +58,7 @@ export interface LiveDataSetters {
   setProjectPhases: (v: any[]) => void;
   setProjectRisks: (v: any[]) => void;
   setSystemNotifications: (v: any[]) => void;
+
   setKpiLibrariesList: (v: any[]) => void;
   setApprovalRoutesList: (v: any[]) => void;
   setChangeRequestsList: (v: any[]) => void;
@@ -79,6 +82,8 @@ export interface LiveDataSetters {
   setProcessStepList: (v: any[]) => void;
   setLeaveBalancesList: (v: any[]) => void;
   setLeaveRequestsList: (v: any[]) => void;
+  setHolidaysList: (v: Holiday[]) => void;
+  setOvertimeRequestsList: (v: OvertimeRequest[]) => void;
   setDefaultGroups: (v: string) => void;
   setDefaultGroupsDbId: (v: string) => void;
   // Default select setters populated on first load
@@ -181,7 +186,9 @@ export function useLiveData(setters: LiveDataSetters) {
         rawEmployeeProcesses,
         rawProcessSteps,
         rawLeaveBalances,
-        rawLeaveRequests
+        rawLeaveRequests,
+        rawHolidays,
+        rawOvertimeRequests
       ] = await Promise.all([
         safeGet<User>('Users', Cr5db_usersService.getAll),
         safeGet('Departments', Cr5db_departmentsService.getAll),
@@ -217,7 +224,9 @@ export function useLiveData(setters: LiveDataSetters) {
         safeGet('Employee Processes', New_employeeprocessService.getAll),
         safeGet('Process Steps', New_processstepService.getAll),
         safeGet('Leave Balances', New_leavebalanceService.getAll),
-        safeGet('Leave Requests', New_leaverequestService.getAll)
+        safeGet('Leave Requests', New_leaverequestService.getAll),
+        safeGet('Holidays', New_holidayService.getAll),
+        safeGet('Overtime Requests', New_overtimerequestService.getAll)
       ]);
 
       if (loadErrors.length > 0) {
@@ -587,6 +596,8 @@ export function useLiveData(setters: LiveDataSetters) {
       setters.setProcessStepList(rawProcessSteps);
       setters.setLeaveBalancesList(rawLeaveBalances);
       setters.setLeaveRequestsList(rawLeaveRequests);
+      setters.setHolidaysList(rawHolidays);
+      setters.setOvertimeRequestsList(rawOvertimeRequests);
 
     } catch (err: any) {
       console.error('Initialization error: ', err);

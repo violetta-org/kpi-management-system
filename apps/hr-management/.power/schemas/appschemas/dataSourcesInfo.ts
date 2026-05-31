@@ -340,5 +340,19 @@ export const dataSourcesInfo = {
     "primaryKey": "new_leaverequestid",
     "dataSourceType": "Dataverse",
     "apis": {}
+  },
+  "new_holiday": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_holidayid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_overtimerequest": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_overtimerequestid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
   }
 };
