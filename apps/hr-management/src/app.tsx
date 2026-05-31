@@ -136,9 +136,9 @@ function calculateActualValue(
   if (visited.has(k.cr5db_kpitargetid)) return 0; // Prevent infinite loops
   visited.add(k.cr5db_kpitargetid);
 
-  const rollupMethod = k.cr5db_rollupmethod;
+  const rollupMethod = k.new_rollupmethod;
   if (rollupMethod === 'Sum' || rollupMethod === 'Average') {
-    const children = kpiTargets.filter(child => child._cr5db_parentkpi_value === k.cr5db_kpitargetid);
+    const children = kpiTargets.filter(child => child._new_parentkpi_value === k.cr5db_kpitargetid);
     if (children.length > 0) {
       let sum = 0;
       children.forEach(child => {
@@ -2914,13 +2914,13 @@ function App() {
         cr5db_targetvalue: Number(kpiTargetValue),
         cr5db_actualvalue: Number(kpiActualValue),
         cr5db_weightpercentage: Number(kpiWeight),
-        cr5db_rollupmethod: kpiRollupMethod,
+        new_rollupmethod: kpiRollupMethod,
         new_standardhourslimit: Number(kpiStandardHoursLimit),
         new_activetaskslimit: Number(kpiActiveTasksLimit),
         "cr5db_EmployeeID@odata.bind": `/cr5db_users(${kpiEmployeeId})`,
         "cr5db_ParentObjective@odata.bind": `/cr5db_objectives(${kpiObjectiveId})`,
         "cr5db_KPICode@odata.bind": `/cr5db_kpilibraries(${kpiLibraryId})`,
-        ...(kpiParentKpiId ? { "cr5db_parentkpi@odata.bind": `/cr5db_kpitargets(${kpiParentKpiId})` } : {})
+        ...(kpiParentKpiId ? { "new_ParentKpi@odata.bind": `/cr5db_kpitargets(${kpiParentKpiId})` } : {})
       };
 
       if (editingKpi) {
@@ -4154,7 +4154,7 @@ function App() {
                                   const rate = calculateKpiAchievementRate(k.cr5db_targetvalue || 0, actualVal, kpiLib?.new_direction);
                                   const employeeName = usersList.find(u => u.cr5db_userid === k._cr5db_employeeid_value)?.cr5db_fullname || k.cr5db_user_email.split('@')[0];
                                   const isLocked = getObjectivePeriodLockStatus(k._cr5db_parentobjective_value);
-                                  const parentKpi = k._cr5db_parentkpi_value ? kpiTargets.find(p => p.cr5db_kpitargetid === k._cr5db_parentkpi_value) : null;
+                                  const parentKpi = k._new_parentkpi_value ? kpiTargets.find(p => p.cr5db_kpitargetid === k._new_parentkpi_value) : null;
                                 return (
                                   <tr key={k.cr5db_kpitargetid} style={{ borderBottom: '1px solid var(--color-border)' }}>
                                     <td style={{ padding: '14px 20px', fontWeight: 600 }}>
@@ -4227,9 +4227,9 @@ function App() {
                                     <td style={{ padding: '14px 20px' }}>{k.cr5db_targetvalue} {k.cr5db_unit}</td>
                                     <td style={{ padding: '14px 20px', fontWeight: 600 }}>
                                       {actualVal} {k.cr5db_unit}
-                                      {(k.cr5db_rollupmethod === 'Sum' || k.cr5db_rollupmethod === 'Average') && (
+                                      {(k.new_rollupmethod === 'Sum' || k.new_rollupmethod === 'Average') && (
                                         <div style={{ fontSize: '10px', color: 'var(--color-primary)', marginTop: '2px', fontWeight: 500 }}>
-                                          (Auto: {k.cr5db_rollupmethod})
+                                          (Auto: {k.new_rollupmethod})
                                         </div>
                                       )}
                                     </td>
@@ -4257,8 +4257,8 @@ function App() {
                                             onClick={() => {
                                               setEditingKpi(k);
                                               setKpiActualValue(k.cr5db_actualvalue);
-                                              setKpiParentKpiId(k._cr5db_parentkpi_value || '');
-                                              setKpiRollupMethod(k.cr5db_rollupmethod || 'Manual');
+                                              setKpiParentKpiId(k._new_parentkpi_value || '');
+                                              setKpiRollupMethod(k.new_rollupmethod || 'Manual');
                                               setKpiStandardHoursLimit(k.new_standardhourslimit || 0);
                                               setKpiActiveTasksLimit(k.new_activetaskslimit || 0);
                                               setShowKpiModal(true);
@@ -4283,8 +4283,8 @@ function App() {
                                                 setKpiEmployeeId(k._cr5db_employeeid_value || '');
                                                 setKpiObjectiveId(k._cr5db_parentobjective_value || '');
                                                 setKpiLibraryId(k._cr5db_kpicode_value || '');
-                                                setKpiParentKpiId(k._cr5db_parentkpi_value || '');
-                                                setKpiRollupMethod(k.cr5db_rollupmethod || 'Manual');
+                                                setKpiParentKpiId(k._new_parentkpi_value || '');
+                                                setKpiRollupMethod(k.new_rollupmethod || 'Manual');
                                                 setKpiStandardHoursLimit(k.new_standardhourslimit || 0);
                                                 setKpiActiveTasksLimit(k.new_activetaskslimit || 0);
                                                 setShowKpiModal(true);
