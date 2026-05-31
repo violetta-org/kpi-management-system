@@ -1063,8 +1063,52 @@ function App() {
       alert("Mục tiêu được chọn thuộc chu kỳ đánh giá đã bị khóa. Không thể tạo công việc mới.");
       return;
     }
+
     try {
       setIsLoading(true);
+      const currentUserRecord = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
+      const targetAssigneeId = editingTask 
+        ? (newTaskAssigneeId || editingTask._cr5db_assigneeid_value) 
+        : (newTaskAssigneeId || currentUserRecord?.cr5db_userid);
+
+      let bypassReasonStr = '';
+
+      if (newTaskKpiTargetId && targetAssigneeId) {
+        const targetKpi = kpiTargets.find(k => k.cr5db_kpitargetid === newTaskKpiTargetId);
+        const limit = targetKpi?.new_activetaskslimit || 0;
+        if (targetKpi && limit > 0) {
+          const kpiActiveTasks = tasks.filter(t => 
+            t._new_kpitarget_value === targetKpi.cr5db_kpitargetid && 
+            t.cr5db_status !== 'Completed'
+          );
+          
+          const isAlreadyCounted = editingTask && 
+            editingTask._new_kpitarget_value === targetKpi.cr5db_kpitargetid &&
+            editingTask.cr5db_status !== 'Completed' &&
+            editingTask._cr5db_assigneeid_value === targetAssigneeId;
+            
+          const nextActiveTasksCount = kpiActiveTasks.length + (isAlreadyCounted ? 0 : 1);
+          
+          if (nextActiveTasksCount > limit) {
+            const userConfirm = window.confirm(
+              `Nhân viên này đã đạt giới hạn công việc hoạt động (Active Tasks Limit: ${limit}). Bạn có chắc chắn vẫn muốn phân công thêm công việc này?`
+            );
+            if (!userConfirm) {
+              setIsLoading(false);
+              return;
+            }
+            
+            const promptReason = window.prompt("Vui lòng nhập lý do ghi đè (Bypass Reason):");
+            if (!promptReason || !promptReason.trim()) {
+              alert("Bắt buộc phải nhập lý do ghi đè để tiếp tục.");
+              setIsLoading(false);
+              return;
+            }
+            bypassReasonStr = promptReason.trim();
+          }
+        }
+      }
+
       const payload: any = {
         cr5db_taskname: newTaskName,
         cr5db_description: newTaskDesc,
@@ -1112,7 +1156,7 @@ function App() {
           cr5db_logname: "Task Update Request",
           cr5db_actionexecuted: `Requested/Executed task update: ${newTaskName}`,
           cr5db_changedfromvalue: editingTask.cr5db_status,
-          cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+          cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}${bypassReasonStr ? ` | Bypass Reason: ${bypassReasonStr}` : ''}`
         } as any);
       } else {
         const currentUserRecord = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
@@ -1141,7 +1185,7 @@ function App() {
           cr5db_logname: "Task Creation Request",
           cr5db_actionexecuted: `Requested/Executed task creation: ${newTaskName}`,
           cr5db_changedfromvalue: "None",
-          cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
+          cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}${bypassReasonStr ? ` | Bypass Reason: ${bypassReasonStr}` : ''}`
         } as any);
       }
 
@@ -1195,6 +1239,11 @@ function App() {
     const targetTask = tasks.find(t => t.cr5db_taskid === id);
     if (targetTask && getObjectivePeriodLockStatus(targetTask._cr5db_objectivename_value)) {
       alert("Công việc này thuộc chu kỳ đánh giá đã bị khóa. Không thể cập nhật trạng thái.");
+      return;
+    }
+    const pendingTaskTimesheets = timesheets.filter(ts => ts._cr5db_taskid_value === id && ts.statecode === 0);
+    if (pendingTaskTimesheets.length > 0) {
+      alert("Không thể hoàn thành công việc này vì vẫn còn báo cáo giờ công (Timesheet) đang chờ duyệt. Vui lòng phê duyệt hoặc từ chối hết các timesheet liên quan trước.");
       return;
     }
     try {
@@ -7711,6 +7760,7 @@ function App() {
                 <select value={newTimesheetTaskId} onChange={(e) => setNewTimesheetTaskId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
                   {tasks
                     .filter(t => {
+                      if (t.cr5db_status === 'Completed') return false;
                       if (activeRole === 'Employee') {
                         const isAssigned = t.cr5db_assignee_email.toLowerCase() === currentUserEmail.toLowerCase();
                         const isCreatedByMe = t.createdbyname && (

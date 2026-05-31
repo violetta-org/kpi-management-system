@@ -473,7 +473,11 @@ export function useLiveData(setters: LiveDataSetters) {
               }
             }
           } else if (formula === '#HOURS_LOGGED') {
-            const userTimesheets = rawTimesheets.filter((ts: any) => ts._cr5db_userid_value === k._cr5db_employeeid_value);
+            const userTimesheets = rawTimesheets.filter((ts: any) => 
+              ts._cr5db_userid_value === k._cr5db_employeeid_value &&
+              ts.statecode === 1 &&
+              !ts.cr5db_timesheetlog1?.startsWith('[Từ chối]')
+            );
             const period = rawEvaluationPeriods.find((ep: any) => ep.cr5db_evaluationperiodid === parentObjective?._cr5db_periodname_value);
             if (period) {
               const start = period.cr5db_startdate ? new Date(period.cr5db_startdate) : null;
@@ -496,7 +500,12 @@ export function useLiveData(setters: LiveDataSetters) {
         const currentActiveTasks = activeKpiTasks.length;
 
         const kpiTaskIds = kpiTasks.map(t => t.cr5db_taskid);
-        const kpiTimesheets = rawTimesheets.filter((ts: any) => ts._cr5db_taskid_value && kpiTaskIds.includes(ts._cr5db_taskid_value));
+        const kpiTimesheets = rawTimesheets.filter((ts: any) => 
+          ts._cr5db_taskid_value && 
+          kpiTaskIds.includes(ts._cr5db_taskid_value) &&
+          ts.statecode === 1 &&
+          !ts.cr5db_timesheetlog1?.startsWith('[Từ chối]')
+        );
         const currentLoggedHours = kpiTimesheets.reduce((sum: number, ts: any) => sum + (ts.cr5db_actualhoursworked || 0), 0);
 
         const standardHoursLimit = k.new_standardhourslimit || 0;
