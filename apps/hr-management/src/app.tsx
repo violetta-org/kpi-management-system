@@ -2576,8 +2576,8 @@ function App() {
       const payload: any = {
         cr5db_projectrisk1: newRiskName,
         cr5db_impactlevel: newRiskImpact === 'High' ? 122650000 : newRiskImpact === 'Medium' ? 122650001 : 122650002,
-        cr5db_probabilitypercentage: newRiskProbability === 'High' ? 80 : newRiskProbability === 'Medium' ? 50 : 20
-        // cr5db_mitigationplan: newRiskMitigation // Property does not exist in Dataverse schema
+        cr5db_probabilitypercentage: newRiskProbability === 'High' ? 80 : newRiskProbability === 'Medium' ? 50 : 20,
+        new_mitigationplan: newRiskMitigation
       };
 
       if (editingRisk) {
@@ -5652,7 +5652,7 @@ function App() {
                                       
                                       const probRaw = r.cr5db_probability || r.cr5db_probabilitypercentage || 'Medium';
                                       const prob = typeof probRaw === 'number' ? `${probRaw}%` : probRaw;
-                                      const mitigation = r.cr5db_mitigationplan || 'Chưa lập phương án giảm thiểu.';
+                                      const mitigation = r.new_mitigationplan || 'Chưa lập phương án giảm thiểu.';
                                       
                                       const getBadgeColor = (val: string) => {
                                         const v = val.toLowerCase();
@@ -5692,7 +5692,7 @@ function App() {
                                                       probRaw === 80 || probRaw === '80' || probRaw === 'High' ? 'High' :
                                                       probRaw === 20 || probRaw === '20' || probRaw === 'Low' ? 'Low' : 'Medium'
                                                     );
-                                                    setNewRiskMitigation(r.cr5db_mitigationplan || '');
+                                                    setNewRiskMitigation(r.new_mitigationplan || '');
                                                     setShowRiskModal(true);
                                                   }}
                                                   className="btn-filled-3"
