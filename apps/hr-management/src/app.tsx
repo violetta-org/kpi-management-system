@@ -3040,8 +3040,7 @@ function App() {
   const pendingApprovalsTimesheets = timesheets.filter(ts => ts.statecode === 0);
 
   const getJobPositionActualCount = (posId: string) => {
-    const pos = jobPositionsList.find(p => p.cr5db_jobpositionid === posId);
-    return pos?.cr5db_actualheadcount ? Number(pos.cr5db_actualheadcount) : 0;
+    return usersList.filter(u => u._cr5db_jobposition_value === posId && u.cr5db_isactive !== false).length;
   };
 
   // Group job positions by company for Bar Chart
@@ -4840,7 +4839,7 @@ function App() {
                       const parentPosition = pos._cr5db_reportstopositionid_value ? jobPositionsList.find(p => p.cr5db_jobpositionid === pos._cr5db_reportstopositionid_value) : null;
                       const reportsToDisplay = parentPosition ? parentPosition.cr5db_positionname : '-';
                       const quota = pos.cr5db_headcountquota || 0;
-                      const actual = pos.cr5db_actualheadcount ? Number(pos.cr5db_actualheadcount) : 0;
+                      const actual = getJobPositionActualCount(pos.cr5db_jobpositionid);
                       let statusText = 'At Quota';
                       let statusColor = '#107C41';
                       if (actual > quota) { statusText = 'Over Quota'; statusColor = '#a80000'; }
