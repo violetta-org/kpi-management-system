@@ -2557,9 +2557,11 @@ function App() {
                     </svg>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <h1 style={{ fontSize: '24px', fontWeight: 700, margin: 0, color: '#000000', lineHeight: '1.2' }}>Task Management</h1>
+                    <h1 style={{ fontSize: '24px', fontWeight: 700, margin: 0, color: '#000000', lineHeight: '1.2' }}>
+                      {language === 'vi' ? 'Quản lý Công việc' : 'Task Management'}
+                    </h1>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 400, color: 'rgba(0, 0, 0, 0.7)' }}>
-                      <span>Welcome, {currentUserName || 'User'}</span>
+                      <span>{language === 'vi' ? 'Chào mừng,' : 'Welcome,'} {currentUserName || 'User'}</span>
                       <span style={{ fontSize: '12px', fontWeight: 500, padding: '2px 8px', border: '1px solid #000000', borderRadius: '6px', color: '#000000', textTransform: 'capitalize' }}>
                         {activeRole === 'Admin' 
                           ? 'Super Admin' 
@@ -2576,16 +2578,22 @@ function App() {
                   className="new-task-btn"
                   style={{ height: '36px', borderRadius: '6px', border: 'none', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: '#000000', color: '#ffffff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxSizing: 'border-box' }}
                 >
-                  <span>+</span> New Task
+                  <span>+</span> {t('tasks.addNew')}
                 </button>
               </div>
 
               {/* Info Banner (Alert) */}
               <div style={{ border: '1px solid #000000', borderRadius: '8px', padding: '16px', fontSize: '14px', fontWeight: 400, backgroundColor: '#ffffff', color: '#000000', boxSizing: 'border-box' }}>
                 {activeRole === 'Employee' ? (
-                  <span><strong>Employee View:</strong> Showing tasks assigned to you or created by you.</span>
+                  <span>
+                    <strong>{language === 'vi' ? 'Chế độ Nhân viên:' : 'Employee View:'}</strong>{' '}
+                    {language === 'vi' ? 'Hiển thị các công việc được giao cho bạn hoặc do bạn tạo.' : 'Showing tasks assigned to you or created by you.'}
+                  </span>
                 ) : (
-                  <span><strong>Manager View:</strong> Showing all tasks for active project management.</span>
+                  <span>
+                    <strong>{language === 'vi' ? 'Chế độ Quản lý:' : 'Manager View:'}</strong>{' '}
+                    {language === 'vi' ? 'Hiển thị tất cả các công việc để quản lý dự án.' : 'Showing all tasks for active project management.'}
+                  </span>
                 )}
               </div>
 
@@ -2602,7 +2610,7 @@ function App() {
                     type="text"
                     value={taskSearchQuery}
                     onChange={(e) => setTaskSearchQuery(e.target.value)}
-                    placeholder="Search tasks..."
+                    placeholder={language === 'vi' ? 'Tìm kiếm công việc...' : 'Search tasks...'}
                     style={{ width: '100%', height: '36px', border: '1px solid #000000', borderRadius: '6px', padding: '4px 12px 4px 40px', fontSize: '14px', fontWeight: 400, color: '#000000', boxSizing: 'border-box', backgroundColor: '#ffffff' }}
                   />
                 </div>
@@ -2614,7 +2622,7 @@ function App() {
                     onChange={(e) => setSelectedFilterProject(e.target.value)}
                     style={{ width: '100%', height: '36px', border: '1px solid #000000', borderRadius: '6px', padding: '8px 12px', fontSize: '14px', fontWeight: 400, color: '#000000', backgroundColor: '#ffffff', cursor: 'pointer', appearance: 'none', boxSizing: 'border-box' }}
                   >
-                    <option value="All Projects">All Projects</option>
+                    <option value="All Projects">{language === 'vi' ? 'Tất cả Dự án' : 'All Projects'}</option>
                     {Array.from(new Set(tasks.map(t => t.cr5db_project_name).filter(Boolean))).map(proj => (
                       <option key={proj} value={proj}>{proj}</option>
                     ))}
@@ -2638,38 +2646,46 @@ function App() {
                 if (queryFiltered.length === 0) {
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '218px', border: '1px dashed #000000', borderRadius: '8px', padding: '80px 24px', textAlign: 'center', gap: '8px', boxSizing: 'border-box', backgroundColor: '#ffffff' }}>
-                      <h3 style={{ fontSize: '18px', fontWeight: 500, color: '#000000', margin: 0 }}>No tasks found</h3>
-                      <p style={{ fontSize: '14px', fontWeight: 400, color: 'rgba(0, 0, 0, 0.7)', margin: 0 }}>Create your first task...</p>
+                      <h3 style={{ fontSize: '18px', fontWeight: 500, color: '#000000', margin: 0 }}>
+                        {language === 'vi' ? 'Không tìm thấy công việc nào' : 'No tasks found'}
+                      </h3>
+                      <p style={{ fontSize: '14px', fontWeight: 400, color: 'rgba(0, 0, 0, 0.7)', margin: 0 }}>
+                        {language === 'vi' ? 'Hãy tạo công việc đầu tiên của bạn...' : 'Create your first task...'}
+                      </p>
                     </div>
                   );
                 }
 
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {queryFiltered.map(t => (
-                      <div key={t.cr5db_taskid} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', border: '1px solid #000000', borderRadius: '8px', backgroundColor: '#ffffff', boxSizing: 'border-box' }}>
+                    {queryFiltered.map(task => (
+                      <div key={task.cr5db_taskid} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', border: '1px solid #000000', borderRadius: '8px', backgroundColor: '#ffffff', boxSizing: 'border-box' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <span style={{ fontWeight: 700, fontSize: '16px', color: '#000000' }}>{t.cr5db_taskname}</span>
+                            <span style={{ fontWeight: 700, fontSize: '16px', color: '#000000' }}>{task.cr5db_taskname}</span>
                             <span style={{ fontSize: '12px', fontWeight: 500, padding: '2px 8px', border: '1px solid #000000', borderRadius: '6px', color: '#000000', backgroundColor: '#ffffff' }}>
-                              {t.cr5db_project_name || 'Không thuộc dự án'}
+                              {task.cr5db_project_name || (language === 'vi' ? 'Không thuộc dự án' : 'No Project')}
                             </span>
                           </div>
-                          <p style={{ fontSize: '14px', fontWeight: 400, color: 'rgba(0, 0, 0, 0.7)', margin: 0 }}>{t.cr5db_description}</p>
+                          <p style={{ fontSize: '14px', fontWeight: 400, color: 'rgba(0, 0, 0, 0.7)', margin: 0 }}>{task.cr5db_description}</p>
                           <span style={{ fontSize: '12px', color: 'rgba(0, 0, 0, 0.7)' }}>
-                            Hạn: {t.cr5db_due_date ? new Date(t.cr5db_due_date).toLocaleDateString('vi-VN') : 'Không giới hạn'} | Phân công: {t.cr5db_assignee_name}
+                            {language === 'vi' ? 'Hạn:' : 'Due:'} {task.cr5db_due_date ? new Date(task.cr5db_due_date).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US') : (language === 'vi' ? 'Không giới hạn' : 'No limit')} | {language === 'vi' ? 'Phân công:' : 'Assignee:'} {task.cr5db_assignee_name}
                           </span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                          <span style={{ fontSize: '14px', fontWeight: 700, color: t.cr5db_status === 'Completed' ? '#107C41' : 'var(--color-primary)' }}>
-                            {t.cr5db_status}
+                          <span style={{ fontSize: '14px', fontWeight: 700, color: task.cr5db_status === 'Completed' ? '#107C41' : 'var(--color-primary)' }}>
+                            {task.cr5db_status === 'Completed' 
+                              ? (language === 'vi' ? 'Đã hoàn thành' : 'Completed') 
+                              : task.cr5db_status === 'In Progress' 
+                                ? (language === 'vi' ? 'Đang thực hiện' : 'In Progress') 
+                                : (language === 'vi' ? 'Chưa bắt đầu' : 'Not Started')}
                           </span>
-                          {t.cr5db_status !== 'Completed' && (
+                          {task.cr5db_status !== 'Completed' && (
                             <button 
-                              onClick={() => handleUpdateTaskStatus(t.cr5db_taskid, 'Completed')} 
+                              onClick={() => handleUpdateTaskStatus(task.cr5db_taskid, 'Completed')} 
                               style={{ height: '36px', borderRadius: '6px', border: '1px solid #000000', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: 'transparent', color: '#000000', cursor: 'pointer', transition: 'background-color 0.2s', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                             >
-                              Hoàn tất
+                              {language === 'vi' ? 'Hoàn tất' : 'Complete'}
                             </button>
                           )}
                           
@@ -2677,28 +2693,28 @@ function App() {
                             <div style={{ display: 'inline-flex', gap: '8px' }}>
                               <button
                                 onClick={() => {
-                                  const phase = projectPhases.find(p => p.cr5db_projectphaseid === t._cr5db_projectphaseid_value);
-                                  setEditingTask(t);
-                                  setNewTaskName(t.cr5db_taskname);
-                                  setNewTaskDesc(t.cr5db_description);
+                                  const phase = projectPhases.find(p => p.cr5db_projectphaseid === task._cr5db_projectphaseid_value);
+                                  setEditingTask(task);
+                                  setNewTaskName(task.cr5db_taskname);
+                                  setNewTaskDesc(task.cr5db_description);
                                   setNewTaskProjectId(phase?._cr5db_projectid_value || '');
-                                  setNewTaskPhaseId(t._cr5db_projectphaseid_value || '');
-                                  setNewTaskObjectiveId(t._cr5db_objectivename_value || '');
-                                  setNewTaskParentId(t._cr5db_parenttask_value || '');
-                                  setNewTaskAssigneeId(t._cr5db_assigneeid_value || '');
-                                  setNewTaskDueDate(t.cr5db_due_date ? new Date(t.cr5db_due_date).toISOString().split('T')[0] : '');
-                                  setNewTaskStatus(t.cr5db_status);
+                                  setNewTaskPhaseId(task._cr5db_projectphaseid_value || '');
+                                  setNewTaskObjectiveId(task._cr5db_objectivename_value || '');
+                                  setNewTaskParentId(task._cr5db_parenttask_value || '');
+                                  setNewTaskAssigneeId(task._cr5db_assigneeid_value || '');
+                                  setNewTaskDueDate(task.cr5db_due_date ? new Date(task.cr5db_due_date).toISOString().split('T')[0] : '');
+                                  setNewTaskStatus(task.cr5db_status);
                                   setShowTaskModal(true);
                                 }}
                                 style={{ height: '36px', borderRadius: '6px', border: '1px solid #742774', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: 'transparent', color: '#742774', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                               >
-                                Edit
+                                {t('common.edit')}
                               </button>
                               <button
-                                onClick={() => handleDeleteTask(t.cr5db_taskid)}
+                                onClick={() => handleDeleteTask(task.cr5db_taskid)}
                                 style={{ height: '36px', borderRadius: '6px', border: '1px solid #a80000', padding: '8px 16px', fontWeight: 500, fontSize: '14px', backgroundColor: 'transparent', color: '#a80000', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                               >
-                                Delete
+                                {t('common.delete')}
                               </button>
                             </div>
                           )}
@@ -2719,12 +2735,14 @@ function App() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span style={{ color: 'var(--color-text)', display: 'flex', alignItems: 'center' }}><ClockIcon /></span>
                   <div>
-                    <h2 style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1.2 }}>Timesheets</h2>
-                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '2px' }}>Log and manage your work hours</p>
+                    <h2 style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1.2 }}>{t('timesheets.title')}</h2>
+                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '2px' }}>
+                      {language === 'vi' ? 'Ghi nhận và quản lý giờ làm việc của bạn' : 'Log and manage your work hours'}
+                    </p>
                   </div>
                 </div>
                 <button onClick={() => setShowTimesheetModal(true)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>+</span> Log Time
+                  <span>+</span> {t('timesheets.logHours')}
                 </button>
               </div>
 
@@ -2733,34 +2751,42 @@ function App() {
                 <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
-                    <span>This Week</span>
+                    <span>{language === 'vi' ? 'Tuần này' : 'This Week'}</span>
                   </div>
                   <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-text)' }}>{totalHoursThisWeek.toFixed(1)}h</span>
-                  <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>{myTimesheets.length} entries logged</span>
+                  <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                    {myTimesheets.length} {language === 'vi' ? 'lượt chấm công' : 'entries logged'}
+                  </span>
                 </div>
                 <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                    <span>Pending</span>
+                    <span>{language === 'vi' ? 'Chờ duyệt' : 'Pending'}</span>
                   </div>
                   <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: '#E29E2E' }}>{pendingCount}</span>
-                  <span className="metric-label" style={{ fontSize: '12px', color: '#E29E2E', fontWeight: 500 }}>Awaiting approval</span>
+                  <span className="metric-label" style={{ fontSize: '12px', color: '#E29E2E', fontWeight: 500 }}>
+                    {language === 'vi' ? 'Đang chờ phê duyệt' : 'Awaiting approval'}
+                  </span>
                 </div>
                 <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                    <span>Approved</span>
+                    <span>{language === 'vi' ? 'Đã duyệt' : 'Approved'}</span>
                   </div>
                   <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: '#107C41' }}>{approvedCount}</span>
-                  <span className="metric-label" style={{ fontSize: '12px', color: '#107C41', fontWeight: 500 }}>This week</span>
+                  <span className="metric-label" style={{ fontSize: '12px', color: '#107C41', fontWeight: 500 }}>
+                    {language === 'vi' ? 'Tuần này' : 'This week'}
+                  </span>
                 </div>
                 <div className="metric-card" style={{ gap: '16px', padding: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>
-                    <span>Avg Daily</span>
+                    <span>{language === 'vi' ? 'Trung bình ngày' : 'Avg Daily'}</span>
                   </div>
                   <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-text)' }}>{avgDaily}h</span>
-                  <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Average per entry</span>
+                  <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                    {language === 'vi' ? 'Trung bình mỗi lượt' : 'Average per entry'}
+                  </span>
                 </div>
               </div>
 
@@ -2779,7 +2805,7 @@ function App() {
                     color: activeTimesheetSubTab === 'my' ? 'var(--color-text)' : 'var(--color-text-secondary)'
                   }}
                 >
-                  My Timesheets
+                  {t('timesheets.myTimesheets')}
                 </button>
                 {(activeRole === 'Admin' || checkPermission('resources')) && (
                   <button
@@ -2795,43 +2821,47 @@ function App() {
                       color: activeTimesheetSubTab === 'approvals' ? 'var(--color-text)' : 'var(--color-text-secondary)'
                     }}
                   >
-                    Approvals
+                    {t('timesheets.approvals')}
                   </button>
                 )}
               </div>
 
               {activeTimesheetSubTab === 'my' ? (
                 <div className="card-spec" style={{ padding: '32px' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: 700 }}>My Time Entries</h3>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700 }}>{language === 'vi' ? 'Lượt chấm công của tôi' : 'My Time Entries'}</h3>
                   <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginTop: '2px', marginBottom: '24px' }}>
-                    View and manage your logged work hours
+                    {language === 'vi' ? 'Xem và quản lý số giờ làm việc đã ghi nhận của bạn' : 'View and manage your logged work hours'}
                   </p>
 
                   {myTimesheets.length === 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', textAlign: 'center', gap: '16px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text)' }}>No time entries yet</h4>
-                        <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>Start logging your work hours to track your time.</p>
+                        <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text)' }}>
+                          {language === 'vi' ? 'Chưa có lượt chấm công nào' : 'No time entries yet'}
+                        </h4>
+                        <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                          {language === 'vi' ? 'Bắt đầu ghi nhận giờ làm việc để theo dõi thời gian của bạn.' : 'Start logging your work hours to track your time.'}
+                        </p>
                       </div>
                       <button onClick={() => setShowTimesheetModal(true)} className="btn-filled-3" style={{ fontSize: '13px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        <span>+</span> Log Your First Entry
+                        <span>+</span> {language === 'vi' ? 'Chấm công lượt đầu tiên' : 'Log Your First Entry'}
                       </button>
                     </div>
                   ) : (
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                       <thead>
                         <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
-                          <th style={{ padding: '12px' }}>Ngày log</th>
-                          <th style={{ padding: '12px' }}>Nhiệm vụ</th>
-                          <th style={{ padding: '12px' }}>Mô tả</th>
-                          <th style={{ padding: '12px' }}>Số giờ</th>
-                          <th style={{ padding: '12px' }}>Trạng thái</th>
+                          <th style={{ padding: '12px' }}>{language === 'vi' ? 'Ngày ghi nhận' : 'Log Date'}</th>
+                          <th style={{ padding: '12px' }}>{language === 'vi' ? 'Nhiệm vụ' : 'Task'}</th>
+                          <th style={{ padding: '12px' }}>{language === 'vi' ? 'Mô tả' : 'Description'}</th>
+                          <th style={{ padding: '12px' }}>{language === 'vi' ? 'Số giờ' : 'Hours'}</th>
+                          <th style={{ padding: '12px' }}>{language === 'vi' ? 'Trạng thái' : 'Status'}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {myTimesheets.map(ts => (
                           <tr key={ts.cr5db_timesheetlogid} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                            <td style={{ padding: '12px' }}>{ts.cr5db_logdate ? new Date(ts.cr5db_logdate).toLocaleDateString('vi-VN') : ''}</td>
+                            <td style={{ padding: '12px' }}>{ts.cr5db_logdate ? new Date(ts.cr5db_logdate).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US') : ''}</td>
                             <td style={{ padding: '12px' }}>{ts.cr5db_taskname}</td>
                             <td style={{ padding: '12px' }}>{ts.cr5db_timesheetlog1}</td>
                             <td style={{ padding: '12px', fontWeight: 600 }}>{ts.cr5db_actualhoursworked}h</td>
@@ -2841,7 +2871,11 @@ function App() {
                                 : ts.cr5db_timesheetlog1?.startsWith('[Từ chối]') ? 'status-rejected'
                                 : 'status-approved'
                               }>
-                                {ts.statecode === 0 ? 'Pending' : ts.cr5db_timesheetlog1?.startsWith('[Từ chối]') ? 'Từ chối' : 'Approved'}
+                                {ts.statecode === 0 
+                                  ? (language === 'vi' ? 'Chờ duyệt' : 'Pending') 
+                                  : ts.cr5db_timesheetlog1?.startsWith('[Từ chối]') 
+                                    ? (language === 'vi' ? 'Từ chối' : 'Rejected') 
+                                    : (language === 'vi' ? 'Đã duyệt' : 'Approved')}
                               </span>
                             </td>
                           </tr>
@@ -2854,30 +2888,36 @@ function App() {
                 <>
                   <div className="large-card" style={{ padding: '24px' }}>
                     {pendingApprovalsTimesheets.length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>No timesheets awaiting review.</div>
+                      <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>
+                        {language === 'vi' ? 'Không có timesheet nào đang chờ phê duyệt.' : 'No timesheets awaiting review.'}
+                      </div>
                     ) : (
                       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                         <thead>
                           <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
-                            <th style={{ padding: '12px' }}>Nhân viên</th>
-                            <th style={{ padding: '12px' }}>Ngày log</th>
-                            <th style={{ padding: '12px' }}>Nhiệm vụ</th>
-                            <th style={{ padding: '12px' }}>Mô tả</th>
-                            <th style={{ padding: '12px' }}>Số giờ</th>
-                            <th style={{ padding: '12px' }}>Thao tác</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Nhân viên' : 'Employee'}</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Ngày ghi nhận' : 'Log Date'}</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Nhiệm vụ' : 'Task'}</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Mô tả' : 'Description'}</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Số giờ' : 'Hours'}</th>
+                            <th style={{ padding: '12px' }}>{language === 'vi' ? 'Thao tác' : 'Actions'}</th>
                           </tr>
                         </thead>
                         <tbody>
                           {pendingApprovalsTimesheets.map(ts => (
                             <tr key={ts.cr5db_timesheetlogid} style={{ borderBottom: '1px solid var(--color-border)' }}>
                               <td style={{ padding: '12px', fontWeight: 600 }}>{ts.cr5db_username}</td>
-                              <td style={{ padding: '12px' }}>{ts.cr5db_logdate ? new Date(ts.cr5db_logdate).toLocaleDateString('vi-VN') : ''}</td>
+                              <td style={{ padding: '12px' }}>{ts.cr5db_logdate ? new Date(ts.cr5db_logdate).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US') : ''}</td>
                               <td style={{ padding: '12px' }}>{ts.cr5db_taskname}</td>
                               <td style={{ padding: '12px' }}>{ts.cr5db_timesheetlog1}</td>
                               <td style={{ padding: '12px', fontWeight: 600 }}>{ts.cr5db_actualhoursworked}h</td>
                               <td style={{ padding: '12px', display: 'flex', gap: '8px' }}>
-                                <button onClick={() => handleApproveTimesheet(ts.cr5db_timesheetlogid)} className="btn-filled-2" style={{ padding: '4px 8px' }}>Duyệt</button>
-                                <button onClick={() => { setTimesheetToRejectId(ts.cr5db_timesheetlogid); setShowRejectionModal(true); }} className="btn-filled-3" style={{ padding: '4px 8px', color: '#a80000' }}>Từ chối</button>
+                                <button onClick={() => handleApproveTimesheet(ts.cr5db_timesheetlogid)} className="btn-filled-2" style={{ padding: '4px 8px' }}>
+                                  {language === 'vi' ? 'Duyệt' : 'Approve'}
+                                </button>
+                                <button onClick={() => { setTimesheetToRejectId(ts.cr5db_timesheetlogid); setShowRejectionModal(true); }} className="btn-filled-3" style={{ padding: '4px 8px', color: '#a80000' }}>
+                                  {language === 'vi' ? 'Từ chối' : 'Reject'}
+                                </button>
                               </td>
                             </tr>
                           ))}
