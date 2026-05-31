@@ -28,34 +28,9 @@ import { Cr5db_objectivesService } from './generated/services/Cr5db_objectivesSe
 import { Cr5db_evaluationperiodsService } from './generated/services/Cr5db_evaluationperiodsService';
 import { Cr5db_systemparametersService } from './generated/services/Cr5db_systemparametersService';
 
-// Helper function to calculate achievement rate (handles both positive and negative/minimization KPIs)
-export const calculateKpiAchievementRate = (
-  targetValue: number,
-  actualValue: number,
-  direction?: number
-): number => {
-  if (targetValue <= 0) return 0;
-  
-  const dir = direction ?? 1; // Default to Higher is better (1)
+import { calculateKpiAchievementRate } from './utils/kpiLogic';
 
-  // 2: Lower is Better (Tối thiểu hóa)
-  if (dir === 2) {
-    if (actualValue <= targetValue) {
-      return 100;
-    }
-    return Math.max(0, Math.round((2 - actualValue / targetValue) * 100));
-  }
-
-  // 3: Binary (Đạt / Không đạt), 4: Milestone (Cột mốc)
-  if (dir === 3 || dir === 4) {
-    return actualValue >= targetValue ? 100 : 0;
-  }
-
-  // 1: Higher is Better (Tối đa hóa - Default)
-  return Math.min(100, Math.round((actualValue / targetValue) * 100));
-};
-
-export const getPeriodStatus = (p: any): { text: string; bg: string; color: string } => {
+const getPeriodStatus = (p: EvaluationPeriod): { text: string; bg: string; color: string } => {
   if (p.cr5db_islocked) {
     return { text: "🔒 Đã khóa (Locked)", bg: "#FDE7E9", color: "#A80000" };
   }
@@ -144,7 +119,7 @@ const BellIcon = () => (
 // );
 
 import { FEATURE_TABS, hasTabPermission } from './lib/types';
-import type { User, Task, PermissionGroup } from './lib/types';
+import type { User, Task, PermissionGroup, EvaluationPeriod } from './lib/types';
 import { getTranslation } from './lib/locales';
 
 function App() {
@@ -381,7 +356,7 @@ function App() {
     
     if (kpiName.includes('#TASKS_ON_TIME') || kpiCode.includes('#TASKS_ON_TIME')) {
       const userTasks = tasks.filter(t => t.cr5db_assignee_email?.toLowerCase() === email.toLowerCase());
-      if (userTasks.length === 0) return 100;
+      if (userTasks.length === 0) return 0;
       
       const kpiObjective = objectivesList.find(o => o.cr5db_objectiveid === k._cr5db_parentobjective_value);
       const kpiPeriodName = kpiObjective?.cr5db_periodnamename || k.cr5db_period || '';
@@ -395,14 +370,17 @@ function App() {
       const relevantTasks = periodTasks.length > 0 ? periodTasks : userTasks;
       const completedOnTime = relevantTasks.filter(t => {
         const isCompleted = t.cr5db_status === 'Completed';
-        const isOverdue = t.cr5db_due_date && new Date(t.cr5db_due_date) < new Date(t.modifiedon || Date.now());
+        const compareDate = isCompleted 
+          ? (t.cr5db_completeddate ? new Date(t.cr5db_completeddate) : new Date(t.modifiedon || Date.now()))
+          : new Date();
+        const isOverdue = t.cr5db_due_date && new Date(t.cr5db_due_date) < compareDate;
         return isCompleted && !isOverdue;
       });
       return Math.round((completedOnTime.length / relevantTasks.length) * 100);
     }
     
     if (kpiName.includes('#HOURS_LOGGED') || kpiCode.includes('#HOURS_LOGGED')) {
-      const userTimesheets = timesheets.filter(ts => ts.cr5db_username?.toLowerCase() === email.toLowerCase());
+      const userTimesheets = timesheets.filter(ts => ts.cr5db_username?.toLowerCase() === email.toLowerCase() && ts.statuscode === 2 && !ts.cr5db_timesheetlog1?.startsWith('[Từ chối]'));
       
       const kpiObjective = objectivesList.find(o => o.cr5db_objectiveid === k._cr5db_parentobjective_value);
       const kpiPeriodName = kpiObjective?.cr5db_periodnamename || k.cr5db_period || '';
