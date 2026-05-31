@@ -1691,9 +1691,10 @@ function App() {
       setProjectStartDate('');
       setProjectEndDate('');
       setProjectStatus('Not Started');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Không thể lưu dự án.");
+      const errMsg = err?.message || err?.error?.message || JSON.stringify(err);
+      alert(`Không thể lưu dự án. Chi tiết lỗi: ${errMsg}`);
       setIsLoading(false);
     }
   };
@@ -1785,9 +1786,10 @@ function App() {
       setNewPhaseStartDate('');
       setNewPhaseEndDate('');
       await fetchLiveValues();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Không thể thêm giai đoạn dự án.");
+      const errMsg = err?.message || err?.error?.message || JSON.stringify(err);
+      alert(`Không thể thêm giai đoạn dự án. Chi tiết lỗi: ${errMsg}`);
       setIsLoading(false);
     }
   };
@@ -1810,9 +1812,10 @@ function App() {
       setNewRiskProbability('Medium');
       setNewRiskMitigation('');
       await fetchLiveValues();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Không thể thêm rủi ro dự án.");
+      const errMsg = err?.message || err?.error?.message || JSON.stringify(err);
+      alert(`Không thể thêm rủi ro dự án. Chi tiết lỗi: ${errMsg}`);
       setIsLoading(false);
     }
   };
