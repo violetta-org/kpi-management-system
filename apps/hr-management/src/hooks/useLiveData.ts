@@ -283,6 +283,16 @@ export function useLiveData(setters: LiveDataSetters) {
         };
       });
 
+      // Map evaluation periods names onto objectives
+      const mappedObjectives = rawObjectives.map((obj: any) => {
+        const periodId = obj._cr5db_periodname_value;
+        const matchedPeriod = rawEvaluationPeriods.find((ep: any) => ep.cr5db_evaluationperiodid === periodId);
+        return {
+          ...obj,
+          cr5db_periodnamename: matchedPeriod ? matchedPeriod.cr5db_evaluationperiod1 : obj.cr5db_periodnamename
+        };
+      });
+
       setters.setUsersList(allUsers);
       setters.setDepartmentsList(allDepts);
       setters.setCompaniesList(allCompanies);
@@ -290,7 +300,7 @@ export function useLiveData(setters: LiveDataSetters) {
       setters.setJobPositionsList(allJobPositions as any);
       setters.setAuditLogsList(allAuditLogs);
       setters.setResourceAllocationsList(mappedAllocations);
-      setters.setObjectivesList(rawObjectives);
+      setters.setObjectivesList(mappedObjectives);
       setters.setProjects(rawProjects);
       setters.setProjectPhases(rawProjectPhases);
       setters.setProjectRisks(rawProjectRisks);

@@ -2160,7 +2160,7 @@ function App() {
       setKpiEmployeeId('');
       setKpiObjectiveId('');
       setKpiLibraryId('');
-      setKpiPeriod('Q2/2026');
+      setKpiPeriod(evaluationPeriodsList[0]?.cr5db_evaluationperiod1 || 'Q2/2026');
     } catch (err) {
       console.error(err);
       alert("Không thể lưu mục tiêu KPI.");
@@ -3175,9 +3175,11 @@ function App() {
                       setKpiActualValue(0);
                       setKpiWeight(10);
                       setKpiUnit(firstLib ? (firstLib.cr5db_unit || '%') : '%');
-                      setKpiPeriod('Q2/2026');
+                      const defaultPeriod = evaluationPeriodsList[0]?.cr5db_evaluationperiod1 || 'Q2/2026';
+                      setKpiPeriod(defaultPeriod);
                       setKpiEmployeeId(usersList[0]?.cr5db_userid || '');
-                      setKpiObjectiveId(objectivesList[0]?.cr5db_objectiveid || '');
+                      const firstMatchedObj = objectivesList.find(o => o.cr5db_periodnamename === defaultPeriod);
+                      setKpiObjectiveId(firstMatchedObj?.cr5db_objectiveid || objectivesList[0]?.cr5db_objectiveid || '');
                       setKpiLibraryId(firstLib ? firstLib.cr5db_kpilibraryid : '');
                       setShowKpiModal(true);
                     }}
