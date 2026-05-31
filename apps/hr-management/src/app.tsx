@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import './App.css';
 
 // Hooks
@@ -221,6 +221,7 @@ function App() {
     editingIdp, setEditingIdp,
     showIdpActionModal, setShowIdpActionModal,
     activeDirectorySubTab, setActiveDirectorySubTab,
+    expandedOrgNodes, setExpandedOrgNodes,
     showEmployeeModal, setShowEmployeeModal,
     editingEmployee, setEditingEmployee,
     employeeFullName, setEmployeeFullName,
@@ -1364,6 +1365,107 @@ function App() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  interface OrgNodeData {
+    jobPosId: string;
+    jobPosName: string;
+    departmentName: string;
+    children: OrgNodeData[];
+    employees: any[];
+  }
+
+  const orgTreeData = useMemo(() => {
+    const posMap = new Map<string, OrgNodeData>();
+    jobPositionsList.forEach(jp => {
+      posMap.set(jp.cr5db_jobpositionid, {
+        jobPosId: jp.cr5db_jobpositionid,
+        jobPosName: jp.cr5db_positionname,
+        departmentName: jp.cr5db_departmentname || '',
+        children: [],
+        employees: []
+      });
+    });
+
+    usersList.forEach(u => {
+      if (u._cr5db_jobposition_value) {
+        const node = posMap.get(u._cr5db_jobposition_value);
+        if (node) {
+          node.employees.push(u);
+        }
+      }
+    });
+
+    const rootNodes: OrgNodeData[] = [];
+    jobPositionsList.forEach(jp => {
+      const node = posMap.get(jp.cr5db_jobpositionid);
+      if (!node) return;
+
+      const parentId = jp._cr5db_reportstopositionid_value;
+      if (parentId && posMap.has(parentId)) {
+        posMap.get(parentId)!.children.push(node);
+      } else {
+        rootNodes.push(node);
+      }
+    });
+
+    return rootNodes;
+  }, [jobPositionsList, usersList]);
+
+  // Init expansion for first level
+  useEffect(() => {
+    if (orgTreeData.length > 0 && Object.keys(expandedOrgNodes).length === 0) {
+      const initialExpanded: { [key: string]: boolean } = {};
+      orgTreeData.forEach((root: OrgNodeData) => {
+        initialExpanded[root.jobPosId] = true;
+      });
+      setExpandedOrgNodes(initialExpanded);
+    }
+  }, [orgTreeData]);
+
+  const toggleOrgNode = (nodeId: string) => {
+    setExpandedOrgNodes(prev => ({
+      ...prev,
+      [nodeId]: !prev[nodeId]
+    }));
+  };
+
+  const renderOrgNode = (node: OrgNodeData) => {
+    const isExpanded = !!expandedOrgNodes[node.jobPosId];
+    return (
+      <li key={node.jobPosId} className="org-node-container">
+        <div className="org-card">
+          <div className="org-card-header">
+            <div>
+              <div className="org-card-title">{node.jobPosName}</div>
+              {node.departmentName && <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{node.departmentName}</div>}
+            </div>
+            {node.children.length > 0 && (
+              <button onClick={() => toggleOrgNode(node.jobPosId)} className="org-toggle-btn">
+                {isExpanded ? '−' : '+'}
+              </button>
+            )}
+          </div>
+          {node.employees.length > 0 && (
+            <div className="org-employee-list">
+              {node.employees.map(e => (
+                <div key={e.cr5db_userid} className="org-employee-item">
+                  <div style={{ width: '24px', height: '24px', borderRadius: '12px', backgroundColor: '#e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>
+                    {e.cr5db_fullname.charAt(0)}
+                  </div>
+                  <span>{e.cr5db_fullname}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {isExpanded && node.children.length > 0 && (
+          <ul className="org-tree">
+            {node.children.map(child => renderOrgNode(child))}
+          </ul>
+        )}
+      </li>
+    );
   };
 
   const handleAutoCalculateAppraisal = async (id: string, email: string) => {
@@ -6280,6 +6382,20 @@ function App() {
                       Nhóm quyền (Groups)
                     </button>
                   )}
+                  <button 
+                    onClick={() => setActiveDirectorySubTab('orgchart')} 
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      color: activeDirectorySubTab === 'orgchart' ? 'var(--color-text)' : 'var(--color-text-secondary)', 
+                      fontWeight: activeDirectorySubTab === 'orgchart' ? 700 : 500, 
+                      cursor: 'pointer', 
+                      borderBottom: activeDirectorySubTab === 'orgchart' ? '2px solid var(--color-text)' : 'none', 
+                      padding: '4px 8px' 
+                    }}
+                  >
+                    Sơ đồ Tổ chức
+                  </button>
                 </div>
               )}
 
@@ -6532,7 +6648,7 @@ function App() {
                     </table>
                   </div>
                 </div>
-              ) : (
+              ) : activeDirectorySubTab === 'history' ? (
                 <div className="card-spec" style={{ padding: '0px', overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                     <thead>
@@ -6555,7 +6671,19 @@ function App() {
                     </tbody>
                   </table>
                 </div>
-              )}
+              ) : activeDirectorySubTab === 'orgchart' ? (
+                <div className="card-spec" style={{ padding: '24px', overflowX: 'auto', backgroundColor: '#fcfcfc' }}>
+                  {orgTreeData.length === 0 ? (
+                    <div style={{ textAlign: 'center', color: 'var(--color-text-secondary)', padding: '20px' }}>
+                      Chưa có dữ liệu Sơ đồ Tổ chức. Vui lòng thiết lập Vị trí công việc và Cấp trên (Reports To).
+                    </div>
+                  ) : (
+                    <ul className="org-tree" style={{ marginLeft: '-20px' }}>
+                      {orgTreeData.map((root: OrgNodeData) => renderOrgNode(root))}
+                    </ul>
+                  )}
+                </div>
+              ) : null}
             </div>
           )}
 
