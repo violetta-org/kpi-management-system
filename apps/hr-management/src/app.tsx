@@ -196,6 +196,7 @@ function App() {
     newPhaseStartDate, setNewPhaseStartDate,
     newPhaseEndDate, setNewPhaseEndDate,
     showRiskModal, setShowRiskModal,
+    editingRisk, setEditingRisk,
     newRiskName, setNewRiskName,
     newRiskImpact, setNewRiskImpact,
     newRiskProbability, setNewRiskProbability,
@@ -1813,21 +1814,37 @@ function App() {
     if (!activeProjectDetails || !newRiskName.trim()) return;
     try {
       setIsLoading(true);
-      const createResult = await Cr5db_projectrisksService.create({
+      
+      const payload: any = {
         cr5db_projectrisk1: newRiskName,
         cr5db_impactlevel: newRiskImpact === 'High' ? 122650000 : newRiskImpact === 'Medium' ? 122650001 : 122650002,
         cr5db_probabilitypercentage: newRiskProbability === 'High' ? 80 : newRiskProbability === 'Medium' ? 50 : 20,
-        "new_Project@odata.bind": `/cr5db_projects(${activeProjectDetails.cr5db_projectid})`
-      } as any);
+        cr5db_mitigationplan: newRiskMitigation
+      };
 
-      if (createResult && createResult.success === false) {
-        const errDetail = createResult.error?.message || JSON.stringify(createResult);
-        alert(`Không thể thêm rủi ro: ${errDetail}`);
-        setIsLoading(false);
-        return;
+      if (editingRisk) {
+        // Update existing risk
+        const updateResult = await Cr5db_projectrisksService.update(editingRisk.cr5db_projectriskid, payload);
+        if (updateResult && updateResult.success === false) {
+          const errDetail = updateResult.error?.message || JSON.stringify(updateResult);
+          alert(`Không thể cập nhật rủi ro: ${errDetail}`);
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        // Create new risk
+        payload["new_Project@odata.bind"] = `/cr5db_projects(${activeProjectDetails.cr5db_projectid})`;
+        const createResult = await Cr5db_projectrisksService.create(payload);
+        if (createResult && createResult.success === false) {
+          const errDetail = createResult.error?.message || JSON.stringify(createResult);
+          alert(`Không thể thêm rủi ro: ${errDetail}`);
+          setIsLoading(false);
+          return;
+        }
       }
 
       setShowRiskModal(false);
+      setEditingRisk(null);
       setNewRiskName('');
       setNewRiskImpact('Medium');
       setNewRiskProbability('Medium');
@@ -1836,7 +1853,35 @@ function App() {
     } catch (err: any) {
       console.error('[handleSaveRisk] Exception:', err);
       const errMsg = err?.message || err?.error?.message || JSON.stringify(err);
-      alert(`Không thể thêm rủi ro dự án. Chi tiết lỗi:\n${errMsg}`);
+      alert(`Không thể ${editingRisk ? 'cập nhật' : 'thêm'} rủi ro dự án. Chi tiết lỗi:\n${errMsg}`);
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeletePhase = async (phaseId: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa giai đoạn này không? Hành động này không thể hoàn tác.")) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_projectphasesService.delete(phaseId);
+      await fetchLiveValues();
+    } catch (err: any) {
+      console.error('[handleDeletePhase] Exception:', err);
+      const errMsg = err?.message || err?.error?.message || JSON.stringify(err);
+      alert(`Không thể xóa giai đoạn dự án. Chi tiết lỗi:\n${errMsg}`);
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteRisk = async (riskId: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa rủi ro này không? Hành động này không thể hoàn tác.")) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_projectrisksService.delete(riskId);
+      await fetchLiveValues();
+    } catch (err: any) {
+      console.error('[handleDeleteRisk] Exception:', err);
+      const errMsg = err?.message || err?.error?.message || JSON.stringify(err);
+      alert(`Không thể xóa rủi ro dự án. Chi tiết lỗi:\n${errMsg}`);
       setIsLoading(false);
     }
   };
@@ -4647,20 +4692,29 @@ function App() {
                                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                             <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, ...phStyle }}>{phStatus}</span>
                                             {canManageProject && (
-                                              <button
-                                                onClick={() => {
-                                                  setEditingPhase(ph);
-                                                  setNewPhaseName(ph.cr5db_phasename || '');
-                                                  setNewPhaseStatus(phStatus);
-                                                  setNewPhaseStartDate(ph.cr5db_startdate ? ph.cr5db_startdate.substring(0, 10) : '');
-                                                  setNewPhaseEndDate(ph.cr5db_enddate ? ph.cr5db_enddate.substring(0, 10) : '');
-                                                  setShowPhaseModal(true);
-                                                }}
-                                                className="btn-filled-3"
-                                                style={{ padding: '2px 6px', fontSize: '10px', minWidth: 'auto' }}
-                                              >
-                                                Sửa
-                                              </button>
+                                              <>
+                                                <button
+                                                  onClick={() => {
+                                                    setEditingPhase(ph);
+                                                    setNewPhaseName(ph.cr5db_phasename || '');
+                                                    setNewPhaseStatus(phStatus);
+                                                    setNewPhaseStartDate(ph.cr5db_startdate ? ph.cr5db_startdate.substring(0, 10) : '');
+                                                    setNewPhaseEndDate(ph.cr5db_enddate ? ph.cr5db_enddate.substring(0, 10) : '');
+                                                    setShowPhaseModal(true);
+                                                  }}
+                                                  className="btn-filled-3"
+                                                  style={{ padding: '2px 6px', fontSize: '10px', minWidth: 'auto' }}
+                                                >
+                                                  Sửa
+                                                </button>
+                                                <button
+                                                  onClick={() => handleDeletePhase(ph.cr5db_projectphaseid)}
+                                                  className="btn-filled-3"
+                                                  style={{ padding: '2px 6px', fontSize: '10px', minWidth: 'auto', color: '#a80000', borderColor: '#e5e5e5' }}
+                                                >
+                                                  Xóa
+                                                </button>
+                                              </>
                                             )}
                                           </div>
                                         </div>
@@ -4737,9 +4791,42 @@ function App() {
                                               <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600, ...getBadgeColor(prob.toString()) }}>Prob: {prob}</span>
                                             </div>
                                           </div>
-                                          <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>
-                                            <strong>Phương án giảm thiểu:</strong> {mitigation}
-                                          </p>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '8px', marginTop: '4px' }}>
+                                            <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0, flex: 1 }}>
+                                              <strong>Phương án giảm thiểu:</strong> {mitigation}
+                                            </p>
+                                            {canManageProject && (
+                                              <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                                                <button
+                                                  onClick={() => {
+                                                    setEditingRisk(r);
+                                                    setNewRiskName(r.cr5db_riskname || r.cr5db_projectrisk1 || '');
+                                                    setNewRiskImpact(
+                                                      impact === 'High' ? 'High' : 
+                                                      impact === 'Medium' ? 'Medium' : 'Low'
+                                                    );
+                                                    setNewRiskProbability(
+                                                      probRaw === 80 || probRaw === '80' || probRaw === 'High' ? 'High' :
+                                                      probRaw === 20 || probRaw === '20' || probRaw === 'Low' ? 'Low' : 'Medium'
+                                                    );
+                                                    setNewRiskMitigation(r.cr5db_mitigationplan || '');
+                                                    setShowRiskModal(true);
+                                                  }}
+                                                  className="btn-filled-3"
+                                                  style={{ padding: '2px 6px', fontSize: '10px', minWidth: 'auto' }}
+                                                >
+                                                  Sửa
+                                                </button>
+                                                <button
+                                                  onClick={() => handleDeleteRisk(r.cr5db_projectriskid)}
+                                                  className="btn-filled-3"
+                                                  style={{ padding: '2px 6px', fontSize: '10px', minWidth: 'auto', color: '#a80000', borderColor: '#e5e5e5' }}
+                                                >
+                                                  Xóa
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
                                         </div>
                                       );
                                     })}
@@ -6666,7 +6753,7 @@ function App() {
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '450px' }}>
             <h3 style={{ marginBottom: '16px', fontSize: '15px', fontWeight: 700 }}>
-              Ghi nhận rủi ro dự án
+              {editingRisk ? 'Chỉnh sửa rủi ro dự án' : 'Ghi nhận rủi ro dự án'}
             </h3>
             <form onSubmit={handleSaveRisk} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
@@ -6724,6 +6811,7 @@ function App() {
                   type="button" 
                   onClick={() => {
                     setShowRiskModal(false);
+                    setEditingRisk(null);
                     setNewRiskName('');
                     setNewRiskImpact('Medium');
                     setNewRiskProbability('Medium');
@@ -6734,7 +6822,7 @@ function App() {
                   Hủy
                 </button>
                 <button type="submit" className="btn-filled-2" style={{ backgroundColor: '#742774' }}>
-                  Lưu rủi ro
+                  {editingRisk ? 'Cập nhật' : 'Lưu rủi ro'}
                 </button>
               </div>
             </form>

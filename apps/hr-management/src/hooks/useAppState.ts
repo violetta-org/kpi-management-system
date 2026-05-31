@@ -129,6 +129,7 @@ export function useAppState() {
   const [newPhaseStartDate, setNewPhaseStartDate] = useState('');
   const [newPhaseEndDate, setNewPhaseEndDate] = useState('');
   const [showRiskModal, setShowRiskModal] = useState(false);
+  const [editingRisk, setEditingRisk] = useState<any>(null);
   const [newRiskName, setNewRiskName] = useState('');
   const [newRiskImpact, setNewRiskImpact] = useState('Medium');
   const [newRiskProbability, setNewRiskProbability] = useState('Medium');
@@ -373,6 +374,7 @@ export function useAppState() {
     newPhaseStartDate, setNewPhaseStartDate,
     newPhaseEndDate, setNewPhaseEndDate,
     showRiskModal, setShowRiskModal,
+    editingRisk, setEditingRisk,
     newRiskName, setNewRiskName,
     newRiskImpact, setNewRiskImpact,
     newRiskProbability, setNewRiskProbability,
