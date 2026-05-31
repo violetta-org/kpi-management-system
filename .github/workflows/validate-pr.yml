@@ -1,0 +1,45 @@
+name: Validate Solution on Pull Request (ALM)
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    environment: Validation  # Uses Validation environment secrets (ENVIRONMENT_URL = QLDA-Validation)
+    steps:
+    - uses: actions/checkout@v4
+
+    # 1. Install Power Platform CLI tooling
+    - name: Install Power Platform Tools
+      uses: microsoft/powerplatform-actions/actions-install@v1
+
+    # 2. Add Power Platform CLI to PATH
+    - name: Add Power Platform CLI to PATH
+      run: |
+        if [ -f "$POWERPLATFORMTOOLS_PACPATH" ]; then
+          echo "$(dirname "$POWERPLATFORMTOOLS_PACPATH")" >> $GITHUB_PATH
+        elif [ -d "$POWERPLATFORMTOOLS_PACPATH" ]; then
+          echo "$POWERPLATFORMTOOLS_PACPATH" >> $GITHUB_PATH
+          echo "$POWERPLATFORMTOOLS_PACPATH/pac/bin" >> $GITHUB_PATH
+          echo "$POWERPLATFORMTOOLS_PACPATH/bin" >> $GITHUB_PATH
+        fi
+
+    # 3. Pack the source files back into an unmanaged solution zip
+    - name: Pack Solution (Unmanaged)
+      uses: microsoft/powerplatform-actions/pack-solution@v1
+      with:
+        solution-folder: 'src'
+        solution-file: 'out/VibeApp.zip'
+        solution-type: 'Unmanaged'
+
+    # 4. Authenticate and Import the unmanaged solution into the QLDA-Validation Env using async polling
+    - name: Import Solution to Validation Env
+      run: |
+        pac --log-to-console auth create --name "ValidationEnv" --applicationId "${{ secrets.CLIENT_ID }}" --clientSecret "${{ secrets.CLIENT_SECRET }}" --tenant "${{ secrets.TENANT_ID }}" --environment "${{ secrets.ENVIRONMENT_URL }}"
+        pac --log-to-console solution import --path out/VibeApp.zip --activate-plugins --force-overwrite --async

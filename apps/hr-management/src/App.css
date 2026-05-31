@@ -1,0 +1,25 @@
+/* App specific styling overrides */
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Custom scrollbars matching the brand colors */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-subtle-4);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}

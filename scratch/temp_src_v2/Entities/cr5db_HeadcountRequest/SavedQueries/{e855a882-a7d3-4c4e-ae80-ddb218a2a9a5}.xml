@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{e855a882-a7d3-4c4e-ae80-ddb218a2a9a5}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr5db_requestname" select="1" icon="1" preview="1">
+        <row name="result" id="cr5db_headcountrequestid">
+          <cell name="cr5db_requestname" width="300" />
+          <cell name="cr5db_requesttype" width="150" />
+          <cell name="cr5db_jobposition" width="150" />
+          <cell name="cr5db_department" width="150" />
+          <cell name="cr5db_positioncatalog" width="150" />
+          <cell name="cr5db_requestedquantity" width="150" />
+          <cell name="cr5db_reason" width="150" />
+          <cell name="cr5db_approvalstatus" width="150" />
+          <cell name="cr5db_approverposition" width="150" />
+          <cell name="cr5db_createddate" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr5db_headcountrequest">
+          <attribute name="cr5db_headcountrequestid" />
+          <attribute name="cr5db_requestname" />
+          <attribute name="createdon" />
+          <order attribute="cr5db_requestname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr5db_requesttype" />
+          <attribute name="cr5db_jobposition" />
+          <attribute name="cr5db_department" />
+          <attribute name="cr5db_positioncatalog" />
+          <attribute name="cr5db_requestedquantity" />
+          <attribute name="cr5db_reason" />
+          <attribute name="cr5db_approvalstatus" />
+          <attribute name="cr5db_approverposition" />
+          <attribute name="cr5db_createddate" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Headcount Requests" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

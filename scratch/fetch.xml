@@ -1,0 +1,5 @@
+<fetch count="1">
+  <entity name="cr5db_attendancelog">
+    <attribute name="cr5db_attendancelogid" />
+  </entity>
+</fetch>

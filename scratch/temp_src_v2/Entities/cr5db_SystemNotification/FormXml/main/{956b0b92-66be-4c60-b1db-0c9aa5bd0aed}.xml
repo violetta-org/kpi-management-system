@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{956b0b92-66be-4c60-b1db-0c9aa5bd0aed}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{b1501be2-3ea1-472c-9fc7-2082b248757f}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{f30109b9-9c08-46a4-9a37-710e660b775a}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{3a98b3d5-fbbf-4d02-9779-19151825a41d}">
+                        <labels>
+                          <label description="System Notification" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_systemnotification1" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr5db_systemnotification1" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6aaf6e73-fc61-44d7-86a9-b3d9370d90ca}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{66791465-a29e-40cf-b154-70901d7817ff}">
+                        <labels>
+                          <label description="Content" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_content" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr5db_content" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1ec5b124-bf0e-4e53-8756-e530a344ec1a}">
+                        <labels>
+                          <label description="Is Read" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_isread" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="cr5db_isread" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9dcc5de2-b976-45a4-ab6f-1c605a0b67f6}">
+                        <labels>
+                          <label description="Deep Link Url" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_deeplinkurl" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr5db_deeplinkurl" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

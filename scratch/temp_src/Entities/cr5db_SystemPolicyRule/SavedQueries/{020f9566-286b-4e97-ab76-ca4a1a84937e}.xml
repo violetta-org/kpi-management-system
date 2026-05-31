@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{020f9566-286b-4e97-ab76-ca4a1a84937e}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr5db_systempolicyrule1" select="1" icon="1" preview="1">
+        <row name="result" id="cr5db_systempolicyruleid">
+          <cell name="cr5db_systempolicyrule1" width="300" />
+          <cell name="cr5db_targetentity" width="150" />
+          <cell name="cr5db_contextcondition" width="150" />
+          <cell name="cr5db_operator" width="150" />
+          <cell name="cr5db_constraintvalue" width="150" />
+          <cell name="cr5db_effect" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr5db_systempolicyrule">
+          <attribute name="cr5db_systempolicyruleid" />
+          <attribute name="cr5db_systempolicyrule1" />
+          <attribute name="createdon" />
+          <order attribute="cr5db_systempolicyrule1" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr5db_targetentity" />
+          <attribute name="cr5db_contextcondition" />
+          <attribute name="cr5db_operator" />
+          <attribute name="cr5db_constraintvalue" />
+          <attribute name="cr5db_effect" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active System Policy Rules" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

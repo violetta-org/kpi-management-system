@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{dd556a63-b216-48de-97f1-5841d440c62a}</savedqueryid>
+    <layoutxml>
+      <grid name="cr5db_systempolicyrules" jump="cr5db_systempolicyrule1" select="1" icon="1" preview="1">
+        <row name="cr5db_systempolicyrule" id="cr5db_systempolicyruleid">
+          <cell name="cr5db_systempolicyrule1" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>2</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr5db_systempolicyrule">
+          <attribute name="cr5db_systempolicyruleid" />
+          <attribute name="cr5db_systempolicyrule1" />
+          <attribute name="createdon" />
+          <order attribute="cr5db_systempolicyrule1" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="System Policy Rule Associated View" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

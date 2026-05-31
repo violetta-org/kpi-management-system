@@ -1,0 +1,9 @@
+<fetch>
+  <entity name="importjob">
+    <attribute name="data" />
+    <attribute name="importjobid" />
+    <filter>
+      <condition attribute="importjobid" operator="eq" value="d223c2e8-0f67-46f1-ac23-877cf4cadf04" />
+    </filter>
+  </entity>
+</fetch>

@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{cc8793ec-2df1-494b-b151-de755bc6ba48}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{1a2cc26b-c0af-494c-9dc0-a7510e62ef83}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{f37ec869-9134-4917-a8f1-8c70f1b7ebe7}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{cff0d330-5291-4cf4-939f-55a24d8a5da3}">
+                        <labels>
+                          <label description="KPI Target" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_kpitarget1" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr5db_kpitarget1" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2b7959c5-f373-4481-bd81-eb2aa2730cde}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{e77c59e6-5339-4513-998c-ea1f01d401e2}">
+                        <labels>
+                          <label description="Target Value" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_targetvalue" classid="{c3efe0c3-0ec6-42be-8349-cbd9079dfd8e}" datafieldname="cr5db_targetvalue" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{097096d7-d1ac-4d8f-8f4a-6cc26650c735}">
+                        <labels>
+                          <label description="Weight Percentage" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_weightpercentage" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr5db_weightpercentage" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{0523391d-65a4-4267-b58c-2864567ca7f0}">
+                        <labels>
+                          <label description="KPI Template" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_kpicode" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr5db_kpicode" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

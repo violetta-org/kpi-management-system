@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{362a0385-0142-4829-852c-eea61cecc2d3}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{c0c10312-28dd-4aa8-971d-2b8f1206895f}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{70f788e8-d8c8-4d3d-8c7d-c728f2c2c15f}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{53bebffc-0b25-4531-8b7b-bf2808f23a81}">
+                        <labels>
+                          <label description="Task Comment" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_taskcomment1" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr5db_taskcomment1" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{66df5f68-11cf-4531-b563-0bb5c430004d}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{17962520-a6a4-40a7-a557-1064d19db2e5}">
+                        <labels>
+                          <label description="Comment Text" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_commenttext" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr5db_commenttext" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{f40fd75c-1647-4e41-afde-4264759a460e}">
+                        <labels>
+                          <label description="Task" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_taskid" classid="{270bd3db-d9af-4782-9025-509e298dec0a}" datafieldname="cr5db_taskid" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

@@ -1,0 +1,513 @@
+{
+  "url": "https://apps.powerapps.com/play/e/93f7336b-d087-ef78-9065-10f290d2559a/app/98b5f028-7b8e-4195-84af-d7d9152c95e3?tenantId=42350984-d0f6-4a38-978a-aa84e495e429&sourcehint=1&hint=41e3f32a-bce8-4be7-9685-b0e482b991e8&sourcetime=1779994940915&source=portal",
+  "title": "Quản lý Định biên Nhân sự",
+  "description": "",
+  "scrapedAt": "2026-05-28T19:11:19.836Z",
+  "colors": {
+    "bg": "#ffffff",
+    "bgSecondary": "#b15058",
+    "text": "#000000",
+    "textSecondary": "#666666",
+    "primary": "#b6393a",
+    "secondary": "#b15058",
+    "border": "#e5e5e5",
+    "palette": [
+      {
+        "hex": "#b6393a",
+        "role": "block",
+        "count": 1,
+        "area": 65568,
+        "contrast": "light"
+      },
+      {
+        "hex": "#b15058",
+        "role": "button",
+        "count": 1,
+        "area": 44366,
+        "contrast": "light"
+      },
+      {
+        "hex": "#742774",
+        "role": "button",
+        "count": 1,
+        "area": 5684,
+        "contrast": "light"
+      },
+      {
+        "hex": "#ffffff",
+        "role": "button",
+        "count": 1,
+        "area": 2956,
+        "contrast": "dark"
+      }
+    ]
+  },
+  "typography": {
+    "headingFont": {
+      "family": "sans-serif",
+      "cleanFamily": "",
+      "weights": [
+        "700"
+      ],
+      "usedFor": "heading",
+      "fallback": "sans-serif"
+    },
+    "bodyFont": {
+      "family": "sans-serif",
+      "cleanFamily": "sans-serif",
+      "weights": [
+        "400"
+      ],
+      "usedFor": "body",
+      "fallback": "sans-serif"
+    },
+    "fontSizes": [
+      18,
+      16,
+      14,
+      13.3333,
+      13,
+      12,
+      6
+    ],
+    "lineHeights": [],
+    "details": []
+  },
+  "spacing": {
+    "base": 4,
+    "common": [
+      {
+        "value": 4,
+        "count": 1,
+        "role": "element"
+      }
+    ]
+  },
+  "borderRadius": [
+    {
+      "value": 50,
+      "count": 5,
+      "role": "card"
+    },
+    {
+      "value": 2,
+      "count": 2,
+      "role": "subtle"
+    },
+    {
+      "value": 4,
+      "count": 1,
+      "role": "subtle"
+    }
+  ],
+  "shadows": [],
+  "components": {
+    "primaryButton": {
+      "bg": "#742774",
+      "border": "1px dotted rgb(0, 0, 0)",
+      "borderRadius": 2,
+      "color": "#ffffff",
+      "fontSize": 14,
+      "fontWeight": "400",
+      "paddingH": 16,
+      "paddingV": 0,
+      "variant": "filled"
+    },
+    "secondaryButton": {
+      "bg": "#b15058",
+      "border": "",
+      "borderRadius": 0,
+      "color": "#ffffff",
+      "fontSize": 13.3333,
+      "fontWeight": "400",
+      "paddingH": 0,
+      "paddingV": 0,
+      "variant": "filled"
+    },
+    "buttons": [
+      {
+        "bg": "#742774",
+        "border": "1px dotted rgb(0, 0, 0)",
+        "borderRadius": 2,
+        "color": "#ffffff",
+        "fontSize": 14,
+        "fontWeight": "400",
+        "paddingH": 16,
+        "paddingV": 0,
+        "variant": "filled"
+      },
+      {
+        "bg": "#b15058",
+        "border": "",
+        "borderRadius": 0,
+        "color": "#ffffff",
+        "fontSize": 13.3333,
+        "fontWeight": "400",
+        "paddingH": 0,
+        "paddingV": 0,
+        "variant": "filled"
+      },
+      {
+        "bg": "#b15058",
+        "border": "",
+        "borderRadius": 2,
+        "color": "#ffffff",
+        "fontSize": 14,
+        "fontWeight": "400",
+        "paddingH": 4,
+        "paddingV": 0,
+        "variant": "filled"
+      },
+      {
+        "bg": "#ffffff",
+        "border": "1px solid rgb(209, 209, 209)",
+        "borderRadius": 4,
+        "color": "#323130",
+        "fontSize": 14,
+        "fontWeight": "400",
+        "paddingH": 8,
+        "paddingV": 4,
+        "variant": "filled"
+      }
+    ],
+    "card": null
+  },
+  "fontFaces": [
+    {
+      "family": "Leelawadee UI Web",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/leelawadeeui-thai/leelawadeeui-light.woff2",
+      "style": "normal",
+      "weight": "100"
+    },
+    {
+      "family": "Leelawadee UI Web",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/leelawadeeui-thai/leelawadeeui-semilight.woff2",
+      "style": "normal",
+      "weight": "300"
+    },
+    {
+      "family": "Leelawadee UI Web",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/leelawadeeui-thai/leelawadeeui-regular.woff2",
+      "style": "normal",
+      "weight": "400"
+    },
+    {
+      "family": "Leelawadee UI Web",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/leelawadeeui-thai/leelawadeeui-semibold.woff2",
+      "style": "normal",
+      "weight": "600"
+    },
+    {
+      "family": "Leelawadee UI Web",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/leelawadeeui-thai/leelawadeeui-bold.woff2",
+      "style": "normal",
+      "weight": "700"
+    },
+    {
+      "family": "Segoe UI Web (Arabic)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-arabic/segoeui-light.woff2",
+      "style": "normal",
+      "weight": "100"
+    },
+    {
+      "family": "Segoe UI Web (Arabic)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-arabic/segoeui-semilight.woff2",
+      "style": "normal",
+      "weight": "300"
+    },
+    {
+      "family": "Segoe UI Web (Arabic)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-arabic/segoeui-regular.woff2",
+      "style": "normal",
+      "weight": "400"
+    },
+    {
+      "family": "Segoe UI Web (Arabic)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-arabic/segoeui-semibold.woff2",
+      "style": "normal",
+      "weight": "600"
+    },
+    {
+      "family": "Segoe UI Web (Arabic)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-arabic/segoeui-bold.woff2",
+      "style": "normal",
+      "weight": "700"
+    },
+    {
+      "family": "Segoe UI Web (Cyrillic)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-cyrillic/segoeui-light.woff2",
+      "style": "normal",
+      "weight": "100"
+    },
+    {
+      "family": "Segoe UI Web (Cyrillic)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-cyrillic/segoeui-semilight.woff2",
+      "style": "normal",
+      "weight": "300"
+    },
+    {
+      "family": "Segoe UI Web (Cyrillic)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-cyrillic/segoeui-regular.woff2",
+      "style": "normal",
+      "weight": "400"
+    },
+    {
+      "family": "Segoe UI Web (Cyrillic)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-cyrillic/segoeui-semibold.woff2",
+      "style": "normal",
+      "weight": "600"
+    },
+    {
+      "family": "Segoe UI Web (Cyrillic)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-cyrillic/segoeui-bold.woff2",
+      "style": "normal",
+      "weight": "700"
+    },
+    {
+      "family": "Segoe UI Web (East European)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-easteuropean/segoeui-light.woff2",
+      "style": "normal",
+      "weight": "100"
+    },
+    {
+      "family": "Segoe UI Web (East European)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-easteuropean/segoeui-semilight.woff2",
+      "style": "normal",
+      "weight": "300"
+    },
+    {
+      "family": "Segoe UI Web (East European)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-easteuropean/segoeui-regular.woff2",
+      "style": "normal",
+      "weight": "400"
+    },
+    {
+      "family": "Segoe UI Web (East European)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-easteuropean/segoeui-semibold.woff2",
+      "style": "normal",
+      "weight": "600"
+    },
+    {
+      "family": "Segoe UI Web (East European)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-easteuropean/segoeui-bold.woff2",
+      "style": "normal",
+      "weight": "700"
+    },
+    {
+      "family": "Segoe UI Web (Greek)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-greek/segoeui-light.woff2",
+      "style": "normal",
+      "weight": "100"
+    },
+    {
+      "family": "Segoe UI Web (Greek)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-greek/segoeui-semilight.woff2",
+      "style": "normal",
+      "weight": "300"
+    },
+    {
+      "family": "Segoe UI Web (Greek)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-greek/segoeui-regular.woff2",
+      "style": "normal",
+      "weight": "400"
+    },
+    {
+      "family": "Segoe UI Web (Greek)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-greek/segoeui-semibold.woff2",
+      "style": "normal",
+      "weight": "600"
+    },
+    {
+      "family": "Segoe UI Web (Greek)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-greek/segoeui-bold.woff2",
+      "style": "normal",
+      "weight": "700"
+    },
+    {
+      "family": "Segoe UI Web (Hebrew)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-hebrew/segoeui-light.woff2",
+      "style": "normal",
+      "weight": "100"
+    },
+    {
+      "family": "Segoe UI Web (Hebrew)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-hebrew/segoeui-semilight.woff2",
+      "style": "normal",
+      "weight": "300"
+    },
+    {
+      "family": "Segoe UI Web (Hebrew)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-hebrew/segoeui-regular.woff2",
+      "style": "normal",
+      "weight": "400"
+    },
+    {
+      "family": "Segoe UI Web (Hebrew)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-hebrew/segoeui-semibold.woff2",
+      "style": "normal",
+      "weight": "600"
+    },
+    {
+      "family": "Segoe UI Web (Hebrew)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-hebrew/segoeui-bold.woff2",
+      "style": "normal",
+      "weight": "700"
+    },
+    {
+      "family": "Segoe UI Web (Vietnamese)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-vietnamese/segoeui-light.woff2",
+      "style": "normal",
+      "weight": "100"
+    },
+    {
+      "family": "Segoe UI Web (Vietnamese)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-vietnamese/segoeui-semilight.woff2",
+      "style": "normal",
+      "weight": "300"
+    },
+    {
+      "family": "Segoe UI Web (Vietnamese)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-vietnamese/segoeui-regular.woff2",
+      "style": "normal",
+      "weight": "400"
+    },
+    {
+      "family": "Segoe UI Web (Vietnamese)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-vietnamese/segoeui-semibold.woff2",
+      "style": "normal",
+      "weight": "600"
+    },
+    {
+      "family": "Segoe UI Web (Vietnamese)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-vietnamese/segoeui-bold.woff2",
+      "style": "normal",
+      "weight": "700"
+    },
+    {
+      "family": "Segoe UI Web (West European)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-westeuropean/segoeui-light.woff2",
+      "style": "normal",
+      "weight": "100"
+    },
+    {
+      "family": "Segoe UI Web (West European)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-westeuropean/segoeui-semilight.woff2",
+      "style": "normal",
+      "weight": "300"
+    },
+    {
+      "family": "Segoe UI Web (West European)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-westeuropean/segoeui-regular.woff2",
+      "style": "normal",
+      "weight": "400"
+    },
+    {
+      "family": "Segoe UI Web (West European)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-westeuropean/segoeui-semibold.woff2",
+      "style": "normal",
+      "weight": "600"
+    },
+    {
+      "family": "Segoe UI Web (West European)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-westeuropean/segoeui-bold.woff2",
+      "style": "normal",
+      "weight": "700"
+    },
+    {
+      "family": "Segoe UI Web (Armenian)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-armenian/segoeui-light.woff2",
+      "style": "normal",
+      "weight": "100"
+    },
+    {
+      "family": "Segoe UI Web (Armenian)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-armenian/segoeui-semilight.woff2",
+      "style": "normal",
+      "weight": "300"
+    },
+    {
+      "family": "Segoe UI Web (Armenian)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-armenian/segoeui-regular.woff2",
+      "style": "normal",
+      "weight": "400"
+    },
+    {
+      "family": "Segoe UI Web (Armenian)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-armenian/segoeui-semibold.woff2",
+      "style": "normal",
+      "weight": "600"
+    },
+    {
+      "family": "Segoe UI Web (Armenian)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-armenian/segoeui-bold.woff2",
+      "style": "normal",
+      "weight": "700"
+    },
+    {
+      "family": "Segoe UI Web (Georgian)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-georgian/segoeui-light.woff2",
+      "style": "normal",
+      "weight": "100"
+    },
+    {
+      "family": "Segoe UI Web (Georgian)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-georgian/segoeui-semilight.woff2",
+      "style": "normal",
+      "weight": "300"
+    },
+    {
+      "family": "Segoe UI Web (Georgian)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-georgian/segoeui-regular.woff2",
+      "style": "normal",
+      "weight": "400"
+    },
+    {
+      "family": "Segoe UI Web (Georgian)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-georgian/segoeui-semibold.woff2",
+      "style": "normal",
+      "weight": "600"
+    },
+    {
+      "family": "Segoe UI Web (Georgian)",
+      "src": "https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/fonts/segoeui-georgian/segoeui-bold.woff2",
+      "style": "normal",
+      "weight": "700"
+    },
+    {
+      "family": "FabricMDL2Icons",
+      "src": "https://res.cdn.office.net/files/fabric-cdn-prod_20240129.001/assets/icons/fabric-icons-a13498cf.woff",
+      "style": "",
+      "weight": ""
+    },
+    {
+      "family": "FabricMDL2Icons-5",
+      "src": "https://res.cdn.office.net/files/fabric-cdn-prod_20240129.001/assets/icons/fabric-icons-5-f95ba260.woff",
+      "style": "",
+      "weight": ""
+    },
+    {
+      "family": "FabricMDL2Icons-0",
+      "src": "https://res.cdn.office.net/files/fabric-cdn-prod_20240129.001/assets/icons/fabric-icons-0-467ee27f.woff",
+      "style": "",
+      "weight": ""
+    },
+    {
+      "family": "FabricMDL2Icons-10",
+      "src": "https://res.cdn.office.net/files/fabric-cdn-prod_20240129.001/assets/icons/fabric-icons-10-c4ded8e4.woff",
+      "style": "",
+      "weight": ""
+    }
+  ],
+  "cssCustomProperties": [],
+  "tags": [
+    "light",
+    "rounded",
+    "accented",
+    "compact",
+    "sans-serif"
+  ],
+  "mood": "Friendly, approachable design with rounded shapes and generous whitespace.",
+  "heroHeadline": null,
+  "heroSubtitle": "",
+  "isJapanese": false
+}

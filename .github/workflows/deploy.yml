@@ -1,0 +1,90 @@
+name: Deploy Solution to Target (Standard ALM)
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: Build  # Uses Build environment secrets (ENVIRONMENT_URL = QLDA-Build)
+    steps:
+    - uses: actions/checkout@v4
+
+    # 1. Install Power Platform CLI tooling
+    - name: Install Power Platform Tools
+      uses: microsoft/powerplatform-actions/actions-install@v1
+
+    # 2. Add Power Platform CLI to PATH
+    - name: Add Power Platform CLI to PATH
+      run: |
+        if [ -f "$POWERPLATFORMTOOLS_PACPATH" ]; then
+          echo "$(dirname "$POWERPLATFORMTOOLS_PACPATH")" >> $GITHUB_PATH
+        elif [ -d "$POWERPLATFORMTOOLS_PACPATH" ]; then
+          echo "$POWERPLATFORMTOOLS_PACPATH" >> $GITHUB_PATH
+          echo "$POWERPLATFORMTOOLS_PACPATH/pac/bin" >> $GITHUB_PATH
+          echo "$POWERPLATFORMTOOLS_PACPATH/bin" >> $GITHUB_PATH
+        fi
+
+    # 3. Pack the source files back into an unmanaged solution zip
+    - name: Pack Solution (Unmanaged)
+      uses: microsoft/powerplatform-actions/pack-solution@v1
+      with:
+        solution-folder: 'src'
+        solution-file: 'out/VibeApp.zip'
+        solution-type: 'Unmanaged'
+
+    # 4. Authenticate and Import the unmanaged solution into the Build Env using async polling to prevent network timeouts
+    - name: Import Solution to Build Env
+      run: |
+        pac --log-to-console auth create --name "BuildEnv" --applicationId "${{ secrets.CLIENT_ID }}" --clientSecret "${{ secrets.CLIENT_SECRET }}" --tenant "${{ secrets.TENANT_ID }}" --environment "${{ secrets.ENVIRONMENT_URL }}"
+        pac --log-to-console solution import --path out/VibeApp.zip --activate-plugins --force-overwrite --async
+
+    # 5. Export the solution from the Build Env as Managed
+    - name: Export Solution from Build Env (Managed)
+      run: |
+        pac --log-to-console solution export --name "VibeApp" --path "out/VibeApp_managed.zip" --managed --overwrite
+
+    # 6. Upload the Managed Solution zip as a build artifact
+    - name: Upload Solution Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: managed-solution
+        path: out/VibeApp_managed.zip
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: Production  # Uses Production environment secrets (ENVIRONMENT_URL = QLDA-Target)
+    steps:
+    # 1. Install Power Platform CLI tooling
+    - name: Install Power Platform Tools
+      uses: microsoft/powerplatform-actions/actions-install@v1
+
+    # 2. Add Power Platform CLI to PATH
+    - name: Add Power Platform CLI to PATH
+      run: |
+        if [ -f "$POWERPLATFORMTOOLS_PACPATH" ]; then
+          echo "$(dirname "$POWERPLATFORMTOOLS_PACPATH")" >> $GITHUB_PATH
+        elif [ -d "$POWERPLATFORMTOOLS_PACPATH" ]; then
+          echo "$POWERPLATFORMTOOLS_PACPATH" >> $GITHUB_PATH
+          echo "$POWERPLATFORMTOOLS_PACPATH/pac/bin" >> $GITHUB_PATH
+          echo "$POWERPLATFORMTOOLS_PACPATH/bin" >> $GITHUB_PATH
+        fi
+
+    # 3. Download the managed solution artifact from the build job
+    - name: Download Solution Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: managed-solution
+        path: out
+
+    # 4. Authenticate and Import the managed solution into the Target Env using async polling
+    - name: Import Solution to Target Environment
+      run: |
+        pac --log-to-console auth create --name "TargetEnv" --applicationId "${{ secrets.CLIENT_ID }}" --clientSecret "${{ secrets.CLIENT_SECRET }}" --tenant "${{ secrets.TENANT_ID }}" --environment "${{ secrets.ENVIRONMENT_URL }}"
+        pac --log-to-console solution import --path out/VibeApp_managed.zip --activate-plugins --force-overwrite --publish-changes --async

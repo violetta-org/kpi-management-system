@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{7354884b-d3fe-4ee0-99fe-769f1e10d74c}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="new_roleassignmentname" select="1" icon="1" preview="1">
+        <row name="result" id="new_roleassignmentid">
+          <cell name="new_roleassignmentname" width="300" />
+          <cell name="new_user" width="150" />
+          <cell name="new_systemrole" width="150" />
+          <cell name="new_assignedby" width="150" />
+          <cell name="new_assigneddate" width="150" />
+          <cell name="new_isactive" width="150" />
+          <cell name="new_notes" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="new_roleassignment">
+          <attribute name="new_roleassignmentid" />
+          <attribute name="new_roleassignmentname" />
+          <attribute name="createdon" />
+          <order attribute="new_roleassignmentname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="new_user" />
+          <attribute name="new_systemrole" />
+          <attribute name="new_assignedby" />
+          <attribute name="new_assigneddate" />
+          <attribute name="new_isactive" />
+          <attribute name="new_notes" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Role Assignments" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

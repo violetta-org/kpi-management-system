@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{c5109b10-580c-4d81-93d5-097e74c0148f}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr5db_kpiname" select="1" icon="1" preview="1">
+        <row name="result" id="cr5db_kpilibraryid">
+          <cell name="cr5db_kpiname" width="300" />
+          <cell name="cr5db_unit" width="150" />
+          <cell name="cr5db_formula" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr5db_kpilibrary">
+          <attribute name="cr5db_kpilibraryid" />
+          <attribute name="cr5db_kpiname" />
+          <attribute name="createdon" />
+          <order attribute="cr5db_kpiname" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr5db_unit" />
+          <attribute name="cr5db_formula" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active KPI Libraries" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

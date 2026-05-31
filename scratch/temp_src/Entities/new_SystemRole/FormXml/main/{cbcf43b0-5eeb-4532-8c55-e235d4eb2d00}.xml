@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{cbcf43b0-5eeb-4532-8c55-e235d4eb2d00}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{f4d9bb07-28c2-4b25-9070-dde9b00a9fec}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{a331c0c0-e440-4f2b-a735-1bb8fe433dea}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{89087bf5-eff9-4652-a327-69fb3e187ea9}">
+                        <labels>
+                          <label description="Role Name" languagecode="1033" />
+                        </labels>
+                        <control id="new_rolename" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="new_rolename" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{bef4ad89-dfc3-4b53-b956-11ee539d9b25}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{70730776-2fde-4b4d-86f8-e74ed5c03b4f}">
+                        <labels>
+                          <label description="Role Code" languagecode="1033" />
+                        </labels>
+                        <control id="new_rolecode" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="new_rolecode" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{724bdbad-46d5-458c-ab57-4812bc377710}">
+                        <labels>
+                          <label description="Role Description" languagecode="1033" />
+                        </labels>
+                        <control id="new_roledescription" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="new_roledescription" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{96f7143a-03f7-4da0-844a-c3ae84d76f2c}">
+                        <labels>
+                          <label description="Role Level" languagecode="1033" />
+                        </labels>
+                        <control id="new_rolelevel" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="new_rolelevel" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{1481b8a6-be78-4f4d-8307-36b9d4406d05}">
+                        <labels>
+                          <label description="Is Active" languagecode="1033" />
+                        </labels>
+                        <control id="new_isactive" classid="{67fac785-cd58-4f9f-abb3-4b7ddc6ed5ed}" datafieldname="new_isactive" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

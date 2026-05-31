@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{2d51ebef-f5fd-4522-8f9a-c008be082576}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{46e8a575-3e05-47cf-a6c9-5912e54f20d2}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{adf23a0c-5596-4131-bceb-3abc6c840125}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{5ab6839d-eb65-4090-b712-a0deea6a54ab}">
+                        <labels>
+                          <label description="Project Risk" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_projectrisk1" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr5db_projectrisk1" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2ad88d0a-0b4c-432f-ab14-ce5f61304a81}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{3e13bd86-60bb-48f8-9091-14b738b41140}">
+                        <labels>
+                          <label description="Probability Percentage" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_probabilitypercentage" classid="{c6d124ca-7eda-4a60-aea9-7fb8d318b68f}" datafieldname="cr5db_probabilitypercentage" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{79341e87-c35f-4863-a5d4-55452dbdfdfe}">
+                        <labels>
+                          <label description="Impact Level" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_impactlevel" classid="{3ef39988-22bb-4f0b-bbbe-64b5a3748aee}" datafieldname="cr5db_impactlevel" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

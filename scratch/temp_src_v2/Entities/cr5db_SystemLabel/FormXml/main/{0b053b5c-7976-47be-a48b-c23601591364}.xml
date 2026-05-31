@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{0b053b5c-7976-47be-a48b-c23601591364}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{b28e2d88-7127-480e-8732-57ddcc5abba0}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{301f53d8-fadd-47b6-bc7c-7ed9313b69c3}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{1955d6e6-d27f-4e11-9e3c-d25b4fdb1ca1}">
+                        <labels>
+                          <label description="System Label" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_systemlabel1" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="cr5db_systemlabel1" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{2980d08b-5e3e-4bc4-8337-98efe621cd9a}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{9b516d68-df18-41b0-a4da-39244cf5fcb3}">
+                        <labels>
+                          <label description="Label Group" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_labelgroup" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr5db_labelgroup" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{8997c707-c7b8-4c4a-ba60-644cc2078c62}">
+                        <labels>
+                          <label description="Hex Color" languagecode="1033" />
+                        </labels>
+                        <control id="cr5db_hexcolor" classid="{4273edbd-ac1d-40d3-9fb2-095c621b552d}" datafieldname="cr5db_hexcolor" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A form for this entity." languagecode="1033" />
+    </Descriptions>
+  </systemform>
+</forms>

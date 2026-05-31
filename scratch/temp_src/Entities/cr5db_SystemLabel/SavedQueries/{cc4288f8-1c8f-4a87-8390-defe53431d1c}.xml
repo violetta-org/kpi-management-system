@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{cc4288f8-1c8f-4a87-8390-defe53431d1c}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr5db_systemlabel1" select="1" icon="1" preview="1">
+        <row name="result" id="cr5db_systemlabelid">
+          <cell name="cr5db_systemlabel1" width="300" />
+          <cell name="cr5db_labelgroup" width="150" />
+          <cell name="cr5db_hexcolor" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr5db_systemlabel">
+          <attribute name="cr5db_systemlabelid" />
+          <attribute name="cr5db_systemlabel1" />
+          <attribute name="createdon" />
+          <order attribute="cr5db_systemlabel1" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr5db_labelgroup" />
+          <attribute name="cr5db_hexcolor" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active System Labels" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

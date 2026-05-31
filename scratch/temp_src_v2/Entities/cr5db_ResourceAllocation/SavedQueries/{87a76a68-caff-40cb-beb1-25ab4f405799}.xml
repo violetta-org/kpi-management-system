@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{87a76a68-caff-40cb-beb1-25ab4f405799}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="cr5db_resourceallocation1" select="1" icon="1" preview="1">
+        <row name="result" id="cr5db_resourceallocationid">
+          <cell name="cr5db_resourceallocation1" width="300" />
+          <cell name="cr5db_allocationpercentage" width="150" />
+          <cell name="cr5db_projectteamid" width="150" />
+          <cell name="cr5db_userid" width="150" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>0</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="cr5db_resourceallocation">
+          <attribute name="cr5db_resourceallocationid" />
+          <attribute name="cr5db_resourceallocation1" />
+          <attribute name="createdon" />
+          <order attribute="cr5db_resourceallocation1" descending="false" />
+          <filter type="and">
+            <condition attribute="statecode" operator="eq" value="0" />
+          </filter>
+          <attribute name="cr5db_allocationpercentage" />
+          <attribute name="cr5db_projectteamid" />
+          <attribute name="cr5db_userid" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Active Resource Allocations" languagecode="1033" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>
