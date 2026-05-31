@@ -28,6 +28,9 @@ import { Cr5db_objectivesService } from './generated/services/Cr5db_objectivesSe
 import { Cr5db_evaluationperiodsService } from './generated/services/Cr5db_evaluationperiodsService';
 import { Cr5db_systemparametersService } from './generated/services/Cr5db_systemparametersService';
 import { New_bonusmatrixService } from './generated/services/New_bonusmatrixService';
+import { New_competencycatalogService } from './generated/services/New_competencycatalogService';
+import { New_jobcompetencyService } from './generated/services/New_jobcompetencyService';
+import { New_competencyassessmentService } from './generated/services/New_competencyassessmentService';
 
 import { calculateKpiAchievementRate } from './utils/kpiLogic';
 
@@ -341,6 +344,21 @@ function App() {
     newMinScore, setNewMinScore,
     newMaxScore, setNewMaxScore,
     newMultiplier, setNewMultiplier,
+    competencyCatalogList, setCompetencyCatalogList,
+    jobCompetenciesList, setJobCompetenciesList,
+    competencyAssessmentsList, setCompetencyAssessmentsList,
+    showCompetencyModal, setShowCompetencyModal,
+    editingCompetency, setEditingCompetency,
+    newCompetencyName, setNewCompetencyName,
+    newCompetencyType, setNewCompetencyType,
+    newCompetencyDesc, setNewCompetencyDesc,
+    newCompetencyMaxLevel, setNewCompetencyMaxLevel,
+    showJobCompetencyModal, setShowJobCompetencyModal,
+    editingJobCompetency, setEditingJobCompetency,
+    selectedJobPositionId, setSelectedJobPositionId,
+    newJobCompetencyId, setNewJobCompetencyId,
+    newRequiredLevel, setNewRequiredLevel,
+    newCompetencyWeight, setNewCompetencyWeight,
 
     // Appraisal cycles
     evaluationPeriodsList, setEvaluationPeriodsList,
@@ -966,7 +984,8 @@ function App() {
     setNewReqCatalogId, setNewJobPosCatalogId,
     setSelectedDeptCompanyId, setNewTimesheetTaskId,
     setPermissionGroups, setDefaultGroups,
-    setDefaultGroupsDbId, setBonusMatrixList
+    setDefaultGroupsDbId, setBonusMatrixList,
+    setCompetencyCatalogList, setJobCompetenciesList, setCompetencyAssessmentsList
   });
 
   // ── Approval Engine ───────────────────────────────────────────────────────
@@ -1266,6 +1285,24 @@ function App() {
     }
   };
 
+  const handleUpdateCompetencyScore = async (id: string, field: 'self' | 'manager' | 'final' | 'comment', value: string | number) => {
+    try {
+      setIsLoading(true);
+      const payload: any = {};
+      if (field === 'self') payload.new_selfscore = Number(value);
+      if (field === 'manager') payload.new_managerscore = Number(value);
+      if (field === 'final') payload.new_finalscore = Number(value);
+      if (field === 'comment') payload.new_managercomment = String(value);
+
+      await New_competencyassessmentService.update(id, payload);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể cập nhật điểm đánh giá năng lực.");
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmitAppraisal = async (id: string) => {
     const ap = appraisals.find(a => a.cr5db_performanceappraisalid === id);
     const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === ap?.cr5db_periodname);
@@ -1326,29 +1363,67 @@ function App() {
       );
     });
 
-    const suggested = totalWeight > 0 ? Math.round((weightedScore / totalWeight) * 100) : 75;
-    const bonus = calculateBonusMultiplier(suggested);
+    const kpiSuggested = totalWeight > 0 ? Math.round((weightedScore / totalWeight) * 100) : 75;
 
-    const confirmMessage = 
-      `--- BẢNG CHI TIẾT TÍNH TOÁN ĐIỂM HIỆU SUẤT ---\n\n` +
-      `Nhân viên: ${email}\n` +
-      `Số lượng KPI đánh giá: ${employeeKpis.length}\n\n` +
-      `Chi tiết các chỉ tiêu:\n` +
-      `--------------------------------------------------\n` +
-      `${breakdownLines.join('\n\n')}\n` +
-      `--------------------------------------------------\n` +
-      `• Tổng tỷ trọng các KPI: ${totalWeight}%\n` +
-      `• Tổng đóng góp có trọng số: ${weightedScore.toFixed(1)}%\n` +
-      `• Công thức: (Tổng đóng góp / Tổng tỷ trọng) * 100\n` +
-      `• Điểm hiệu suất đề xuất: ${suggested} / 100\n` +
-      `• Dự kiến Hệ số Thưởng: ${bonus} tháng\n\n` +
-      `Bạn có muốn áp dụng điểm hiệu suất ${suggested}/100 này làm điểm chung cuộc không?`;
+    // Tính điểm năng lực
+    const employeeUser = usersList.find(u => u.cr5db_email?.toLowerCase() === email.toLowerCase());
+    const empId = employeeUser?.cr5db_userid || '';
+    const periodId = periodObj?.cr5db_evaluationperiodid || '';
+
+    const empCompetencies = competencyAssessmentsList.filter(ca => ca._new_employeeid_value === empId && ca._new_evaluationperiodid_value === periodId);
+    let compPercentageSum = 0;
+    empCompetencies.forEach(ca => {
+      const comp = competencyCatalogList.find(c => c.new_competencycatalogid === ca._new_competencyid_value);
+      const maxLvl = comp?.new_maxlevel || 5;
+      compPercentageSum += (ca.new_finalscore / maxLvl) * 100;
+    });
+    const compSuggested = empCompetencies.length > 0 ? Math.round(compPercentageSum / empCompetencies.length) : 0;
+
+    let finalScore = kpiSuggested;
+    let confirmMessage = '';
+    if (empCompetencies.length > 0) {
+      finalScore = Math.round((kpiSuggested * 0.7) + (compSuggested * 0.3));
+      confirmMessage = 
+        `--- BẢNG CHI TIẾT TÍNH TOÁN ĐIỂM APPRAISAL (70-30) ---\n\n` +
+        `Nhân viên: ${email}\n\n` +
+        `[PHẦN 1: KPI (Trọng số 70%)]\n` +
+        `Số lượng KPI đánh giá: ${employeeKpis.length}\n` +
+        `Chi tiết các chỉ tiêu:\n` +
+        `--------------------------------------------------\n` +
+        `${breakdownLines.join('\n\n')}\n` +
+        `--------------------------------------------------\n` +
+        `• Tổng tỷ trọng các KPI: ${totalWeight}%\n` +
+        `• Tổng đóng góp có trọng số: ${weightedScore.toFixed(1)}%\n` +
+        `• Điểm KPI đề xuất: ${kpiSuggested} / 100\n\n` +
+        `[PHẦN 2: NĂNG LỰC (Trọng số 30%)]\n` +
+        `Số lượng Năng lực đánh giá: ${empCompetencies.length}\n` +
+        `• Điểm Năng lực trung bình: ${compSuggested} / 100\n\n` +
+        `=> ĐIỂM CHUNG CUỘC: (${kpiSuggested} x 70%) + (${compSuggested} x 30%) = ${finalScore} / 100\n` +
+        `=> Dự kiến Hệ số Thưởng: ${calculateBonusMultiplier(finalScore)} tháng\n\n` +
+        `Bạn có muốn áp dụng điểm chung cuộc ${finalScore}/100 này không?`;
+    } else {
+      confirmMessage = 
+        `--- BẢNG CHI TIẾT TÍNH TOÁN ĐIỂM HIỆU SUẤT ---\n\n` +
+        `Nhân viên: ${email}\n` +
+        `Số lượng KPI đánh giá: ${employeeKpis.length}\n\n` +
+        `Chi tiết các chỉ tiêu:\n` +
+        `--------------------------------------------------\n` +
+        `${breakdownLines.join('\n\n')}\n` +
+        `--------------------------------------------------\n` +
+        `• Tổng tỷ trọng các KPI: ${totalWeight}%\n` +
+        `• Tổng đóng góp có trọng số: ${weightedScore.toFixed(1)}%\n` +
+        `• Điểm KPI đề xuất: ${kpiSuggested} / 100\n` +
+        `(Nhân viên này không có cấu hình đánh giá Năng lực, điểm dùng 100% KPI)\n` +
+        `• Dự kiến Hệ số Thưởng: ${calculateBonusMultiplier(kpiSuggested)} tháng\n\n` +
+        `Bạn có muốn áp dụng điểm hiệu suất ${kpiSuggested}/100 này làm điểm chung cuộc không?`;
+    }
 
     if (!window.confirm(confirmMessage)) return;
 
     try {
       setIsLoading(true);
-      await Cr5db_performanceappraisalsService.update(id, { cr5db_finalscore: suggested, new_bonusmultiplier: bonus } as any);
+      const bonus = calculateBonusMultiplier(finalScore);
+      await Cr5db_performanceappraisalsService.update(id, { cr5db_finalscore: finalScore, new_bonusmultiplier: bonus } as any);
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
@@ -1681,6 +1756,93 @@ function App() {
     } catch (err: any) {
       console.error(err);
       alert("Không thể xóa dải điểm: " + (err.message || err));
+      setIsLoading(false);
+    }
+  };
+
+  // ── Competency Framework CRUD ──────────────────────────────────────────────
+  const handleSaveCompetencyCatalog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCompetencyName.trim()) return;
+    try {
+      setIsLoading(true);
+      const payload: any = {
+        new_competencyname: newCompetencyName,
+        new_competencytype: newCompetencyType,
+        new_description: newCompetencyDesc,
+        new_maxlevel: newCompetencyMaxLevel
+      };
+      if (editingCompetency) {
+        await New_competencycatalogService.update(editingCompetency.new_competencycatalogid, payload);
+      } else {
+        await New_competencycatalogService.create(payload);
+      }
+      setShowCompetencyModal(false);
+      setEditingCompetency(null);
+      setNewCompetencyName('');
+      setNewCompetencyType('Core');
+      setNewCompetencyDesc('');
+      setNewCompetencyMaxLevel(5);
+      await fetchLiveValues();
+    } catch (err: any) {
+      console.error(err);
+      alert("Lỗi lưu năng lực: " + (err.message || err));
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteCompetencyCatalog = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa năng lực này?")) return;
+    try {
+      setIsLoading(true);
+      await New_competencycatalogService.delete(id);
+      await fetchLiveValues();
+    } catch (err: any) {
+      console.error(err);
+      alert("Lỗi xóa: " + (err.message || err));
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveJobCompetency = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newJobCompetencyId || !selectedJobPositionId) return;
+    try {
+      setIsLoading(true);
+      const payload: any = {
+        new_requiredlevel: newRequiredLevel,
+        new_weight: newCompetencyWeight,
+        "new_JobPositionID@odata.bind": `/cr5db_jobpositions(${selectedJobPositionId})`,
+        "new_CompetencyID@odata.bind": `/new_competencycatalogs(${newJobCompetencyId})`
+      };
+      
+      if (editingJobCompetency) {
+        await New_jobcompetencyService.update(editingJobCompetency.new_jobcompetencyid, payload);
+      } else {
+        await New_jobcompetencyService.create(payload);
+      }
+      setShowJobCompetencyModal(false);
+      setEditingJobCompetency(null);
+      setNewJobCompetencyId('');
+      setNewRequiredLevel(3);
+      setNewCompetencyWeight(0);
+      await fetchLiveValues();
+    } catch (err: any) {
+      console.error(err);
+      alert("Lỗi lưu cấu hình năng lực cho vị trí: " + (err.message || err));
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteJobCompetency = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn gỡ năng lực này khỏi vị trí công việc?")) return;
+    try {
+      setIsLoading(true);
+      await New_jobcompetencyService.delete(id);
+      await fetchLiveValues();
+    } catch (err: any) {
+      console.error(err);
+      alert("Lỗi xóa: " + (err.message || err));
       setIsLoading(false);
     }
   };
@@ -4439,6 +4601,9 @@ function App() {
                 <button onClick={() => setActivePerformanceSubTab('my')} style={{ background: 'none', border: 'none', color: activePerformanceSubTab === 'my' ? 'var(--color-text)' : 'var(--color-text-secondary)', fontWeight: activePerformanceSubTab === 'my' ? 700 : 500, cursor: 'pointer', borderBottom: activePerformanceSubTab === 'my' ? '2px solid var(--color-text)' : 'none', padding: '4px 8px' }}>
                   My Appraisals
                 </button>
+                <button onClick={() => setActivePerformanceSubTab('competency')} style={{ background: 'none', border: 'none', color: activePerformanceSubTab === 'competency' ? 'var(--color-text)' : 'var(--color-text-secondary)', fontWeight: activePerformanceSubTab === 'competency' ? 700 : 500, cursor: 'pointer', borderBottom: activePerformanceSubTab === 'competency' ? '2px solid var(--color-text)' : 'none', padding: '4px 8px' }}>
+                  Đánh giá Năng lực
+                </button>
                 {activeRole !== 'Employee' && (
                   <>
                     <button onClick={() => setActivePerformanceSubTab('team')} style={{ background: 'none', border: 'none', color: activePerformanceSubTab === 'team' ? 'var(--color-text)' : 'var(--color-text-secondary)', fontWeight: activePerformanceSubTab === 'team' ? 700 : 500, cursor: 'pointer', borderBottom: activePerformanceSubTab === 'team' ? '2px solid var(--color-text)' : 'none', padding: '4px 8px' }}>
@@ -4580,7 +4745,7 @@ function App() {
                     </tbody>
                   </table>
                 </div>
-              ) : (
+              ) : activePerformanceSubTab === 'cycles' ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                     <button 
@@ -4690,7 +4855,66 @@ function App() {
                     )}
                   </div>
                 </div>
-              )}
+              ) : activePerformanceSubTab === 'competency' ? (
+                <div className="card-spec" style={{ padding: '0px', overflowX: 'auto' }}>
+                  <div style={{ padding: '24px 24px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Kết quả đánh giá Năng lực hành vi</h3>
+                  </div>
+                  {competencyAssessmentsList.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>Bạn chưa có đợt đánh giá năng lực nào.</div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '14px 20px' }}>Nhân viên</th>
+                          <th style={{ padding: '14px 20px' }}>Năng lực</th>
+                          <th style={{ padding: '14px 20px' }}>Tự chấm</th>
+                          <th style={{ padding: '14px 20px' }}>Quản lý chấm</th>
+                          <th style={{ padding: '14px 20px' }}>Điểm chốt</th>
+                          <th style={{ padding: '14px 20px' }}>Nhận xét (QL)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {competencyAssessmentsList.filter(ca => {
+                           if (activeRole === 'Admin') return true;
+                           return ca._new_employeeid_value === currentUserObj?.cr5db_userid;
+                        }).map(ca => {
+                          const comp = competencyCatalogList.find(c => c.new_competencycatalogid === ca._new_competencyid_value);
+                          const emp = usersList.find(u => u.cr5db_userid === ca._new_employeeid_value);
+                          const isSelf = ca._new_employeeid_value === currentUserObj?.cr5db_userid;
+                          const isManager = activeRole === 'Admin';
+                          return (
+                            <tr key={ca.new_competencyassessmentid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                              <td style={{ padding: '14px 20px', fontWeight: 600 }}>{emp?.cr5db_fullname}</td>
+                              <td style={{ padding: '14px 20px' }}>{comp?.new_competencyname}</td>
+                              <td style={{ padding: '14px 20px' }}>
+                                {isSelf ? (
+                                  <input type="number" min={0} max={comp?.new_maxlevel || 5} defaultValue={ca.new_selfscore} onBlur={(e) => handleUpdateCompetencyScore(ca.new_competencyassessmentid, 'self', e.target.value)} style={{ width: '60px', padding: '4px 8px', border: '1px solid var(--color-border)', borderRadius: '4px' }} />
+                                ) : ca.new_selfscore} / {comp?.new_maxlevel}
+                              </td>
+                              <td style={{ padding: '14px 20px' }}>
+                                {isManager ? (
+                                  <input type="number" min={0} max={comp?.new_maxlevel || 5} defaultValue={ca.new_managerscore} onBlur={(e) => handleUpdateCompetencyScore(ca.new_competencyassessmentid, 'manager', e.target.value)} style={{ width: '60px', padding: '4px 8px', border: '1px solid var(--color-border)', borderRadius: '4px' }} />
+                                ) : ca.new_managerscore} / {comp?.new_maxlevel}
+                              </td>
+                              <td style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-primary)' }}>
+                                {isManager ? (
+                                  <input type="number" min={0} max={comp?.new_maxlevel || 5} defaultValue={ca.new_finalscore} onBlur={(e) => handleUpdateCompetencyScore(ca.new_competencyassessmentid, 'final', e.target.value)} style={{ width: '60px', padding: '4px 8px', border: '1px solid var(--color-border)', borderRadius: '4px', fontWeight: 700, color: 'var(--color-primary)' }} />
+                                ) : ca.new_finalscore}
+                              </td>
+                              <td style={{ padding: '14px 20px', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+                                {isManager ? (
+                                  <input type="text" defaultValue={ca.new_managercomment} onBlur={(e) => handleUpdateCompetencyScore(ca.new_competencyassessmentid, 'comment', e.target.value)} placeholder="Nhận xét..." style={{ width: '100%', padding: '4px 8px', border: '1px solid var(--color-border)', borderRadius: '4px' }} />
+                                ) : (ca.new_managercomment || '-')}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -4920,10 +5144,33 @@ function App() {
                               >Edit</button>
                               <button
                                 className="btn-filled-3"
+                                style={{ padding: '4px 12px', fontSize: '12px', backgroundColor: '#f0fdf4', color: '#166534', borderColor: '#bbf7d0' }}
+                                onClick={() => {
+                                  setSelectedJobPositionId(pos.cr5db_jobpositionid);
+                                  setEditingJobCompetency(null);
+                                  setShowJobCompetencyModal(true);
+                                }}
+                              >+ Năng lực</button>
+                              <button
+                                className="btn-filled-3"
                                 style={{ padding: '4px 12px', fontSize: '12px', color: '#a80000', borderColor: '#a80000' }}
                                 onClick={() => handleDeleteJobPosition(pos.cr5db_jobpositionid)}
                               >Delete</button>
                             </div>
+                            {jobCompetenciesList.filter(jc => jc._new_jobpositionid_value === pos.cr5db_jobpositionid).length > 0 && (
+                              <div style={{ marginTop: '8px', padding: '8px', background: '#f8fafc', borderRadius: '4px', border: '1px dashed #cbd5e1', fontSize: '11px', textAlign: 'left' }}>
+                                <strong style={{ display: 'block', marginBottom: '4px' }}>Năng lực yêu cầu:</strong>
+                                {jobCompetenciesList.filter(jc => jc._new_jobpositionid_value === pos.cr5db_jobpositionid).map(jc => {
+                                  const comp = competencyCatalogList.find(c => c.new_competencycatalogid === jc._new_competencyid_value);
+                                  return (
+                                    <div key={jc.new_jobcompetencyid} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                                      <span>{comp?.new_competencyname} ({comp?.new_competencytype}): Mức {jc.new_requiredlevel}</span>
+                                      <button onClick={() => handleDeleteJobCompetency(jc.new_jobcompetencyid)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: '10px' }}>[Xóa]</button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
@@ -6248,7 +6495,7 @@ function App() {
                   }}
                   className="btn-primary"
                 >
-                  + Thêm {activeKpiCatalogSubTab === 'library' ? 'KPI mới' : activeKpiCatalogSubTab === 'bonus' ? 'Mức thưởng mới' : 'Mục tiêu mới'}
+                  + Thêm {activeKpiCatalogSubTab === 'library' ? 'KPI mới' : activeKpiCatalogSubTab === 'bonus' ? 'Mức thưởng mới' : activeKpiCatalogSubTab === 'competency' ? 'Năng lực mới' : 'Mục tiêu mới'}
                 </button>
               </div>
 
@@ -6271,7 +6518,7 @@ function App() {
 
               {/* Sub-tab switcher */}
               <div style={{ display: 'flex', gap: '0', borderBottom: '2px solid var(--color-border)' }}>
-                {(['library', 'objectives', 'bonus'] as const).map(tab => (
+                {(['library', 'objectives', 'bonus', 'competency'] as const).map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveKpiCatalogSubTab(tab)}
@@ -6283,7 +6530,7 @@ function App() {
                       transition: 'all 0.18s', marginBottom: '-2px',
                     }}
                   >
-                    {tab === 'library' ? 'Thư viện KPI' : tab === 'objectives' ? 'Mục tiêu (Objectives)' : 'Chính sách Thưởng'}
+                    {tab === 'library' ? 'Thư viện KPI' : tab === 'objectives' ? 'Mục tiêu (Objectives)' : tab === 'bonus' ? 'Chính sách Thưởng' : 'Thư viện Năng lực'}
                   </button>
                 ))}
               </div>
@@ -6382,6 +6629,54 @@ function App() {
                                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                                   <button onClick={() => { setEditingBonusMatrix(m); setNewMinScore(m.new_minscore); setNewMaxScore(m.new_maxscore); setNewMultiplier(m.new_multiplier); setShowBonusMatrixModal(true); }} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }}>Sửa</button>
                                   <button onClick={() => handleDeleteBonusMatrix(m.new_bonusmatrixid)} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', color: '#dc2626', borderColor: '#fca5a5' }}>Xóa</button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* ── Competency Catalog sub-tab ────────────────────────────────── */}
+              {activeKpiCatalogSubTab === 'competency' && (
+                <>
+                  {competencyCatalogList.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--color-text-secondary)', background: 'var(--color-surface)', borderRadius: '12px', border: '2px dashed var(--color-border)' }}>
+                      <div style={{ fontSize: '48px', marginBottom: '16px' }}>🧠</div>
+                      <p style={{ fontWeight: 600, marginBottom: '8px' }}>Chưa có Năng lực nào</p>
+                      <p style={{ fontSize: '13px', marginBottom: '20px' }}>Tạo từ điển năng lực (Core, Leadership, Functional) để đánh giá nhân sự</p>
+                      <button onClick={() => { setEditingCompetency(null); setShowCompetencyModal(true); }} className="btn-primary">+ Thêm năng lực</button>
+                    </div>
+                  ) : (
+                    <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                            <th style={{ padding: '14px 20px', width: '25%' }}>Tên năng lực</th>
+                            <th style={{ padding: '14px 20px', width: '15%' }}>Phân loại</th>
+                            <th style={{ padding: '14px 20px', width: '35%' }}>Mô tả</th>
+                            <th style={{ padding: '14px 20px', width: '10%' }}>Thang điểm</th>
+                            <th style={{ padding: '14px 20px', textAlign: 'right', width: '15%' }}>Thao tác</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {competencyCatalogList.map((c: any) => (
+                            <tr key={c.new_competencycatalogid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                              <td style={{ padding: '14px 20px', fontWeight: 600 }}>{c.new_competencyname}</td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <span style={{ fontSize: '12px', background: c.new_competencytype === 'Core' ? '#e0e7ff' : c.new_competencytype === 'Leadership' ? '#fce7f3' : '#dcfce7', color: c.new_competencytype === 'Core' ? '#4338ca' : c.new_competencytype === 'Leadership' ? '#be185d' : '#15803d', padding: '4px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                                  {c.new_competencytype}
+                                </span>
+                              </td>
+                              <td style={{ padding: '14px 20px', color: 'var(--color-text-secondary)', fontSize: '12px' }}>{c.new_description}</td>
+                              <td style={{ padding: '14px 20px', fontWeight: 600 }}>{c.new_maxlevel}</td>
+                              <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                  <button onClick={() => { setEditingCompetency(c); setNewCompetencyName(c.new_competencyname); setNewCompetencyType(c.new_competencytype); setNewCompetencyDesc(c.new_description || ''); setNewCompetencyMaxLevel(c.new_maxlevel); setShowCompetencyModal(true); }} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }}>Sửa</button>
+                                  <button onClick={() => handleDeleteCompetencyCatalog(c.new_competencycatalogid)} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', color: '#dc2626', borderColor: '#fca5a5' }}>Xóa</button>
                                 </div>
                               </td>
                             </tr>
@@ -7293,6 +7588,71 @@ function App() {
               </div>
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
                 <button type="button" onClick={() => setShowBonusMatrixModal(false)} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary">Lưu cấu hình</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Competency Catalog Modal */}
+      {showCompetencyModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ width: '480px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>{editingCompetency ? 'Chỉnh sửa Năng lực' : 'Thêm Năng lực mới'}</h3>
+            <form onSubmit={handleSaveCompetencyCatalog} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Tên năng lực <span style={{ color: '#dc2626' }}>*</span></label>
+                <input value={newCompetencyName} onChange={e => setNewCompetencyName(e.target.value)} required placeholder="VD: Kỹ năng giao tiếp, Lập trình React..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Phân loại <span style={{ color: '#dc2626' }}>*</span></label>
+                <select value={newCompetencyType} onChange={e => setNewCompetencyType(e.target.value)} required style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', backgroundColor: 'white' }}>
+                  <option value="Core">Core Competency (Năng lực lõi)</option>
+                  <option value="Leadership">Leadership (Năng lực lãnh đạo)</option>
+                  <option value="Functional">Functional (Năng lực chuyên môn)</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Mô tả hành vi</label>
+                <textarea value={newCompetencyDesc} onChange={e => setNewCompetencyDesc(e.target.value)} placeholder="Mô tả các hành vi cần có..." rows={3} style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Thang điểm (Max Level) <span style={{ color: '#dc2626' }}>*</span></label>
+                <input type="number" min="1" max="10" value={newCompetencyMaxLevel} onChange={e => setNewCompetencyMaxLevel(Number(e.target.value))} required style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button type="button" onClick={() => setShowCompetencyModal(false)} className="btn-filled-3">Hủy</button>
+                <button type="submit" className="btn-primary">Lưu</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Job Competency Modal */}
+      {showJobCompetencyModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ width: '420px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>{editingJobCompetency ? 'Chỉnh sửa mức yêu cầu' : 'Gắn Năng lực cho vị trí'}</h3>
+            <form onSubmit={handleSaveJobCompetency} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {!editingJobCompetency && (
+                <div>
+                  <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Chọn năng lực <span style={{ color: '#dc2626' }}>*</span></label>
+                  <select value={newJobCompetencyId} onChange={e => setNewJobCompetencyId(e.target.value)} required style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', backgroundColor: 'white' }}>
+                    <option value="">-- Chọn một năng lực --</option>
+                    {competencyCatalogList.map(c => (
+                      <option key={c.new_competencycatalogid} value={c.new_competencycatalogid}>{c.new_competencyname} ({c.new_competencytype})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Mức điểm yêu cầu (Required Level) <span style={{ color: '#dc2626' }}>*</span></label>
+                <input type="number" min="1" max="10" step="0.5" value={newRequiredLevel} onChange={e => setNewRequiredLevel(Number(e.target.value))} required style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button type="button" onClick={() => setShowJobCompetencyModal(false)} className="btn-filled-3">Hủy</button>
                 <button type="submit" className="btn-primary">Lưu cấu hình</button>
               </div>
             </form>

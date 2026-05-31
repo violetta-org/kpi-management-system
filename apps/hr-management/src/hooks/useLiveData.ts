@@ -24,6 +24,9 @@ import { Cr5db_systemparametersService } from '../generated/services/Cr5db_syste
 import { Cr5db_evaluationperiodsService } from '../generated/services/Cr5db_evaluationperiodsService';
 import { Cr5db_projectteamsService } from '../generated/services/Cr5db_projectteamsService';
 import { New_bonusmatrixService } from '../generated/services/New_bonusmatrixService';
+import { New_competencycatalogService } from '../generated/services/New_competencycatalogService';
+import { New_jobcompetencyService } from '../generated/services/New_jobcompetencyService';
+import { New_competencyassessmentService } from '../generated/services/New_competencyassessmentService';
 import type { User, Task, HeadcountRequest, KPITarget, PermissionGroup, EvaluationPeriod, BonusMatrix } from '../lib/types';
 
 /** All setters useLiveData needs to push fetched data into shared state */
@@ -57,6 +60,9 @@ export interface LiveDataSetters {
   setEvaluationPeriodsList: (v: EvaluationPeriod[]) => void;
   setPermissionGroups: (v: PermissionGroup[]) => void;
   setBonusMatrixList: (v: BonusMatrix[]) => void;
+  setCompetencyCatalogList: (v: any[]) => void;
+  setJobCompetenciesList: (v: any[]) => void;
+  setCompetencyAssessmentsList: (v: any[]) => void;
   setDefaultGroups: (v: string) => void;
   setDefaultGroupsDbId: (v: string) => void;
   // Default select setters populated on first load
@@ -148,7 +154,10 @@ export function useLiveData(setters: LiveDataSetters) {
         rawParams,
         rawEvaluationPeriods,
         rawProjectTeams,
-        rawBonusMatrix
+        rawBonusMatrix,
+        rawCompetencyCatalogs,
+        rawJobCompetencies,
+        rawCompetencyAssessments
       ] = await Promise.all([
         safeGet<User>('Users', Cr5db_usersService.getAll),
         safeGet('Departments', Cr5db_departmentsService.getAll),
@@ -173,7 +182,10 @@ export function useLiveData(setters: LiveDataSetters) {
         safeGet('System Parameters', Cr5db_systemparametersService.getAll),
         safeGet('Evaluation Periods', Cr5db_evaluationperiodsService.getAll),
         safeGet('Project Teams', Cr5db_projectteamsService.getAll),
-        safeGet<BonusMatrix>('Bonus Matrix', New_bonusmatrixService.getAll)
+        safeGet<BonusMatrix>('Bonus Matrix', New_bonusmatrixService.getAll),
+        safeGet('Competency Catalog', New_competencycatalogService.getAll),
+        safeGet('Job Competencies', New_jobcompetencyService.getAll),
+        safeGet('Competency Assessments', New_competencyassessmentService.getAll)
       ]);
 
       if (loadErrors.length > 0) {
@@ -314,6 +326,9 @@ export function useLiveData(setters: LiveDataSetters) {
       setters.setChangeRequestsList(rawRequests);
       setters.setProjectTeamsList(rawProjectTeams);
       setters.setBonusMatrixList(rawBonusMatrix);
+      setters.setCompetencyCatalogList(rawCompetencyCatalogs);
+      setters.setJobCompetenciesList(rawJobCompetencies);
+      setters.setCompetencyAssessmentsList(rawCompetencyAssessments);
 
       // Populate default select values
       if (allDepts.length > 0) {
