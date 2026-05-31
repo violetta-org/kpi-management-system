@@ -5,7 +5,19 @@
 //  trước khi gửi lên Server AI để đảm bảo câu trả lời chính xác.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const GEMINI_API_KEY: string = "AQ.Ab8RN6LeX5xGlbM8m3ses5e0A_GSqcCq8rj2fclEtRf0_Kmwjw";
+const HARDCODED_GEMINI_API_KEY: string = "AQ.Ab8RN6LeX5xGlbM8m3ses5e0A_GSqcCq8rj2fclEtRf0_Kmwjw";
+
+function getGeminiApiKey(): string {
+  try {
+    const savedKey = typeof window !== 'undefined' ? localStorage.getItem('VIBE_GEMINI_API_KEY') : null;
+    if (savedKey && savedKey.trim() !== '') {
+      return savedKey.trim();
+    }
+  } catch (e) {
+    console.warn('[AIService] Failed to read from localStorage:', e);
+  }
+  return HARDCODED_GEMINI_API_KEY;
+}
 
 // ── Ngữ cảnh hệ thống (System Context) ─────────────────────────
 // Đây là "bộ nhớ nền" giúp AI luôn hiểu rằng nó đang phục vụ cho
@@ -33,8 +45,9 @@ Quy tắc trả lời:
  * Mọi request đều được gắn SYSTEM_CONTEXT ở đầu prompt.
  */
 async function callGeminiAI(userPrompt: string): Promise<string> {
-  if (!GEMINI_API_KEY || GEMINI_API_KEY === "YOUR_GEMINI_API_KEY_HERE") {
-    throw new Error("Vui lòng dán Gemini API Key vào file AIService.ts!");
+  const apiKey = getGeminiApiKey();
+  if (!apiKey || apiKey === "YOUR_GEMINI_API_KEY_HERE") {
+    throw new Error("Vui lòng cấu hình Gemini API Key!");
   }
 
   // Sanitize: Loại bỏ các ký tự đặc biệt có thể gây prompt injection
@@ -42,7 +55,7 @@ async function callGeminiAI(userPrompt: string): Promise<string> {
   const sanitized = userPrompt.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
   const fullPrompt = `${SYSTEM_CONTEXT}\n\n---\n${sanitized}`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   // Timeout 15 giây để tránh treo vô hạn khi mất mạng
   const controller = new AbortController();
@@ -79,7 +92,7 @@ async function callGeminiAI(userPrompt: string): Promise<string> {
   if (!response.ok) {
     const errBody = await response.text().catch(() => 'Unknown error');
     console.error('[AIService] API Error:', response.status, errBody);
-    throw new Error(`Lỗi Server AI (HTTP ${response.status}). Kiểm tra API Key.`);
+    throw new Error(`Lỗi Server AI (HTTP ${response.status}). Vui lòng kiểm tra lại API Key.`);
   }
 
   const data = await response.json();
@@ -131,6 +144,24 @@ export interface SystemSnapshot {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export const AIService = {
+
+  getSavedApiKey: (): string => {
+    try {
+      return typeof window !== 'undefined' ? localStorage.getItem('VIBE_GEMINI_API_KEY') || '' : '';
+    } catch {
+      return '';
+    }
+  },
+
+  saveApiKey: (key: string): void => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('VIBE_GEMINI_API_KEY', key.trim());
+      }
+    } catch (e) {
+      console.error('[AIService] Failed to save key:', e);
+    }
+  },
 
   // ─── 1. SINH MÔ TẢ TASK (có ngữ cảnh dự án) ───────────────────
   generateTaskDescription: async (
