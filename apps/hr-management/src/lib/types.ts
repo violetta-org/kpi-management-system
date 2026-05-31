@@ -108,6 +108,14 @@ export const FEATURE_TABS = [
   { id: 'kpi-catalog', labelVi: 'Danh mục KPI', labelEn: 'KPI Catalog' },
 ] as const;
 
+export interface EvaluationPeriod {
+  cr5db_evaluationperiodid: string;
+  cr5db_evaluationperiod1: string;
+  cr5db_startdate?: string;
+  cr5db_enddate?: string;
+  cr5db_islocked?: boolean;
+}
+
 export interface PermissionGroup {
   id: string; // pg_<slug>
   name: string;

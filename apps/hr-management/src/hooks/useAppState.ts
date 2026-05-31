@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { User, Task, HeadcountRequest, KPITarget, Company, PositionCatalog, JobPosition, AuditLog, PermissionGroup } from '../lib/types';
+import type { User, Task, HeadcountRequest, KPITarget, Company, PositionCatalog, JobPosition, AuditLog, PermissionGroup, EvaluationPeriod } from '../lib/types';
 
 export type ActiveTab =
   | 'dashboard' | 'tasks' | 'timesheets' | 'kpi' | 'performance'
@@ -49,6 +49,20 @@ export function useAppState() {
   const [defaultGroups, setDefaultGroups] = useState<string>('');
   const [defaultGroupsDbId, setDefaultGroupsDbId] = useState<string>('');
 
+  const [evaluationPeriodsList, setEvaluationPeriodsList] = useState<EvaluationPeriod[]>([]);
+  // Period Modal
+  const [showPeriodModal, setShowPeriodModal] = useState(false);
+  const [newPeriodName, setNewPeriodName] = useState('');
+  const [newPeriodStartDate, setNewPeriodStartDate] = useState('');
+  const [newPeriodEndDate, setNewPeriodEndDate] = useState('');
+  const [editingPeriod, setEditingPeriod] = useState<EvaluationPeriod | null>(null);
+  // Assign Appraisal Modal
+  const [showAssignAppraisalModal, setShowAssignAppraisalModal] = useState(false);
+  const [newAppraisalName, setNewAppraisalName] = useState('');
+  const [newAppraisalEmployeeId, setNewAppraisalEmployeeId] = useState('');
+  const [newAppraisalEvaluatorId, setNewAppraisalEvaluatorId] = useState('');
+  const [newAppraisalPeriodId, setNewAppraisalPeriodId] = useState('');
+
   // Debug log when routes/requests reload
   useEffect(() => {
     console.log(`Routes loaded: ${approvalRoutesList.length}, Requests loaded: ${changeRequestsList.length}`);
@@ -69,7 +83,7 @@ export function useAppState() {
 
   // ── Sub-Tabs ─────────────────────────────────────────────────────────────
   const [activeTimesheetSubTab, setActiveTimesheetSubTab] = useState<'my' | 'approvals'>('my');
-  const [activePerformanceSubTab, setActivePerformanceSubTab] = useState<'my' | 'team' | 'admin'>('my');
+  const [activePerformanceSubTab, setActivePerformanceSubTab] = useState<'my' | 'team' | 'cycles'>('my');
   const [activeResourcesSubTab, setActiveResourcesSubTab] = useState<'allocations' | 'projects'>('allocations');
   const [collapsedProjects, setCollapsedProjects] = useState<{ [key: string]: boolean }>({});
   const [activeKpiSubTab, setActiveKpiSubTab] = useState<'overview' | 'charts'>('overview');
@@ -465,5 +479,18 @@ export function useAppState() {
     permissionGroups, setPermissionGroups,
     defaultGroups, setDefaultGroups,
     defaultGroupsDbId, setDefaultGroupsDbId,
+
+    // Appraisal cycles
+    evaluationPeriodsList, setEvaluationPeriodsList,
+    showPeriodModal, setShowPeriodModal,
+    newPeriodName, setNewPeriodName,
+    newPeriodStartDate, setNewPeriodStartDate,
+    newPeriodEndDate, setNewPeriodEndDate,
+    editingPeriod, setEditingPeriod,
+    showAssignAppraisalModal, setShowAssignAppraisalModal,
+    newAppraisalName, setNewAppraisalName,
+    newAppraisalEmployeeId, setNewAppraisalEmployeeId,
+    newAppraisalEvaluatorId, setNewAppraisalEvaluatorId,
+    newAppraisalPeriodId, setNewAppraisalPeriodId,
   };
 }

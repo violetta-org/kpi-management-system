@@ -23,6 +23,7 @@ import { Cr5db_resourceallocationsService } from './generated/services/Cr5db_res
 import { Cr5db_approvalroutesesService } from './generated/services/Cr5db_approvalroutesesService';
 import { Cr5db_kpilibrariesService } from './generated/services/Cr5db_kpilibrariesService';
 import { Cr5db_objectivesService } from './generated/services/Cr5db_objectivesService';
+import { Cr5db_evaluationperiodsService } from './generated/services/Cr5db_evaluationperiodsService';
 import { Cr5db_systemparametersService } from './generated/services/Cr5db_systemparametersService';
 
 // SVG Icons
@@ -287,6 +288,19 @@ function App() {
     permissionGroups, setPermissionGroups,
     defaultGroups, setDefaultGroups,
     defaultGroupsDbId, setDefaultGroupsDbId,
+
+    // Appraisal cycles
+    evaluationPeriodsList, setEvaluationPeriodsList,
+    showPeriodModal, setShowPeriodModal,
+    newPeriodName, setNewPeriodName,
+    newPeriodStartDate, setNewPeriodStartDate,
+    newPeriodEndDate, setNewPeriodEndDate,
+    editingPeriod, setEditingPeriod,
+    showAssignAppraisalModal, setShowAssignAppraisalModal,
+    newAppraisalName, setNewAppraisalName,
+    newAppraisalEmployeeId, setNewAppraisalEmployeeId,
+    newAppraisalEvaluatorId, setNewAppraisalEvaluatorId,
+    newAppraisalPeriodId, setNewAppraisalPeriodId,
   } = s;
 
   // ── Live Data ─────────────────────────────────────────────────────────────
@@ -300,7 +314,7 @@ function App() {
     setSystemNotifications, setKpiLibrariesList,
     setApprovalRoutesList, setChangeRequestsList,
     setTasks, setHeadcountRequests, setKpiTargets,
-    setTimesheets, setAppraisals,
+    setTimesheets, setAppraisals, setEvaluationPeriodsList,
     setNewReqDeptId, setNewJobPosDeptId,
     setNewTaskAssigneeId, setAssignRoleUserId,
     setNewReqCatalogId, setNewJobPosCatalogId,
@@ -616,6 +630,103 @@ function App() {
     } catch (err) {
       console.error(err);
       alert('Lỗi khi từ chối timesheet.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleSavePeriod = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPeriodName.trim()) return;
+    try {
+      setIsLoading(true);
+      if (editingPeriod) {
+        await Cr5db_evaluationperiodsService.update(editingPeriod.cr5db_evaluationperiodid, {
+          cr5db_evaluationperiod1: newPeriodName,
+          cr5db_startdate: newPeriodStartDate || undefined,
+          cr5db_enddate: newPeriodEndDate || undefined
+        } as any);
+      } else {
+        await Cr5db_evaluationperiodsService.create({
+          cr5db_evaluationperiod1: newPeriodName,
+          cr5db_startdate: newPeriodStartDate || undefined,
+          cr5db_enddate: newPeriodEndDate || undefined,
+          cr5db_islocked: false
+        } as any);
+      }
+      setShowPeriodModal(false);
+      setEditingPeriod(null);
+      setNewPeriodName('');
+      setNewPeriodStartDate('');
+      setNewPeriodEndDate('');
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể lưu chu kỳ đánh giá.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeletePeriod = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa chu kỳ đánh giá này không?")) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_evaluationperiodsService.delete(id);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể xóa chu kỳ đánh giá.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleTogglePeriodLock = async (id: string, currentVal: boolean) => {
+    try {
+      setIsLoading(true);
+      await Cr5db_evaluationperiodsService.update(id, { cr5db_islocked: !currentVal } as any);
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể thay đổi trạng thái khóa chu kỳ.");
+      setIsLoading(false);
+    }
+  };
+
+  const handleAssignAppraisal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const empId = newAppraisalEmployeeId || usersList[0]?.cr5db_userid;
+    const evalId = newAppraisalEvaluatorId || usersList[0]?.cr5db_userid;
+    const periodId = newAppraisalPeriodId || evaluationPeriodsList[0]?.cr5db_evaluationperiodid;
+    if (!empId || !evalId || !periodId) {
+      alert("Vui lòng điền đầy đủ các trường thông tin bắt buộc.");
+      return;
+    }
+
+    const pRecord = evaluationPeriodsList.find(x => x.cr5db_evaluationperiodid === periodId);
+    const empRecord = usersList.find(x => x.cr5db_userid === empId);
+
+    const finalAppraisalName = newAppraisalName.trim() || 
+      `Đánh giá hiệu suất ${empRecord?.cr5db_fullname || ''} ${pRecord?.cr5db_evaluationperiod1 || ''}`;
+
+    try {
+      setIsLoading(true);
+      await Cr5db_performanceappraisalsService.create({
+        cr5db_performanceappraisal1: finalAppraisalName,
+        "cr5db_EmployeeID@odata.bind": `/cr5db_users(${empId})`,
+        "cr5db_EvaluatorID@odata.bind": `/cr5db_users(${evalId})`,
+        "cr5db_PeriodID@odata.bind": `/cr5db_evaluationperiods(${periodId})`,
+        cr5db_finalscore: 0,
+        cr5db_selfscore: 0
+      } as any);
+
+      setShowAssignAppraisalModal(false);
+      setNewAppraisalName('');
+      setNewAppraisalEmployeeId('');
+      setNewAppraisalEvaluatorId('');
+      setNewAppraisalPeriodId('');
+      await fetchLiveValues();
+    } catch (err) {
+      console.error(err);
+      alert("Không thể phát động đợt đánh giá mới.");
       setIsLoading(false);
     }
   };
@@ -3221,9 +3332,14 @@ function App() {
                   My Appraisals
                 </button>
                 {activeRole !== 'Employee' && (
-                  <button onClick={() => setActivePerformanceSubTab('team')} style={{ background: 'none', border: 'none', color: activePerformanceSubTab === 'team' ? 'var(--color-text)' : 'var(--color-text-secondary)', fontWeight: activePerformanceSubTab === 'team' ? 700 : 500, cursor: 'pointer', borderBottom: activePerformanceSubTab === 'team' ? '2px solid var(--color-text)' : 'none', padding: '4px 8px' }}>
-                    Team Appraisals
-                  </button>
+                  <>
+                    <button onClick={() => setActivePerformanceSubTab('team')} style={{ background: 'none', border: 'none', color: activePerformanceSubTab === 'team' ? 'var(--color-text)' : 'var(--color-text-secondary)', fontWeight: activePerformanceSubTab === 'team' ? 700 : 500, cursor: 'pointer', borderBottom: activePerformanceSubTab === 'team' ? '2px solid var(--color-text)' : 'none', padding: '4px 8px' }}>
+                      Team Appraisals
+                    </button>
+                    <button onClick={() => setActivePerformanceSubTab('cycles')} style={{ background: 'none', border: 'none', color: activePerformanceSubTab === 'cycles' ? 'var(--color-text)' : 'var(--color-text-secondary)', fontWeight: activePerformanceSubTab === 'cycles' ? 700 : 500, cursor: 'pointer', borderBottom: activePerformanceSubTab === 'cycles' ? '2px solid var(--color-text)' : 'none', padding: '4px 8px' }}>
+                      Quản lý chu kỳ & phát động
+                    </button>
+                  </>
                 )}
               </div>
 
@@ -3247,17 +3363,25 @@ function App() {
                             <td style={{ padding: '14px 20px', fontWeight: 600 }}>{ap.cr5db_performanceappraisal1}</td>
                             <td style={{ padding: '14px 20px' }}>{ap.cr5db_evaluatorname}</td>
                             <td style={{ padding: '14px 20px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <input 
-                                  type="number" 
-                                  min={0} 
-                                  max={100}
-                                  defaultValue={ap.cr5db_selfscore}
-                                  onBlur={(e) => handleUpdateSelfAppraisalScore(ap.cr5db_performanceappraisalid, Number(e.target.value))}
-                                  style={{ width: '60px', padding: '4px 8px', border: '1px solid var(--color-border)', borderRadius: '4px' }}
-                                />
-                                <span style={{ fontSize: '13px' }}>/100</span>
-                              </div>
+                              {(() => {
+                                const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === ap.cr5db_periodname);
+                                const isLocked = !!periodObj?.cr5db_islocked;
+                                return (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <input 
+                                      type="number" 
+                                      min={0} 
+                                      max={100}
+                                      defaultValue={ap.cr5db_selfscore}
+                                      onBlur={(e) => handleUpdateSelfAppraisalScore(ap.cr5db_performanceappraisalid, Number(e.target.value))}
+                                      style={{ width: '60px', padding: '4px 8px', border: '1px solid var(--color-border)', borderRadius: '4px', backgroundColor: isLocked ? '#F3F2F1' : 'white' }}
+                                      disabled={isLocked}
+                                    />
+                                    <span style={{ fontSize: '13px' }}>/100</span>
+                                    {isLocked && <span style={{ fontSize: '11px', color: '#ff8c00', fontWeight: 600, marginLeft: '6px' }}>(Đã khóa)</span>}
+                                  </div>
+                                );
+                              })()}
                             </td>
                             <td style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-primary)' }}>{ap.cr5db_finalscore}/100</td>
                           </tr>
@@ -3266,7 +3390,7 @@ function App() {
                     </table>
                   </div>
                 )
-              ) : (
+              ) : activePerformanceSubTab === 'team' ? (
                 <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                     <thead>
@@ -3307,6 +3431,97 @@ function App() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                    <button 
+                      onClick={() => {
+                        setEditingPeriod(null);
+                        setNewPeriodName('');
+                        setNewPeriodStartDate('');
+                        setNewPeriodEndDate('');
+                        setShowPeriodModal(true);
+                      }}
+                      className="btn-primary"
+                      style={{ fontSize: '13px' }}
+                    >
+                      + Tạo chu kỳ mới
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setNewAppraisalName('');
+                        setNewAppraisalEmployeeId(usersList[0]?.cr5db_userid || '');
+                        setNewAppraisalEvaluatorId(usersList[0]?.cr5db_userid || '');
+                        setNewAppraisalPeriodId(evaluationPeriodsList[0]?.cr5db_evaluationperiodid || '');
+                        setShowAssignAppraisalModal(true);
+                      }}
+                      className="btn-filled-3"
+                      style={{ fontSize: '13px' }}
+                    >
+                      + Phát động đánh giá
+                    </button>
+                  </div>
+
+                  <div className="card-spec" style={{ padding: '0px', overflow: 'hidden' }}>
+                    {evaluationPeriodsList.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>Không có chu kỳ đánh giá nào. Hãy tạo một chu kỳ để bắt đầu!</div>
+                    ) : (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
+                            <th style={{ padding: '14px 20px' }}>Chu kỳ</th>
+                            <th style={{ padding: '14px 20px' }}>Ngày bắt đầu</th>
+                            <th style={{ padding: '14px 20px' }}>Ngày kết thúc</th>
+                            <th style={{ padding: '14px 20px' }}>Khóa</th>
+                            <th style={{ padding: '14px 20px', textAlign: 'right' }}>Thao tác</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {evaluationPeriodsList.map(p => (
+                            <tr key={p.cr5db_evaluationperiodid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                              <td style={{ padding: '14px 20px', fontWeight: 600 }}>{p.cr5db_evaluationperiod1}</td>
+                              <td style={{ padding: '14px 20px' }}>{p.cr5db_startdate ? new Date(p.cr5db_startdate).toLocaleDateString('vi-VN') : '---'}</td>
+                              <td style={{ padding: '14px 20px' }}>{p.cr5db_enddate ? new Date(p.cr5db_enddate).toLocaleDateString('vi-VN') : '---'}</td>
+                              <td style={{ padding: '14px 20px' }}>
+                                <button 
+                                  onClick={() => handleTogglePeriodLock(p.cr5db_evaluationperiodid, !!p.cr5db_islocked)}
+                                  className={p.cr5db_islocked ? "btn-filled-3" : "btn-filled-2"}
+                                  style={{ padding: '4px 10px', fontSize: '12px', border: 'none', borderRadius: '4px', cursor: 'pointer', backgroundColor: p.cr5db_islocked ? '#FDE7E9' : '#DFF6DD', color: p.cr5db_islocked ? '#A80000' : '#107C41' }}
+                                >
+                                  {p.cr5db_islocked ? "🔒 Đang khóa" : "🔓 Đang mở"}
+                                </button>
+                              </td>
+                              <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                                  <button
+                                    onClick={() => {
+                                      setEditingPeriod(p);
+                                      setNewPeriodName(p.cr5db_evaluationperiod1);
+                                      setNewPeriodStartDate(p.cr5db_startdate ? p.cr5db_startdate.split('T')[0] : '');
+                                      setNewPeriodEndDate(p.cr5db_enddate ? p.cr5db_enddate.split('T')[0] : '');
+                                      setShowPeriodModal(true);
+                                    }}
+                                    className="btn-filled-3"
+                                    style={{ padding: '4px 8px', fontSize: '12px' }}
+                                  >
+                                    Sửa
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeletePeriod(p.cr5db_evaluationperiodid)}
+                                    className="btn-filled-3"
+                                    style={{ padding: '4px 8px', fontSize: '12px', color: '#a80000', borderColor: '#fde7e9' }}
+                                  >
+                                    Xóa
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -6693,6 +6908,152 @@ function App() {
         </div>
       )}
 
+
+      {/* Period Modal */}
+      {showPeriodModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ width: '400px', padding: '24px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>
+              {editingPeriod ? 'Cập nhật chu kỳ đánh giá' : 'Tạo mới chu kỳ đánh giá'}
+            </h3>
+            <form onSubmit={handleSavePeriod} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Tên chu kỳ <span style={{ color: '#dc2626' }}>*</span></label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: Đánh giá hiệu suất Q3/2026"
+                  value={newPeriodName}
+                  onChange={e => setNewPeriodName(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Ngày bắt đầu</label>
+                <input
+                  type="date"
+                  value={newPeriodStartDate}
+                  onChange={e => setNewPeriodStartDate(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Ngày kết thúc</label>
+                <input
+                  type="date"
+                  value={newPeriodEndDate}
+                  onChange={e => setNewPeriodEndDate(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowPeriodModal(false)}
+                  className="btn-filled-3"
+                  style={{ padding: '8px 16px' }}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ padding: '8px 16px' }}
+                >
+                  Lưu lại
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+
+      {/* Assign Appraisal Modal */}
+      {showAssignAppraisalModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ width: '450px', padding: '24px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>
+              Phát động đợt đánh giá mới
+            </h3>
+            <form onSubmit={handleAssignAppraisal} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Nhân sự cần đánh giá <span style={{ color: '#dc2626' }}>*</span></label>
+                <select
+                  value={newAppraisalEmployeeId}
+                  onChange={e => setNewAppraisalEmployeeId(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', backgroundColor: '#ffffff', boxSizing: 'border-box' }}
+                >
+                  {usersList.map(u => (
+                    <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname} ({u.cr5db_email || 'No email'})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Người đánh giá (HR/Manager) <span style={{ color: '#dc2626' }}>*</span></label>
+                <select
+                  value={newAppraisalEvaluatorId}
+                  onChange={e => setNewAppraisalEvaluatorId(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', backgroundColor: '#ffffff', boxSizing: 'border-box' }}
+                >
+                  {usersList.map(u => (
+                    <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname} ({u.cr5db_email || 'No email'})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Chu kỳ đánh giá <span style={{ color: '#dc2626' }}>*</span></label>
+                <select
+                  value={newAppraisalPeriodId}
+                  onChange={e => setNewAppraisalPeriodId(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', backgroundColor: '#ffffff', boxSizing: 'border-box' }}
+                >
+                  {evaluationPeriodsList.map(p => (
+                    <option key={p.cr5db_evaluationperiodid} value={p.cr5db_evaluationperiodid}>{p.cr5db_evaluationperiod1}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Tên đợt đánh giá hiển thị (Tự chọn)</label>
+                <input
+                  type="text"
+                  placeholder="Để trống để hệ thống tự động sinh tên"
+                  value={newAppraisalName}
+                  onChange={e => setNewAppraisalName(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAssignAppraisalModal(false)}
+                  className="btn-filled-3"
+                  style={{ padding: '8px 16px' }}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ padding: '8px 16px' }}
+                >
+                  Phát động
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

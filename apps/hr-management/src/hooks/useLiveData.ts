@@ -21,7 +21,8 @@ import { Cr5db_systemnotificationsService } from '../generated/services/Cr5db_sy
 import { Cr5db_approvalroutesesService } from '../generated/services/Cr5db_approvalroutesesService';
 import { Cr5db_changerequestsesService } from '../generated/services/Cr5db_changerequestsesService';
 import { Cr5db_systemparametersService } from '../generated/services/Cr5db_systemparametersService';
-import type { User, Task, HeadcountRequest, KPITarget, PermissionGroup } from '../lib/types';
+import { Cr5db_evaluationperiodsService } from '../generated/services/Cr5db_evaluationperiodsService';
+import type { User, Task, HeadcountRequest, KPITarget, PermissionGroup, EvaluationPeriod } from '../lib/types';
 
 /** All setters useLiveData needs to push fetched data into shared state */
 export interface LiveDataSetters {
@@ -50,6 +51,7 @@ export interface LiveDataSetters {
   setKpiTargets: (v: KPITarget[]) => void;
   setTimesheets: (v: any[]) => void;
   setAppraisals: (v: any[]) => void;
+  setEvaluationPeriodsList: (v: EvaluationPeriod[]) => void;
   setPermissionGroups: (v: PermissionGroup[]) => void;
   setDefaultGroups: (v: string) => void;
   setDefaultGroupsDbId: (v: string) => void;
@@ -131,7 +133,8 @@ export function useLiveData(setters: LiveDataSetters) {
         rawKpiLibraries,
         rawRoutes,
         rawRequests,
-        rawParams
+        rawParams,
+        rawEvaluationPeriods
       ] = await Promise.all([
         safeGet<User>(Cr5db_usersService.getAll),
         safeGet(Cr5db_departmentsService.getAll),
@@ -153,7 +156,8 @@ export function useLiveData(setters: LiveDataSetters) {
         safeGet(Cr5db_kpilibrariesService.getAll),
         safeGet(Cr5db_approvalroutesesService.getAll),
         safeGet(Cr5db_changerequestsesService.getAll),
-        safeGet(Cr5db_systemparametersService.getAll)
+        safeGet(Cr5db_systemparametersService.getAll),
+        safeGet(Cr5db_evaluationperiodsService.getAll)
       ]);
 
       const parsedGroups: PermissionGroup[] = [];
@@ -400,6 +404,16 @@ export function useLiveData(setters: LiveDataSetters) {
         };
       });
       setters.setAppraisals(mappedAppraisals);
+
+      // Map Evaluation Periods
+      const mappedPeriods = (rawEvaluationPeriods || []).map((p: any) => ({
+        cr5db_evaluationperiodid: p.cr5db_evaluationperiodid,
+        cr5db_evaluationperiod1: p.cr5db_evaluationperiod1,
+        cr5db_startdate: p.cr5db_startdate || '',
+        cr5db_enddate: p.cr5db_enddate || '',
+        cr5db_islocked: !!p.cr5db_islocked
+      }));
+      setters.setEvaluationPeriodsList(mappedPeriods);
 
     } catch (err: any) {
       console.error('Initialization error: ', err);
