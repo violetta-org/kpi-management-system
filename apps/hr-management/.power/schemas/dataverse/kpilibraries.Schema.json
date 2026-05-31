@@ -177,6 +177,44 @@
           "required": true,
           "maxLength": 100
         },
+        "new_direction": {
+          "type": "string",
+          "title": "Direction ",
+          "x-ms-dataverse-attribute": "new_direction",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "new_Direction",
+          "required": true,
+          "enum": [
+            "Tối đa hóa (Higher is better)",
+            "Tối thiểu hóa (Lower is better)",
+            "Đạt / Không đạt (Binary)",
+            "Cột mốc (Milestone)"
+          ],
+          "x-ms-enum-values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "0f97288e-c95c-f111-a826-000d3a80f12a",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "KPI Direction",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "new_directionname": {
+          "type": "string",
+          "title": "new_directionname",
+          "x-ms-dataverse-attribute": "new_directionname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "new_directionName",
+          "x-ms-read-only": true
+        },
         "overriddencreatedon": {
           "type": "string",
           "title": "Record Created On",
@@ -347,6 +385,7 @@
         "createdonbehalfbyyominame",
         "modifiedbyyominame",
         "modifiedonbehalfbyyominame",
+        "new_direction",
         "ownerid",
         "owneridname",
         "owneridtype",

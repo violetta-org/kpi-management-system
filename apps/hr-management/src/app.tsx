@@ -613,7 +613,7 @@ function App() {
       const actual = k.cr5db_actualvalue || 0;
       const weight = k.cr5db_weightpercentage || 0;
       const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-      const rate = calculateKpiAchievementRate(target, actual, kpiLib?.cr5db_direction) / 100;
+      const rate = calculateKpiAchievementRate(target, actual, kpiLib?.new_direction) / 100;
       const contribution = rate * weight;
 
       weightedScore += contribution;
@@ -927,7 +927,7 @@ function App() {
   };
 
   // KPI Library CRUD
-  const handleSaveKpiLibrary = async (e: React.FormEvent) => {
+   const handleSaveKpiLibrary = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!kpiLibName.trim()) return;
     try {
@@ -936,6 +936,7 @@ function App() {
         cr5db_kpiname: kpiLibName,
         cr5db_unit: kpiLibUnit,
         cr5db_formula: kpiLibFormula,
+        new_direction: kpiLibDirection,
         statecode: 0,
       };
       if (editingKpiLibrary) {
@@ -945,7 +946,7 @@ function App() {
       }
       setShowKpiLibraryModal(false);
       setEditingKpiLibrary(null);
-      setKpiLibName(''); setKpiLibUnit('%'); setKpiLibFormula('');
+      setKpiLibName(''); setKpiLibUnit('%'); setKpiLibFormula(''); setKpiLibDirection(1);
       await fetchLiveValues();
     } catch (err) { console.error(err); alert('Loi khi luu thu vien KPI.'); setIsLoading(false); }
   };
@@ -2753,7 +2754,7 @@ function App() {
                       <span className="feature-desc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
                         {kpiTargets.length} {language === 'vi' ? 'chỉ tiêu' : 'targets'}, {kpiTargets.filter(k => {
                           const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                          return calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.cr5db_direction) >= 100;
+                          return calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.new_direction) >= 100;
                         }).length} {language === 'vi' ? 'đạt mục tiêu' : 'on track'}
                       </span>
                       <button onClick={() => setActiveTab('kpi')} className="feature-link">{language === 'vi' ? 'Xem chỉ số ➔' : 'View KPIs ➔'}</button>
@@ -3278,16 +3279,16 @@ function App() {
                   const totalCount = userKpis.length;
                   const onTrackCount = userKpis.filter(k => {
                     const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                    return calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.cr5db_direction) >= 100;
+                    return calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.new_direction) >= 100;
                   }).length;
                   const atRiskCount = userKpis.filter(k => {
                     const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                    const r = calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.cr5db_direction);
+                    const r = calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.new_direction);
                     return r >= 50 && r < 100;
                   }).length;
                   const behindCount = userKpis.filter(k => {
                     const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                    return calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.cr5db_direction) < 50;
+                    return calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.new_direction) < 50;
                   }).length;
 
                   return (
@@ -3419,7 +3420,7 @@ function App() {
                             <tbody>
                               {userKpis.map(k => {
                                 const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                                const rate = calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.cr5db_direction);
+                                const rate = calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.new_direction);
                                 const employeeName = usersList.find(u => u.cr5db_userid === k._cr5db_employeeid_value)?.cr5db_fullname || k.cr5db_user_email.split('@')[0];
                                 return (
                                   <tr key={k.cr5db_kpitargetid} style={{ borderBottom: '1px solid var(--color-border)' }}>
@@ -3641,13 +3642,13 @@ function App() {
                            {(() => {
                             const rates = userKpis.map(k => {
                               const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                              return calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.cr5db_direction);
+                              return calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.new_direction);
                             });
                             const avgProgress = rates.length > 0 ? Math.round(rates.reduce((sum, r) => sum + r, 0) / rates.length) : 0;
                             const totalWeight = userKpis.reduce((sum, k) => sum + (k.cr5db_weightpercentage || 0), 0);
                             const achievedCount = userKpis.filter(k => {
                               const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                              return calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.cr5db_direction) >= 100;
+                              return calculateKpiAchievementRate(k.cr5db_targetvalue || 0, k.cr5db_actualvalue || 0, kpiLib?.new_direction) >= 100;
                             }).length;
                             
                             return (
@@ -5529,7 +5530,7 @@ function App() {
                 <button
                   onClick={() => {
                     if (activeKpiCatalogSubTab === 'library') {
-                      setEditingKpiLibrary(null); setKpiLibName(''); setKpiLibUnit('%'); setKpiLibFormula('');
+                      setEditingKpiLibrary(null); setKpiLibName(''); setKpiLibUnit('%'); setKpiLibFormula(''); setKpiLibDirection(1);
                       setShowKpiLibraryModal(true);
                     } else {
                       setEditingObjective(null); setObjectiveName(''); setObjectiveTarget(100); setObjectivePeriodId('');
@@ -5586,7 +5587,7 @@ function App() {
                       <div style={{ fontSize: '48px', marginBottom: '16px' }}>📊</div>
                       <p style={{ fontWeight: 600, marginBottom: '8px' }}>Chua co KPI nao trong thu vien</p>
                       <p style={{ fontSize: '13px', marginBottom: '20px' }}>Them KPI chuan de nhan vien lua chon khi gan chi tieu</p>
-                      <button onClick={() => { setEditingKpiLibrary(null); setKpiLibName(''); setKpiLibUnit('%'); setKpiLibFormula(''); setShowKpiLibraryModal(true); }} className="btn-primary">+ Them KPI dau tien</button>
+                      <button onClick={() => { setEditingKpiLibrary(null); setKpiLibName(''); setKpiLibUnit('%'); setKpiLibFormula(''); setKpiLibDirection(1); setShowKpiLibraryModal(true); }} className="btn-primary">+ Them KPI dau tien</button>
                     </div>
                   ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: '16px' }}>
@@ -5609,7 +5610,7 @@ function App() {
                             </div>
                             <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                               <button
-                                onClick={() => { setEditingKpiLibrary(lib); setKpiLibName(lib.cr5db_kpiname); setKpiLibUnit(lib.cr5db_unit || '%'); setKpiLibFormula(lib.cr5db_formula || ''); setShowKpiLibraryModal(true); }}
+                                onClick={() => { setEditingKpiLibrary(lib); setKpiLibName(lib.cr5db_kpiname); setKpiLibUnit(lib.cr5db_unit || '%'); setKpiLibFormula(lib.cr5db_formula || ''); setKpiLibDirection(lib.new_direction || 1); setShowKpiLibraryModal(true); }}
                                 style={{ padding: '4px 10px', fontSize: '12px', border: '1px solid var(--color-border)', borderRadius: '6px', cursor: 'pointer', background: 'transparent' }}
                               >Sua</button>
                               <button

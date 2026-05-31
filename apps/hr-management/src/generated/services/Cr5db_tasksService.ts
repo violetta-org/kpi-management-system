@@ -6,9 +6,9 @@
 import type { Cr5db_tasksBase, Cr5db_tasks } from '../models/Cr5db_tasksModel';
 import type { GetEntityMetadataOptions, EntityMetadata } from '@microsoft/power-apps/data/metadata/dataverse';
 import type { IGetOptions, IGetAllOptions } from '../models/CommonModels';
-import type { IOperationResult } from '../../lib/mockPowerAppsData';
+import type { IOperationResult } from '@microsoft/power-apps/data';
 import { dataSourcesInfo } from '../../../.power/schemas/appschemas/dataSourcesInfo';
-import { getClient } from '../../lib/mockPowerAppsData';
+import { getClient } from '@microsoft/power-apps/data';
 
 
 export class Cr5db_tasksService {

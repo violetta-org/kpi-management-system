@@ -429,7 +429,7 @@ export function useLiveData(setters: LiveDataSetters) {
       const mappedKpis: KPITarget[] = (kpiResponse.data || []).map((k: any) => {
         const employee = allUsers.find((u: User) => u.cr5db_userid === k._cr5db_employeeid_value);
         const libraryItem = rawKpiLibraries.find((lib: any) => lib.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-        const parentObjective = rawObjectives.find((obj: any) => obj.cr5db_objectiveid === k._cr5db_parentobjective_value);
+        const parentObjective = mappedObjectives.find((obj: any) => obj.cr5db_objectiveid === k._cr5db_parentobjective_value);
         return {
           cr5db_kpitargetid: k.cr5db_kpitargetid,
           cr5db_kpiname: k.cr5db_kpitarget1 || libraryItem?.cr5db_kpiname || 'Mục tiêu KPI',
