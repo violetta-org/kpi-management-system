@@ -499,3 +499,87 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* Org Chart Styles */
+.org-tree {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.org-node-container {
+  margin-left: 20px;
+  position: relative;
+  padding-left: 20px;
+  border-left: 1px solid var(--color-border);
+}
+/* Connect line to child */
+.org-node-container::before {
+  content: '';
+  position: absolute;
+  top: 24px;
+  left: 0;
+  width: 20px;
+  border-top: 1px solid var(--color-border);
+}
+/* Remove vertical line for the last child */
+.org-node-container:last-child {
+  border-left: none;
+}
+/* But we still need the vertical line segment connecting to the last child's branch line */
+.org-node-container:last-child::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 24px;
+  border-left: 1px solid var(--color-border);
+}
+.org-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  background-color: var(--color-bg);
+  margin-bottom: 12px;
+  display: inline-block;
+  min-width: 280px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.org-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.org-card-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+.org-employee-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.org-employee-item {
+  font-size: 13px;
+  padding: 8px 12px;
+  background: #faf9f9;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-button);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.org-toggle-btn {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  color: var(--color-text);
+  padding: 2px 8px;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+.org-toggle-btn:hover {
+  background: var(--color-border-light);
+}
+

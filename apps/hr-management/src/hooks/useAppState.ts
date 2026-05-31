@@ -116,7 +116,8 @@ export function useAppState() {
   const [kpiTimeRange, setKpiTimeRange] = useState<'week' | 'month' | 'quarter' | 'custom'>('quarter');
 
   // ── Employee Directory ───────────────────────────────────────────────────
-  const [activeDirectorySubTab, setActiveDirectorySubTab] = useState<'view' | 'manage' | 'history' | 'groups'>('view');
+  const [activeDirectorySubTab, setActiveDirectorySubTab] = useState<'view' | 'manage' | 'history' | 'groups' | 'orgchart'>('view');
+  const [expandedOrgNodes, setExpandedOrgNodes] = useState<{ [key: string]: boolean }>({});
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<User | null>(null);
   const [employeeFullName, setEmployeeFullName] = useState('');
@@ -396,6 +397,7 @@ export function useAppState() {
 
     // Employee Directory
     activeDirectorySubTab, setActiveDirectorySubTab,
+    expandedOrgNodes, setExpandedOrgNodes,
     showEmployeeModal, setShowEmployeeModal,
     editingEmployee, setEditingEmployee,
     employeeFullName, setEmployeeFullName,
