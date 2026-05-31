@@ -344,6 +344,8 @@ function App() {
     newAppraisalEvaluatorId, setNewAppraisalEvaluatorId,
     newAppraisalPeriodId, setNewAppraisalPeriodId,
     language, toggleLanguage,
+    kpiParentKpiId, setKpiParentKpiId,
+    kpiRollupMethod, setKpiRollupMethod,
   } = s;
 
   const t = (key: string) => getTranslation(key, language);

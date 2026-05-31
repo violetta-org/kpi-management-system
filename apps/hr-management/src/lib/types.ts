@@ -60,6 +60,9 @@ export interface KPITarget {
   _cr5db_parentobjective_value?: string;
   _cr5db_employeeid_value?: string;
   _cr5db_kpicode_value?: string;
+  _cr5db_parentkpi_value?: string;
+  cr5db_rollupmethod?: string;
+  cr5db_employee_name?: string;
 }
 
 export interface Company {
@@ -83,6 +86,7 @@ export interface JobPosition {
   cr5db_headcountquota?: number;
   cr5db_currentheadcount?: number;
   cr5db_departmentname?: string;
+  cr5db_actualheadcount?: number;
 }
 
 export interface AuditLog {
