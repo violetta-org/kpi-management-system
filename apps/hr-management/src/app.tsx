@@ -234,6 +234,11 @@ function App() {
   const [allocationPercentage, setAllocationPercentage] = React.useState(100);
   const [allocationName, setAllocationName] = React.useState('');
   const [editingAllocation, setEditingAllocation] = React.useState<any | null>(null);
+  
+  // AI Suggestion states
+  const [showAiSuggestions, setShowAiSuggestions] = React.useState(false);
+  const [aiSuggestions, setAiSuggestions] = React.useState<any[]>([]);
+  const [aiFilterSameDept, setAiFilterSameDept] = React.useState(false);
 
   // KPI custom date filter states
   const [kpiCustomStartDate, setKpiCustomStartDate] = React.useState('2026-05-01');
@@ -3462,6 +3467,45 @@ function App() {
       alert(`Không thể xóa rủi ro dự án. Chi tiết lỗi:\n${errMsg}`);
       setIsLoading(false);
     }
+  };
+
+  const generateAiSuggestions = (filterSameDept: boolean) => {
+    let pool = usersList;
+    if (filterSameDept && currentUserObj?._cr5db_jobposition_value) {
+      const currentUserPosition = jobPositionsList.find(p => p.cr5db_jobpositionid === currentUserObj._cr5db_jobposition_value);
+      const currentUserDeptId = currentUserPosition?._cr5db_department_value;
+      if (currentUserDeptId) {
+        pool = usersList.filter(u => {
+          const userPos = jobPositionsList.find(p => p.cr5db_jobpositionid === u._cr5db_jobposition_value);
+          return userPos?._cr5db_department_value === currentUserDeptId;
+        });
+      }
+    }
+    
+    const scoredUsers = pool.map(u => {
+      // 1. Calculate Availability
+      const userAllocations = resourceAllocationsList.filter(a => a._cr5db_userid_value === u.cr5db_userid);
+      const totalAllocation = userAllocations.reduce((sum, a) => sum + (Number(a.cr5db_allocationpercentage) || 0), 0);
+      const availability = Math.max(0, 100 - totalAllocation);
+      
+      // 2. Skill Match (Deterministic pseudo-random 40-95 for demo)
+      const emailLen = u.cr5db_email ? u.cr5db_email.length : 10;
+      const skillMatch = 40 + ((emailLen * 13) % 55); 
+      
+      // 3. Combine: 60% Skill Match + 40% Availability
+      const fitScore = Math.round((skillMatch * 0.6) + (availability * 0.4));
+      
+      return {
+        user: u,
+        availability,
+        skillMatch,
+        fitScore
+      };
+    });
+    
+    scoredUsers.sort((a, b) => b.fitScore - a.fitScore);
+    setAiSuggestions(scoredUsers.slice(0, 3));
+    setShowAiSuggestions(true);
   };
 
   const handleSaveAllocation = async (e: React.FormEvent) => {
@@ -9943,7 +9987,78 @@ function App() {
             </h3>
             <form onSubmit={handleSaveAllocation} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Nhân sự <span style={{ color: '#dc2626' }}>*</span></label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontWeight: 600, fontSize: '13px' }}>Nhân sự <span style={{ color: '#dc2626' }}>*</span></label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!showAiSuggestions) {
+                        generateAiSuggestions(aiFilterSameDept);
+                      } else {
+                        setShowAiSuggestions(false);
+                      }
+                    }}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    🪄 Đề xuất AI
+                  </button>
+                </div>
+                
+                {showAiSuggestions ? (
+                  <div style={{ marginBottom: '12px', border: '1px solid var(--color-border-light)', borderRadius: '8px', padding: '12px', backgroundColor: '#F9FAFB' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>TOP GỢI Ý (60% Skill + 40% Avail)</span>
+                      <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={aiFilterSameDept} 
+                          onChange={e => {
+                            setAiFilterSameDept(e.target.checked);
+                            generateAiSuggestions(e.target.checked);
+                          }} 
+                        />
+                        Cùng phòng ban
+                      </label>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {aiSuggestions.map(sug => (
+                        <div 
+                          key={sug.user.cr5db_userid}
+                          onClick={() => {
+                            setAllocationUser(sug.user.cr5db_userid);
+                            setShowAiSuggestions(false);
+                          }}
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '12px', 
+                            padding: '10px', 
+                            backgroundColor: '#fff', 
+                            border: '1px solid var(--color-border)', 
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+                          onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--color-border)'}
+                        >
+                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)', fontWeight: 700, fontSize: '12px' }}>
+                            {sug.user.cr5db_fullname?.charAt(0) || 'U'}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '13px', fontWeight: 600 }}>{sug.user.cr5db_fullname}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>{sug.user.cr5db_email}</div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-primary)' }}>{sug.fitScore}%</div>
+                            <div style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>Fit Score</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 <select
                   value={allocationUser}
                   onChange={e => setAllocationUser(e.target.value)}
