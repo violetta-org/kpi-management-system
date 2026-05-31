@@ -11,6 +11,17 @@ export type ActiveRole = 'Employee' | 'Admin';
 export function useAppState() {
   // ── Navigation ──────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [language, setLanguage] = useState<'vi' | 'en'>(() => {
+    return (localStorage.getItem('appLanguage') as 'vi' | 'en') || 'vi';
+  });
+
+  const toggleLanguage = () => {
+    setLanguage(prev => {
+      const next = prev === 'vi' ? 'en' : 'vi';
+      localStorage.setItem('appLanguage', next);
+      return next;
+    });
+  };
   const [requestsSubTab, setRequestsSubTab] = useState<'change' | 'headcount'>('change');
   const [expandedRequests, setExpandedRequests] = useState<Record<string, boolean>>({});
 
@@ -492,5 +503,8 @@ export function useAppState() {
     newAppraisalEmployeeId, setNewAppraisalEmployeeId,
     newAppraisalEvaluatorId, setNewAppraisalEvaluatorId,
     newAppraisalPeriodId, setNewAppraisalPeriodId,
+
+    // Language localization
+    language, setLanguage, toggleLanguage,
   };
 }

@@ -99,6 +99,7 @@ const BellIcon = () => (
 
 import { FEATURE_TABS, hasTabPermission } from './lib/types';
 import type { User, Task, PermissionGroup } from './lib/types';
+import { getTranslation } from './lib/locales';
 
 function App() {
   // ── Hooks ────────────────────────────────────────────────────────────────
@@ -301,7 +302,10 @@ function App() {
     newAppraisalEmployeeId, setNewAppraisalEmployeeId,
     newAppraisalEvaluatorId, setNewAppraisalEvaluatorId,
     newAppraisalPeriodId, setNewAppraisalPeriodId,
+    language, toggleLanguage,
   } = s;
+
+  const t = (key: string) => getTranslation(key, language);
 
   // ── Live Data ─────────────────────────────────────────────────────────────
   const { fetchLiveValues } = useLiveData({
@@ -2156,49 +2160,49 @@ function App() {
         </div>
 
         {/* Dynamic Sidebar menu list */}
-        <nav className="nav-list">
+        <nav className="nav-list" style={{ flex: '1 1 auto', overflowY: 'auto' }}>
           <button onClick={() => setActiveTab('dashboard')} className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}>
-            <span className="nav-icon"><DashboardIcon /></span>Dashboard
+            <span className="nav-icon"><DashboardIcon /></span>{t('sidebar.dashboard')}
           </button>
           <button onClick={() => setActiveTab('tasks')} className={`nav-item ${activeTab === 'tasks' ? 'active' : ''}`}>
-            <span className="nav-icon"><TaskIcon /></span>My Tasks
+            <span className="nav-icon"><TaskIcon /></span>{t('sidebar.tasks')}
           </button>
           <button onClick={() => setActiveTab('timesheets')} className={`nav-item ${activeTab === 'timesheets' ? 'active' : ''}`}>
-            <span className="nav-icon"><ClockIcon /></span>Timesheets
+            <span className="nav-icon"><ClockIcon /></span>{t('sidebar.timesheets')}
           </button>
           <button onClick={() => setActiveTab('kpi')} className={`nav-item ${activeTab === 'kpi' ? 'active' : ''}`}>
-            <span className="nav-icon"><TargetIcon /></span>My KPIs
+            <span className="nav-icon"><TargetIcon /></span>{t('sidebar.kpi')}
           </button>
           {checkPermission('performance') && (
             <button onClick={() => setActiveTab('performance')} className={`nav-item ${activeTab === 'performance' ? 'active' : ''}`}>
-              <span className="nav-icon"><PerformanceIcon /></span>Performance
+              <span className="nav-icon"><PerformanceIcon /></span>{t('sidebar.performance')}
             </button>
           )}
           <button onClick={() => setActiveTab('requests')} className={`nav-item ${activeTab === 'requests' ? 'active' : ''}`}>
-            <span className="nav-icon"><BellIcon /></span>Requests
+            <span className="nav-icon"><BellIcon /></span>{t('sidebar.requests')}
           </button>
 
           {checkPermission('resources') && (
             <button onClick={() => setActiveTab('resources')} className={`nav-item ${activeTab === 'resources' ? 'active' : ''}`}>
-              <span className="nav-icon"><ResourceIcon /></span>Resources
+              <span className="nav-icon"><ResourceIcon /></span>{t('sidebar.resources')}
             </button>
           )}
 
           {checkPermission('directory') && (
             <button onClick={() => setActiveTab('directory')} className={`nav-item ${activeTab === 'directory' ? 'active' : ''}`}>
-              <span className="nav-icon"><DirectoryIcon /></span>Directory
+              <span className="nav-icon"><DirectoryIcon /></span>{t('sidebar.directory')}
             </button>
           )}
 
           {checkPermission('companies') && (
             <button onClick={() => setActiveTab('companies')} className={`nav-item ${activeTab === 'companies' ? 'active' : ''}`}>
-              <span className="nav-icon"><ShieldCheckIcon /></span>Companies
+              <span className="nav-icon"><ShieldCheckIcon /></span>{t('sidebar.companies')}
             </button>
           )}
 
           {checkPermission('positions') && (
             <button onClick={() => setActiveTab('positions')} className={`nav-item ${activeTab === 'positions' ? 'active' : ''}`}>
-              <span className="nav-icon"><RequestIcon /></span>Catalog
+              <span className="nav-icon"><RequestIcon /></span>{t('sidebar.positions')}
             </button>
           )}
 
@@ -2209,13 +2213,13 @@ function App() {
                   <path d="M9 19V6l12-3v13" /><circle cx="6" cy="19" r="3" /><circle cx="18" cy="16" r="3" />
                 </svg>
               </span>
-              Danh mục KPI
+              {t('sidebar.kpiCatalog')}
             </button>
           )}
 
           {checkPermission('headcount') && (
             <button onClick={() => setActiveTab('headcount')} className={`nav-item ${activeTab === 'headcount' ? 'active' : ''}`}>
-              <span className="nav-icon"><ShieldIcon /></span>Headcount
+              <span className="nav-icon"><ShieldIcon /></span>{t('sidebar.headcount')}
             </button>
           )}
 
@@ -2227,7 +2231,7 @@ function App() {
                   <polyline points="22 4 12 14.01 9 11.01" />
                 </svg>
               </span>
-              Approval Routes
+              {t('sidebar.routes')}
             </button>
           )}
 
@@ -2240,10 +2244,63 @@ function App() {
                   <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path>
                 </svg>
               </span>
-              Developer Portal
+              {t('sidebar.devPortal')}
             </button>
           )}
         </nav>
+
+        {/* Language Switcher Section */}
+        <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid var(--color-border-light)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            {t('language.select')}
+          </div>
+          <div style={{ display: 'flex', gap: '4px', backgroundColor: '#f3f4f6', padding: '3px', borderRadius: '8px' }}>
+            <button 
+              onClick={() => { if (language !== 'vi') toggleLanguage(); }} 
+              style={{ 
+                flex: 1, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '6px', 
+                padding: '6px 8px', 
+                fontSize: '12px', 
+                fontWeight: 600, 
+                borderRadius: '6px', 
+                border: 'none', 
+                cursor: 'pointer', 
+                backgroundColor: language === 'vi' ? '#ffffff' : 'transparent', 
+                color: language === 'vi' ? 'var(--color-text)' : 'var(--color-text-secondary)',
+                boxShadow: language === 'vi' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Tiếng Việt 🇻🇳
+            </button>
+            <button 
+              onClick={() => { if (language !== 'en') toggleLanguage(); }} 
+              style={{ 
+                flex: 1, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '6px', 
+                padding: '6px 8px', 
+                fontSize: '12px', 
+                fontWeight: 600, 
+                borderRadius: '6px', 
+                border: 'none', 
+                cursor: 'pointer', 
+                backgroundColor: language === 'en' ? '#ffffff' : 'transparent', 
+                color: language === 'en' ? 'var(--color-text)' : 'var(--color-text-secondary)',
+                boxShadow: language === 'en' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              English 🇬🇧
+            </button>
+          </div>
+        </div>
       </aside>
 
       {/* 2. Main Content Area */}
@@ -2262,30 +2319,30 @@ function App() {
                 // HR / Admin Dashboard
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                   <div>
-                    <h1 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '6px' }}>Headcount Overview</h1>
-                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '15px' }}>Organization quota monitoring and allocation health</p>
+                    <h1 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '6px' }}>{t('dashboard.title')}</h1>
+                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '15px' }}>{t('dashboard.subtitle')}</p>
                   </div>
 
                   <div className="metrics-grid">
                     <div className="metric-card">
                       <span className="metric-value">{totalQuotaCount}</span>
-                      <span className="metric-label">Total Quota</span>
+                      <span className="metric-label">{t('dashboard.totalQuota')}</span>
                     </div>
                     <div className="metric-card">
                       <span className="metric-value">{totalActualCount}</span>
-                      <span className="metric-label">Current Headcount</span>
+                      <span className="metric-label">{t('dashboard.currentHeadcount')}</span>
                     </div>
                     <div className="metric-card" style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}>
                       <span className="metric-value">{overQuotaCount}</span>
-                      <span className="metric-label">Over Quota</span>
+                      <span className="metric-label">{t('dashboard.overQuota')}</span>
                     </div>
                     <div className="metric-card" style={{ borderColor: '#E29E2E', color: '#E29E2E' }}>
                       <span className="metric-value">{underQuotaCount}</span>
-                      <span className="metric-label">Under Quota</span>
+                      <span className="metric-label">{t('dashboard.underQuota')}</span>
                     </div>
                     <div className="metric-card" style={{ borderColor: '#742774', color: '#742774' }}>
                       <span className="metric-value">{pendingRequestCount}</span>
-                      <span className="metric-label">Pending Approval</span>
+                      <span className="metric-label">{t('dashboard.pendingApproval')}</span>
                     </div>
                   </div>
 
@@ -2344,8 +2401,16 @@ function App() {
                 // Employee / PM Dashboard
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                   <div>
-                    <h1 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '6px' }}>Good morning, {currentUserName.trim().split(' ').pop() || currentUserName}!</h1>
-                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '15px' }}>Here's what's happening with your work this week</p>
+                    <h1 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '6px' }}>
+                      {language === 'vi' 
+                        ? `Chào buổi sáng, ${currentUserName.trim().split(' ').pop() || currentUserName}!` 
+                        : `Good morning, ${currentUserName.trim().split(' ').pop() || currentUserName}!`}
+                    </h1>
+                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '15px' }}>
+                      {language === 'vi' 
+                        ? 'Dưới đây là tổng hợp công việc của bạn trong tuần này' 
+                        : "Here's what's happening with your work this week"}
+                    </p>
                   </div>
 
                   {/* Overdue Task Banner */}
@@ -2362,21 +2427,27 @@ function App() {
                         <span style={{ color: 'var(--color-text)', display: 'flex', alignItems: 'center' }}><TaskIcon /></span>
                         <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700 }}>{dueTodayTasksCount}</span>
                       </div>
-                      <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Tasks Due Today</span>
+                      <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                        {language === 'vi' ? 'Việc cần làm hôm nay' : 'Tasks Due Today'}
+                      </span>
                     </div>
                     <div className="metric-card" style={{ gap: '8px', padding: '20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ color: 'var(--color-text)', display: 'flex', alignItems: 'center' }}><ClockIcon /></span>
                         <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700 }}>{totalHoursThisWeek.toFixed(1)}h</span>
                       </div>
-                      <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>Hours This Week</span>
+                      <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                        {language === 'vi' ? 'Số giờ làm tuần này' : 'Hours This Week'}
+                      </span>
                     </div>
                     <div className="metric-card" style={{ gap: '8px', padding: '20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ color: 'var(--color-text)', display: 'flex', alignItems: 'center' }}><TargetIcon /></span>
                         <span className="metric-value" style={{ fontSize: '28px', fontWeight: 700 }}>{kpiTargets.length}</span>
                       </div>
-                      <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>KPIs On Track</span>
+                      <span className="metric-label" style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                        {language === 'vi' ? 'KPI đang thực hiện' : 'KPIs On Track'}
+                      </span>
                     </div>
                     <div className="metric-card" style={{ gap: '8px', padding: '20px', borderColor: '#E29E2E' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -2396,7 +2467,9 @@ function App() {
                           {(activeRole === 'Admin' || checkPermission('resources')) ? pendingApprovalsTimesheets.length : pendingCount}
                         </span>
                       </div>
-                      <span className="metric-label" style={{ fontSize: '12px', color: '#E29E2E', fontWeight: 500 }}>Pending Approvals</span>
+                      <span className="metric-label" style={{ fontSize: '12px', color: '#E29E2E', fontWeight: 500 }}>
+                        {language === 'vi' ? 'Chờ duyệt' : 'Pending Approvals'}
+                      </span>
                     </div>
                   </div>
 
@@ -2404,32 +2477,32 @@ function App() {
                     <div className="feature-card" style={{ padding: '20px', minHeight: '150px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                         <span style={{ display: 'flex', alignItems: 'center' }}><TaskIcon /></span>
-                        <span className="feature-title" style={{ fontSize: '15px', fontWeight: 700 }}>My Tasks</span>
+                        <span className="feature-title" style={{ fontSize: '15px', fontWeight: 700 }}>{t('sidebar.tasks')}</span>
                       </div>
                       <span className="feature-desc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                        {tasks.filter(t => t.cr5db_assignee_email.toLowerCase() === currentUserEmail.toLowerCase()).length} total tasks, {filteredTasks.filter(t => t.cr5db_status !== 'Completed').length} upcoming
+                        {tasks.filter(t => t.cr5db_assignee_email.toLowerCase() === currentUserEmail.toLowerCase()).length} {language === 'vi' ? 'công việc tổng cộng' : 'total tasks'}, {filteredTasks.filter(t => t.cr5db_status !== 'Completed').length} {language === 'vi' ? 'đang thực hiện' : 'upcoming'}
                       </span>
-                      <button onClick={() => setActiveTab('tasks')} className="feature-link">View Tasks ➔</button>
+                      <button onClick={() => setActiveTab('tasks')} className="feature-link">{language === 'vi' ? 'Xem công việc ➔' : 'View Tasks ➔'}</button>
                     </div>
                     <div className="feature-card" style={{ padding: '20px', minHeight: '150px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                         <span style={{ display: 'flex', alignItems: 'center' }}><ClockIcon /></span>
-                        <span className="feature-title" style={{ fontSize: '15px', fontWeight: 700 }}>Timesheets</span>
+                        <span className="feature-title" style={{ fontSize: '15px', fontWeight: 700 }}>{t('sidebar.timesheets')}</span>
                       </div>
                       <span className="feature-desc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                        {totalEntries} entries logged this week
+                        {totalEntries} {language === 'vi' ? 'lượt chấm tuần này' : 'entries logged this week'}
                       </span>
-                      <button onClick={() => setActiveTab('timesheets')} className="feature-link">Log Time ➔</button>
+                      <button onClick={() => setActiveTab('timesheets')} className="feature-link">{language === 'vi' ? 'Báo cáo công ➔' : 'Log Time ➔'}</button>
                     </div>
                     <div className="feature-card" style={{ padding: '20px', minHeight: '150px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                         <span style={{ display: 'flex', alignItems: 'center' }}><TargetIcon /></span>
-                        <span className="feature-title" style={{ fontSize: '15px', fontWeight: 700 }}>My KPIs</span>
+                        <span className="feature-title" style={{ fontSize: '15px', fontWeight: 700 }}>{t('sidebar.kpi')}</span>
                       </div>
                       <span className="feature-desc" style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                        {kpiTargets.length} targets, {kpiTargets.filter(k => k.cr5db_actualvalue >= k.cr5db_targetvalue).length} on track
+                        {kpiTargets.length} {language === 'vi' ? 'chỉ tiêu' : 'targets'}, {kpiTargets.filter(k => k.cr5db_actualvalue >= k.cr5db_targetvalue).length} {language === 'vi' ? 'đạt mục tiêu' : 'on track'}
                       </span>
-                      <button onClick={() => setActiveTab('kpi')} className="feature-link">View KPIs ➔</button>
+                      <button onClick={() => setActiveTab('kpi')} className="feature-link">{language === 'vi' ? 'Xem chỉ số ➔' : 'View KPIs ➔'}</button>
                     </div>
                   </div>
 
@@ -4918,7 +4991,7 @@ function App() {
                                     const match = FEATURE_TABS.find(t => t.id === tabId);
                                     return (
                                       <span key={tabId} style={{ padding: '2px 8px', backgroundColor: '#f3f2f1', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>
-                                        {match ? match.labelVi : tabId}
+                                        {match ? (language === 'vi' ? match.labelVi : match.labelEn) : tabId}
                                       </span>
                                     );
                                   })}
