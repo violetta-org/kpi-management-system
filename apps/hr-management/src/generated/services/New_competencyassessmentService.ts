@@ -5,7 +5,7 @@ import { dataSourcesInfo } from '../../../.power/schemas/appschemas/dataSourcesI
 import { getClient } from '@microsoft/power-apps/data';
 
 export class New_competencyassessmentService {
-  private static readonly dataSourceName = 'new_competencyassessment';
+  private static readonly dataSourceName = 'new_competencyassessments';
   private static readonly client = getClient(dataSourcesInfo);
 
   public static async create(record: Omit<CompetencyAssessment, 'new_competencyassessmentid'>): Promise<IOperationResult<CompetencyAssessment>> {

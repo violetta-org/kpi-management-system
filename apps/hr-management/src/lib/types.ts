@@ -175,18 +175,17 @@ export interface Holiday {
 }
 
 export interface OvertimeRequest {
-  new_overtimerequestid: string;
-  new_name: string;
-  new_date: string;
-  new_starttime: string;
-  new_endtime: string;
-  new_hours: number;
-  new_ottype: string; // 'Weekday', 'Weekend', 'Holiday', 'Night'
-  new_reason: string;
-  new_status: string; // 'Pending', 'Approved', 'Rejected'
-  new_approvedhours?: number;
-  _new_employeeid_value?: string;
-  _new_approverid_value?: string;
+  cr5db_overtimerequestid: string;
+  cr5db_name: string;
+  cr5db_date: string;
+  cr5db_starttime: string;
+  cr5db_endtime: string;
+  cr5db_hours: number;
+  cr5db_ottype: string; // 'Weekday', 'Weekend', 'Holiday', 'Night'
+  cr5db_reason: string;
+  cr5db_status: string; // 'Pending', 'Approved', 'Rejected'
+  cr5db_approvedhours?: number;
+  _cr5db_employee_value?: string;
   createdon?: string;
 }
 

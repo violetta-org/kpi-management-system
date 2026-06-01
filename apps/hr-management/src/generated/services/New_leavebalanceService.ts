@@ -5,7 +5,7 @@ import { getClient } from '@microsoft/power-apps/data';
 import type { LeaveBalance } from '../../lib/types';
 
 export class New_leavebalanceService {
-  private static readonly dataSourceName = 'new_leavebalance';
+  private static readonly dataSourceName = 'new_leavebalances';
 
   private static readonly client = getClient(dataSourcesInfo);
 

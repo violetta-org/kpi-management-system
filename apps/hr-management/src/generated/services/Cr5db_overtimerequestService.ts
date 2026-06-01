@@ -4,43 +4,43 @@ import { dataSourcesInfo } from '../../../.power/schemas/appschemas/dataSourcesI
 import { getClient } from '@microsoft/power-apps/data';
 import type { OvertimeRequest } from '../../lib/types';
 
-export class New_overtimerequestService {
-  private static readonly dataSourceName = 'new_overtimerequest';
+export class Cr5db_overtimerequestService {
+  private static readonly dataSourceName = 'cr5db_overtimerequests';
   private static readonly client = getClient(dataSourcesInfo);
 
   public static async create(record: Partial<OvertimeRequest>): Promise<IOperationResult<OvertimeRequest>> {
-    return await New_overtimerequestService.client.createRecordAsync<Partial<OvertimeRequest>, OvertimeRequest>(
-      New_overtimerequestService.dataSourceName,
+    return await Cr5db_overtimerequestService.client.createRecordAsync<Partial<OvertimeRequest>, OvertimeRequest>(
+      Cr5db_overtimerequestService.dataSourceName,
       record
     );
   }
 
   public static async update(id: string, changedFields: Partial<OvertimeRequest>): Promise<IOperationResult<OvertimeRequest>> {
-    return await New_overtimerequestService.client.updateRecordAsync<Partial<OvertimeRequest>, OvertimeRequest>(
-      New_overtimerequestService.dataSourceName,
+    return await Cr5db_overtimerequestService.client.updateRecordAsync<Partial<OvertimeRequest>, OvertimeRequest>(
+      Cr5db_overtimerequestService.dataSourceName,
       id,
       changedFields
     );
   }
 
   public static async delete(id: string): Promise<void> {
-    await New_overtimerequestService.client.deleteRecordAsync(
-      New_overtimerequestService.dataSourceName,
+    await Cr5db_overtimerequestService.client.deleteRecordAsync(
+      Cr5db_overtimerequestService.dataSourceName,
       id
     );
   }
 
   public static async get(id: string, options?: IGetOptions): Promise<IOperationResult<OvertimeRequest>> {
-    return await New_overtimerequestService.client.retrieveRecordAsync<OvertimeRequest>(
-      New_overtimerequestService.dataSourceName,
+    return await Cr5db_overtimerequestService.client.retrieveRecordAsync<OvertimeRequest>(
+      Cr5db_overtimerequestService.dataSourceName,
       id,
       options
     );
   }
 
   public static async getAll(options?: IGetAllOptions): Promise<IOperationResult<OvertimeRequest[]>> {
-    return await New_overtimerequestService.client.retrieveMultipleRecordsAsync<OvertimeRequest>(
-      New_overtimerequestService.dataSourceName,
+    return await Cr5db_overtimerequestService.client.retrieveMultipleRecordsAsync<OvertimeRequest>(
+      Cr5db_overtimerequestService.dataSourceName,
       options
     );
   }

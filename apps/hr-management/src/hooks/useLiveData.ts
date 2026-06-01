@@ -36,7 +36,7 @@ import { New_leaverequestService } from '../generated/services/New_leaverequestS
 import { New_employeeprocessService } from '../generated/services/New_employeeprocessService';
 import { New_processstepService } from '../generated/services/New_processstepService';
 import { Cr5db_holidaiesService } from '../generated/services/Cr5db_holidaiesService';
-import { New_overtimerequestService } from '../generated/services/New_overtimerequestService';
+import { Cr5db_overtimerequestService } from '../generated/services/Cr5db_overtimerequestService';
 import type { User, Task, HeadcountRequest, KPITarget, PermissionGroup, EvaluationPeriod, BonusMatrix, Holiday, OvertimeRequest } from '../lib/types';
 
 /** All setters useLiveData needs to push fetched data into shared state */
@@ -229,7 +229,7 @@ export function useLiveData(setters: LiveDataSetters) {
         safeGet('Leave Balances', New_leavebalanceService.getAll),
         safeGet('Leave Requests', New_leaverequestService.getAll),
         safeGet('Holidays', Cr5db_holidaiesService.getAll),
-        safeGet('Overtime Requests', New_overtimerequestService.getAll)
+        safeGet('Overtime Requests', Cr5db_overtimerequestService.getAll)
       ]);
 
       if (loadErrors.length > 0) {
@@ -615,7 +615,10 @@ export function useLiveData(setters: LiveDataSetters) {
           cr5db_employeename: ap.cr5db_employeeidname || employee?.cr5db_fullname || '',
           cr5db_employeeemail: employee?.cr5db_email || '',
           cr5db_evaluatorname: ap.cr5db_evaluatoridname || evaluator?.cr5db_fullname || '',
-          cr5db_periodname: ap.cr5db_periodidname || 'Kỳ đánh giá'
+          cr5db_periodname: ap.cr5db_periodidname || 'Kỳ đánh giá',
+          statecode: ap.statecode,
+          statuscode: ap.statuscode,
+          new_bonusmultiplier: ap.new_bonusmultiplier || 0
         };
       });
       setters.setAppraisals(mappedAppraisals);

@@ -772,7 +772,10 @@ import {
   New_leavebalanceService,
   New_leaverequestService,
   Cr5db_holidaiesService,
-  New_overtimerequestService
+  Cr5db_overtimerequestService,
+  New_idpService,
+  New_idpactionService,
+  New_competencyassessmentService
 } from '../generated';
 
 
@@ -821,7 +824,11 @@ const PLURAL_TO_SINGULAR: Record<string, string> = {
   "new_employeeprocesses": "new_employeeprocess",
   "new_processsteps": "new_processstep",
   "new_leavebalances": "new_leavebalance",
-  "new_leaverequests": "new_leaverequest"
+  "new_leaverequests": "new_leaverequest",
+  "cr5db_overtimerequests": "cr5db_overtimerequest",
+  "new_idps": "new_idp",
+  "new_idpactions": "new_idpaction",
+  "new_competencyassessments": "new_competencyassessment"
 };
 
 export async function runWebSeeding(progressCallback: (status: string) => void): Promise<void> {
@@ -1243,7 +1250,6 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
         cr5db_taskname: `Nhiệm vụ chưa hoàn thành ${i} của Charlie`,
         cr5db_description: `Demo Overloaded: Đây là task đang active số ${i}`,
         cr5db_duedate: "2026-06-15T17:00:00Z",
-        cr5db_status: "In Progress",
         "cr5db_AssigneeID@odata.bind": bindOData("cr5db_users", charlieId)
       } as any));
     }
@@ -1497,16 +1503,16 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
     // Tạo OT mẫu cho dev1
     const bobId = guids["users"]["dev1@company.com"];
     if (bobId) {
-      await safeCreate('OvertimeRequest[Weekend]', () => New_overtimerequestService.create({
-        new_name: "Làm thêm giờ fix lỗi Server T7",
-        new_date: "2026-05-30T00:00:00Z", // T7
-        new_starttime: "08:00",
-        new_endtime: "12:00",
-        new_hours: 4.0,
-        new_ottype: "Weekend",
-        new_reason: "Xử lý sự cố server khẩn cấp",
-        new_status: "Pending",
-        "_new_employeeid_value@odata.bind": bindOData("cr5db_users", bobId)
+      await safeCreate('OvertimeRequest[Weekend]', () => Cr5db_overtimerequestService.create({
+        cr5db_name: "Làm thêm giờ fix lỗi Server T7",
+        cr5db_date: "2026-05-30T00:00:00Z", // T7
+        cr5db_starttime: "08:00",
+        cr5db_endtime: "12:00",
+        cr5db_hours: 4.0,
+        cr5db_ottype: "Weekend",
+        cr5db_reason: "Xử lý sự cố server khẩn cấp",
+        cr5db_status: "Pending",
+        "cr5db_employee@odata.bind": bindOData("cr5db_users", bobId)
       } as any));
     }
   });
@@ -1562,6 +1568,20 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
     }
   };
 
+  // 1. Delete dependent tables first to avoid REFERENCE constraints blocking parent deletion
+  await tryDeleteAll("new_idpaction", New_idpactionService);
+  await tryDeleteAll("new_idp", New_idpService);
+  await tryDeleteAll("new_competencyassessment", New_competencyassessmentService);
+  await tryDeleteAll("new_processstep", New_processstepService);
+  await tryDeleteAll("new_employeeprocess", New_employeeprocessService);
+  await tryDeleteAll("new_processtemplatestep", New_processtemplatestepService);
+  await tryDeleteAll("new_processtemplate", New_processtemplateService);
+  await tryDeleteAll("new_leaverequest", New_leaverequestService);
+  await tryDeleteAll("new_leavebalance", New_leavebalanceService);
+  await tryDeleteAll("cr5db_overtimerequest", Cr5db_overtimerequestService);
+  await tryDeleteAll("cr5db_holidaies", Cr5db_holidaiesService);
+
+  // 2. Delete main transactional tables
   await tryDeleteAll("cr5db_appraisalkpidetails", Cr5db_appraisalkpidetailsService);
   await tryDeleteAll("cr5db_performanceappraisals", Cr5db_performanceappraisalsService);
   await tryDeleteAll("cr5db_kpiactuallogs", Cr5db_kpiactuallogsService);
@@ -1583,11 +1603,6 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
   await tryDeleteAll("cr5db_objectives", Cr5db_objectivesService);
   await tryDeleteAll("cr5db_kpilibraries", Cr5db_kpilibrariesService);
   await tryDeleteAll("cr5db_evaluationperiods", Cr5db_evaluationperiodsService);
-  await tryDeleteAll("cr5db_users", Cr5db_usersService);
-  await tryDeleteAll("cr5db_jobpositions", Cr5db_jobpositionsService);
-  await tryDeleteAll("cr5db_positioncatalogs", Cr5db_positioncatalogsService);
-  await tryDeleteAll("cr5db_departments", Cr5db_departmentsService);
-  await tryDeleteAll("cr5db_companies", Cr5db_companiesService);
   await tryDeleteAll("cr5db_systemlabels", Cr5db_systemlabelsService);
   await tryDeleteAll("cr5db_systemnotifications", Cr5db_systemnotificationsService);
 
@@ -1624,15 +1639,12 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
   await tryDeleteAll("cr5db_approvalrouteses", Cr5db_approvalroutesesService);
   await tryDeleteAll("cr5db_changerequestses", Cr5db_changerequestsesService);
 
-  await tryDeleteAll("new_employeeprocess", New_employeeprocessService);
-  await tryDeleteAll("new_processtemplatestep", New_processtemplatestepService);
-  await tryDeleteAll("new_processtemplate", New_processtemplateService);
-  await tryDeleteAll("new_leaverequest", New_leaverequestService);
-  await tryDeleteAll("new_leavebalance", New_leavebalanceService);
-  await tryDeleteAll("new_processstep", New_processstepService);
-  await tryDeleteAll("new_employeeprocess", New_employeeprocessService);
-  await tryDeleteAll("cr5db_holidaies", Cr5db_holidaiesService);
-  await tryDeleteAll("new_overtimerequest", New_overtimerequestService);
+  // 3. Delete root tables last
+  await tryDeleteAll("cr5db_users", Cr5db_usersService);
+  await tryDeleteAll("cr5db_jobpositions", Cr5db_jobpositionsService);
+  await tryDeleteAll("cr5db_positioncatalogs", Cr5db_positioncatalogsService);
+  await tryDeleteAll("cr5db_departments", Cr5db_departmentsService);
+  await tryDeleteAll("cr5db_companies", Cr5db_companiesService);
 
   progressCallback("Dọn dẹp hoàn tất thành công!");
 }

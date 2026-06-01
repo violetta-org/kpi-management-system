@@ -4,7 +4,7 @@ import { dataSourcesInfo } from '../../../.power/schemas/appschemas/dataSourcesI
 import { getClient } from '@microsoft/power-apps/data';
 
 export class New_idpactionService {
-  private static readonly dataSourceName = 'new_idpaction';
+  private static readonly dataSourceName = 'new_idpactions';
   private static readonly client = getClient(dataSourcesInfo);
 
   public static async create(record: any): Promise<IOperationResult<any>> {

@@ -192,6 +192,71 @@
           "entitySetName": "cr5db_holidaies",
           "logicalName": "cr5db_holiday",
           "isHidden": false
+        },
+        "new_bonusmatrix": {
+          "entitySetName": "new_bonusmatrixes",
+          "logicalName": "new_bonusmatrix",
+          "isHidden": false
+        },
+        "new_competencyassessment": {
+          "entitySetName": "new_competencyassessments",
+          "logicalName": "new_competencyassessment",
+          "isHidden": false
+        },
+        "new_competencycatalog": {
+          "entitySetName": "new_competencycatalogs",
+          "logicalName": "new_competencycatalog",
+          "isHidden": false
+        },
+        "new_employeeprocess": {
+          "entitySetName": "new_employeeprocesses",
+          "logicalName": "new_employeeprocess",
+          "isHidden": false
+        },
+        "new_idp": {
+          "entitySetName": "new_idps",
+          "logicalName": "new_idp",
+          "isHidden": false
+        },
+        "new_idpaction": {
+          "entitySetName": "new_idpactions",
+          "logicalName": "new_idpaction",
+          "isHidden": false
+        },
+        "new_jobcompetency": {
+          "entitySetName": "new_jobcompetencies",
+          "logicalName": "new_jobcompetency",
+          "isHidden": false
+        },
+        "new_leavebalance": {
+          "entitySetName": "new_leavebalances",
+          "logicalName": "new_leavebalance",
+          "isHidden": false
+        },
+        "new_leaverequest": {
+          "entitySetName": "new_leaverequests",
+          "logicalName": "new_leaverequest",
+          "isHidden": false
+        },
+        "cr5db_overtimerequest": {
+          "entitySetName": "cr5db_overtimerequests",
+          "logicalName": "cr5db_overtimerequest",
+          "isHidden": false
+        },
+        "new_processstep": {
+          "entitySetName": "new_processsteps",
+          "logicalName": "new_processstep",
+          "isHidden": false
+        },
+        "new_processtemplate": {
+          "entitySetName": "new_processtemplates",
+          "logicalName": "new_processtemplate",
+          "isHidden": false
+        },
+        "new_processtemplatestep": {
+          "entitySetName": "new_processtemplatesteps",
+          "logicalName": "new_processtemplatestep",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""

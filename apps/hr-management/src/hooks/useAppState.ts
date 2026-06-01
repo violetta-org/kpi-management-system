@@ -265,6 +265,7 @@ export function useAppState() {
   const [newJobPosCatalogId, setNewJobPosCatalogId] = useState('');
   const [newJobPosQuota, setNewJobPosQuota] = useState(1);
   const [editingJobPosition, setEditingJobPosition] = useState<any | null>(null);
+  const [newJobPosCompetencyIds, setNewJobPosCompetencyIds] = useState<string[]>([]);
 
   // ── Role Assignment Modal ────────────────────────────────────────────────
   const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
@@ -568,6 +569,7 @@ export function useAppState() {
     newJobPosCatalogId, setNewJobPosCatalogId,
     newJobPosQuota, setNewJobPosQuota,
     editingJobPosition, setEditingJobPosition,
+    newJobPosCompetencyIds, setNewJobPosCompetencyIds,
 
     // Role Assignment Modal
     showAssignRoleModal, setShowAssignRoleModal,

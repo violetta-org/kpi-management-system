@@ -37,7 +37,7 @@ import { New_competencyassessmentService } from './generated/services/New_compet
 import { New_leaverequestService } from './generated/services/New_leaverequestService';
 import { New_leavebalanceService } from './generated/services/New_leavebalanceService';
 import { Cr5db_holidaiesService } from './generated/services/Cr5db_holidaiesService';
-import { New_overtimerequestService } from './generated/services/New_overtimerequestService';
+import { Cr5db_overtimerequestService } from './generated/services/Cr5db_overtimerequestService';
 
 import { calculateKpiAchievementRate } from './utils/kpiLogic';
 
@@ -261,6 +261,7 @@ function App() {
   const [newGroupName, setNewGroupName] = React.useState('');
   const [newGroupTabs, setNewGroupTabs] = React.useState<string[]>([]);
   const [employeeSelectedGroups, setEmployeeSelectedGroups] = React.useState<string[]>([]);
+  const [expandedWidget, setExpandedWidget] = React.useState<{id: string, data: any, title: string} | null>(null);
 
   // Destructure everything from state so the rest of the file can use names
   // identical to the old inline declarations — zero changes needed in JSX.
@@ -432,6 +433,7 @@ function App() {
     newJobPosCatalogId, setNewJobPosCatalogId,
     newJobPosQuota, setNewJobPosQuota,
     editingJobPosition, setEditingJobPosition,
+    newJobPosCompetencyIds, setNewJobPosCompetencyIds,
     showAssignRoleModal, setShowAssignRoleModal,
     assignRoleUserId, setAssignRoleUserId,
     assignRoleName, setAssignRoleName,
@@ -772,8 +774,11 @@ function App() {
                 </div>
               ))}
               {risks.length > 3 && (
-                <div style={{ fontSize: '11px', textAlign: 'center', color: 'var(--color-text-secondary)', cursor: 'pointer', marginTop: '4px' }} onClick={() => setActiveTab('kpi')}>
-                  {language === 'vi' ? `Xem thêm ${risks.length - 3} cảnh báo...` : `View ${risks.length - 3} more alerts...`}
+                <div 
+                  style={{ fontSize: '11px', textAlign: 'center', color: 'var(--color-primary)', cursor: 'pointer', marginTop: '4px', fontWeight: 600 }} 
+                  onClick={() => setExpandedWidget({ id: 'kpi_risks', data: risks, title: language === 'vi' ? 'Tất cả cảnh báo KPI' : 'All KPI Alerts' })}
+                >
+                  {language === 'vi' ? `Xem tất cả ${risks.length} cảnh báo...` : `View all ${risks.length} alerts...`}
                 </div>
               )}
             </div>
@@ -860,6 +865,14 @@ function App() {
                   </div>
                 );
               })
+            )}
+            {workloads.length > 5 && (
+              <div 
+                style={{ fontSize: '11px', textAlign: 'center', color: 'var(--color-primary)', cursor: 'pointer', marginTop: '4px', fontWeight: 600 }}
+                onClick={() => setExpandedWidget({ id: 'workload_heatmap', data: workloads, title: language === 'vi' ? 'Workload Heatmap (Tất cả nhân sự)' : 'Workload Heatmap (All staff)' })}
+              >
+                {language === 'vi' ? `Xem tất cả ${workloads.length} nhân sự...` : `View all ${workloads.length} staff...`}
+              </div>
             )}
           </div>
         );
@@ -954,6 +967,14 @@ function App() {
                   </div>
                 );
               })
+            )}
+            {risks.filter(r => r.riskLevel !== 'Low').length > 5 && (
+              <div 
+                style={{ fontSize: '11px', textAlign: 'center', color: 'var(--color-primary)', cursor: 'pointer', marginTop: '4px', fontWeight: 600 }}
+                onClick={() => setExpandedWidget({ id: 'flight_risk_detector', data: risks.filter(r => r.riskLevel !== 'Low').sort((a, b) => b.riskScore - a.riskScore), title: language === 'vi' ? 'Flight Risk Detector (Tất cả cảnh báo)' : 'Flight Risk Detector (All alerts)' })}
+              >
+                {language === 'vi' ? `Xem tất cả ${risks.filter(r => r.riskLevel !== 'Low').length} cảnh báo...` : `View all ${risks.filter(r => r.riskLevel !== 'Low').length} alerts...`}
+              </div>
             )}
           </div>
         );
@@ -2258,9 +2279,9 @@ function App() {
     if (!otToApproveId) return;
     try {
       setIsLoading(true);
-      await New_overtimerequestService.update(otToApproveId, {
-        new_status: 'Approved',
-        new_approvedhours: parseFloat(otApprovedHours) || 0
+      await Cr5db_overtimerequestService.update(otToApproveId, {
+        cr5db_status: 'Approved',
+        cr5db_approvedhours: parseFloat(otApprovedHours) || 0
       });
       setShowOtApprovalModal(false);
       await fetchLiveValues();
@@ -2326,16 +2347,16 @@ function App() {
     }
     try {
       setIsLoading(true);
-      await New_overtimerequestService.create({
-        new_name: `OT ${newOtDate} - ${currentUserName}`,
-        new_date: new Date(newOtDate).toISOString(),
-        new_starttime: newOtStartTime,
-        new_endtime: newOtEndTime,
-        new_hours: parseFloat(newOtHours),
-        new_ottype: newOtType,
-        new_reason: newOtReason,
-        new_status: 'Pending',
-        "_new_employeeid_value@odata.bind": `/cr5db_users(${currentUserId})`
+      await Cr5db_overtimerequestService.create({
+        cr5db_name: `OT ${newOtDate} - ${currentUserName}`,
+        cr5db_date: new Date(newOtDate).toISOString(),
+        cr5db_starttime: newOtStartTime,
+        cr5db_endtime: newOtEndTime,
+        cr5db_hours: parseFloat(newOtHours),
+        cr5db_ottype: newOtType,
+        cr5db_reason: newOtReason,
+        cr5db_status: 'Pending',
+        "cr5db_employee@odata.bind": `/cr5db_users(${currentUserId})`
       } as any);
       setShowOvertimeModal(false);
       await fetchLiveValues();
@@ -2349,9 +2370,9 @@ function App() {
   const handleRejectOt = async (otId: string) => {
     try {
       setIsLoading(true);
-      await New_overtimerequestService.update(otId, {
-        new_status: 'Rejected',
-        new_approvedhours: 0
+      await Cr5db_overtimerequestService.update(otId, {
+        cr5db_status: 'Rejected',
+        cr5db_approvedhours: 0
       });
       await fetchLiveValues();
     } catch (err) {
@@ -3137,6 +3158,25 @@ const handleAddJobPosition = async (e: React.FormEvent) => {
         `Cập nhật vị trí công việc: ${newJobPosName}`,
         editingJobPosition
       );
+
+      if (activeRole === 'Admin') {
+        const posId = editingJobPosition.cr5db_jobpositionid;
+        const existingComps = jobCompetenciesList.filter(jc => jc._cr5db_jobposition_value === posId);
+        
+        const toDelete = existingComps.filter(jc => !newJobPosCompetencyIds.includes(jc._new_competencyid_value));
+        const toAdd = newJobPosCompetencyIds.filter(id => !existingComps.some(jc => jc._new_competencyid_value === id));
+        
+        for (const jc of toDelete) {
+          await New_jobcompetencyService.delete(jc.new_jobcompetencyid);
+        }
+        for (const compId of toAdd) {
+          await New_jobcompetencyService.create({
+            new_requiredlevel: 3,
+            "cr5db_JobPosition@odata.bind": `/cr5db_jobpositions(${posId})`,
+            "new_CompetencyID@odata.bind": `/new_competencycatalogs(${compId})`
+          } as any);
+        }
+      }
     } else {
       // For creation, only include lookup fields if they are selected (avoid null properties)
       if (newJobPosDeptId) {
@@ -3149,13 +3189,24 @@ const handleAddJobPosition = async (e: React.FormEvent) => {
         payload["cr5db_ReportsToPositionID@odata.bind"] = `/cr5db_jobpositions(${selectedReportsToPositionId})`;
       }
 
-      await executeCrudWithApproval(
+      const res = await executeCrudWithApproval(
         "JobPositions",
         "Create",
         payload,
         undefined,
         `Tạo vị trí công việc mới: ${newJobPosName}`
       );
+
+      if (res && res.data && res.data.cr5db_jobpositionid) {
+        // Nếu tạo thành công (Admin), tạo luôn các năng lực đã chọn
+        for (const compId of newJobPosCompetencyIds) {
+          await New_jobcompetencyService.create({
+            new_requiredlevel: 3,
+            "cr5db_JobPosition@odata.bind": `/cr5db_jobpositions(${res.data.cr5db_jobpositionid})`,
+            "new_CompetencyID@odata.bind": `/new_competencycatalogs(${compId})`
+          } as any);
+        }
+      }
     }
     setShowJobPositionModal(false);
     setEditingJobPosition(null);
@@ -3163,6 +3214,7 @@ const handleAddJobPosition = async (e: React.FormEvent) => {
     setNewJobPosQuota(1);
     setNewJobPosDeptId('');
     setNewJobPosCatalogId('');
+    setNewJobPosCompetencyIds([]);
   } catch (err: any) {
     console.error(err);
     alert(`Lỗi khi lưu job position: ${err.message || err}`);
@@ -4642,6 +4694,79 @@ return (
             )}
 
             {renderDashboardWidgets()}
+
+            {/* Dashboard Widget Expanded Modal */}
+            {expandedWidget && (
+              <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="card-spec" style={{ width: '90%', maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '0px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+                  <div style={{ padding: '20px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FAF9F9', borderRadius: '12px 12px 0 0' }}>
+                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700 }}>{expandedWidget.title}</h3>
+                    <button onClick={() => setExpandedWidget(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '24px', color: 'var(--color-text-secondary)', lineHeight: 1 }}>&times;</button>
+                  </div>
+                  <div style={{ padding: '20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {expandedWidget.id === 'workload_heatmap' && expandedWidget.data.map((wl: any, idx: number) => {
+                      let barColor = 'var(--color-primary)';
+                      let bgColor = '#e6f2eb';
+                      if (wl.status === 'Overloaded') { barColor = '#dc2626'; bgColor = '#FDF3F3'; }
+                      else if (wl.status === 'Underutilized') { barColor = '#9ca3af'; bgColor = '#f3f4f6'; }
+                      const barWidth = Math.min(100, wl.totalAlloc || 10);
+                      return (
+                        <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '12px', border: '1px solid var(--color-border-light)', borderRadius: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                            <span style={{ fontWeight: 600 }}>{wl.user.cr5db_fullname}</span>
+                            <span style={{ fontWeight: 700, color: barColor }}>
+                              {wl.status === 'Overloaded' ? '🔴 Quá tải' : wl.status === 'Optimal' ? '🟢 Tối ưu' : '⚪ Rảnh rỗi'}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{ flex: 1, height: '10px', backgroundColor: bgColor, borderRadius: '5px', overflow: 'hidden' }}>
+                              <div style={{ width: `${barWidth}%`, height: '100%', backgroundColor: barColor }} />
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', width: '100px', textAlign: 'right' }}>
+                              {wl.totalAlloc}% | {wl.taskCount} Tasks
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {expandedWidget.id === 'kpi_risks' && expandedWidget.data.map((item: any, idx: number) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', padding: '12px', backgroundColor: item.status === 'High Risk' ? '#FDF3F3' : '#FFFAF0', border: `1px solid ${item.status === 'High Risk' ? '#F3D6D6' : '#F3E5CD'}`, borderRadius: '6px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
+                          <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.k.cr5db_kpiname}</span>
+                          <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                            Prog: <strong style={{ color: 'var(--color-primary)' }}>{item.rate}%</strong> | Time: <strong>{item.timePercent}%</strong>
+                          </span>
+                        </div>
+                        <div style={{ marginLeft: '12px', padding: '6px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, color: '#fff', backgroundColor: item.status === 'High Risk' ? '#dc2626' : '#d97706', whiteSpace: 'nowrap' }}>
+                          {item.status === 'High Risk' ? 'NGUY CƠ CAO' : 'CẢNH BÁO'}
+                        </div>
+                      </div>
+                    ))}
+                    {expandedWidget.id === 'flight_risk_detector' && expandedWidget.data.map((r: any, idx: number) => {
+                      let badgeColor = r.riskLevel === 'High' ? '#dc2626' : '#d97706';
+                      let badgeBg = r.riskLevel === 'High' ? '#FDF3F3' : '#FFFAF0';
+                      return (
+                        <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '12px', backgroundColor: badgeBg, borderRadius: '6px', border: `1px solid ${r.riskLevel === 'High' ? '#F3D6D6' : '#F3E5CD'}` }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 600, fontSize: '13px' }}>{r.user.cr5db_fullname}</span>
+                            <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, color: '#fff', backgroundColor: badgeColor }}>
+                              {r.riskLevel === 'High' ? 'RỦI RO CAO' : 'TIỀM ẨN'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                            <span><strong>Tỷ lệ rủi ro:</strong> <span style={{ color: badgeColor, fontWeight: 600 }}>{r.riskScore}%</span></span>
+                            <span><strong>Dấu hiệu:</strong> {r.riskFactors.join(', ')}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ padding: '16px 20px', borderTop: '1px solid var(--color-border)', textAlign: 'right', backgroundColor: '#FAF9F9', borderRadius: '0 0 12px 12px' }}>
+                    <button onClick={() => setExpandedWidget(null)} className="btn-filled-2" style={{ padding: '8px 16px' }}>Đóng (Close)</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -5429,21 +5554,21 @@ return (
                     </tr>
                   </thead>
                   <tbody>
-                    {overtimeRequestsList.filter(ot => ot._new_employeeid_value === usersList.find(u => u.cr5db_email === currentUserEmail)?.cr5db_userid).map(ot => (
-                      <tr key={ot.new_overtimerequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                        <td style={{ padding: '12px', fontWeight: 600 }}>{ot.new_date ? new Date(ot.new_date).toLocaleDateString('vi-VN') : ''}</td>
-                        <td style={{ padding: '12px' }}>{ot.new_starttime} - {ot.new_endtime}</td>
-                        <td style={{ padding: '12px' }}>{ot.new_hours}</td>
-                        <td style={{ padding: '12px' }}>{ot.new_ottype}</td>
-                        <td style={{ padding: '12px' }}>{ot.new_reason}</td>
+                    {overtimeRequestsList.filter(ot => ot._cr5db_employee_value === usersList.find(u => u.cr5db_email === currentUserEmail)?.cr5db_userid).map(ot => (
+                      <tr key={ot.cr5db_overtimerequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td style={{ padding: '12px', fontWeight: 600 }}>{ot.cr5db_date ? new Date(ot.cr5db_date).toLocaleDateString('vi-VN') : ''}</td>
+                        <td style={{ padding: '12px' }}>{ot.cr5db_starttime} - {ot.cr5db_endtime}</td>
+                        <td style={{ padding: '12px' }}>{ot.cr5db_hours}</td>
+                        <td style={{ padding: '12px' }}>{ot.cr5db_ottype}</td>
+                        <td style={{ padding: '12px' }}>{ot.cr5db_reason}</td>
                         <td style={{ padding: '12px' }}>
                           <span style={{
                             padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600,
-                            backgroundColor: ot.new_status === 'Approved' ? '#DFF6DD' : ot.new_status === 'Rejected' ? '#FDE7E9' : '#FFF4CE',
-                            color: ot.new_status === 'Approved' ? '#107C41' : ot.new_status === 'Rejected' ? '#A80000' : '#795B00'
-                          }}>{ot.new_status || 'Pending'}</span>
+                            backgroundColor: ot.cr5db_status === 'Approved' ? '#DFF6DD' : ot.cr5db_status === 'Rejected' ? '#FDE7E9' : '#FFF4CE',
+                            color: ot.cr5db_status === 'Approved' ? '#107C41' : ot.cr5db_status === 'Rejected' ? '#A80000' : '#795B00'
+                          }}>{ot.cr5db_status || 'Pending'}</span>
                         </td>
-                        <td style={{ padding: '12px', fontWeight: 600 }}>{ot.new_approvedhours || 0}</td>
+                        <td style={{ padding: '12px', fontWeight: 600 }}>{ot.cr5db_approvedhours || 0}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -5468,23 +5593,23 @@ return (
                     </tr>
                   </thead>
                   <tbody>
-                    {overtimeRequestsList.filter(ot => ot.new_status === 'Pending').map(ot => {
-                      const emp = usersList.find(u => u.cr5db_userid === ot._new_employeeid_value);
+                    {overtimeRequestsList.filter(ot => ot.cr5db_status === 'Pending').map(ot => {
+                      const emp = usersList.find(u => u.cr5db_userid === ot._cr5db_employee_value);
                       return (
-                        <tr key={ot.new_overtimerequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <tr key={ot.cr5db_overtimerequestid} style={{ borderBottom: '1px solid var(--color-border)' }}>
                           <td style={{ padding: '12px', fontWeight: 600 }}>{emp ? emp.cr5db_fullname : 'Unknown'}</td>
-                          <td style={{ padding: '12px' }}>{ot.new_date ? new Date(ot.new_date).toLocaleDateString('vi-VN') : ''}</td>
-                          <td style={{ padding: '12px' }}>{ot.new_starttime} - {ot.new_endtime}</td>
-                          <td style={{ padding: '12px' }}>{ot.new_hours}</td>
-                          <td style={{ padding: '12px' }}>{ot.new_ottype}</td>
-                          <td style={{ padding: '12px' }}>{ot.new_reason}</td>
+                          <td style={{ padding: '12px' }}>{ot.cr5db_date ? new Date(ot.cr5db_date).toLocaleDateString('vi-VN') : ''}</td>
+                          <td style={{ padding: '12px' }}>{ot.cr5db_starttime} - {ot.cr5db_endtime}</td>
+                          <td style={{ padding: '12px' }}>{ot.cr5db_hours}</td>
+                          <td style={{ padding: '12px' }}>{ot.cr5db_ottype}</td>
+                          <td style={{ padding: '12px' }}>{ot.cr5db_reason}</td>
                           <td style={{ padding: '12px' }}>
                             <button
                               className="btn-filled-2"
                               style={{ padding: '4px 8px', marginRight: '8px' }}
                               onClick={() => {
-                                setOtToApproveId(ot.new_overtimerequestid);
-                                setOtApprovedHours(ot.new_hours.toString());
+                                setOtToApproveId(ot.cr5db_overtimerequestid);
+                                setOtApprovedHours(ot.cr5db_hours.toString());
                                 setShowOtApprovalModal(true);
                               }}
                             >
@@ -8375,6 +8500,65 @@ return (
 
           {renderProcessTable(employeeProcessList)}
         </div>
+      ) : activeDirectorySubTab === 'orgchart' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 600 }}>Sơ đồ Tổ chức (Organization Chart)</h2>
+          </div>
+          <div className="card-spec" style={{ padding: '24px', overflowX: 'auto', backgroundColor: '#faf9f8' }}>
+            {/* Logic render cây sơ đồ */}
+            {(() => {
+              // 1. Build position tree
+              const rootPositions = jobPositionsList.filter(p => !p._cr5db_reportstopositionid_value);
+              const getChildren = (posId: string) => jobPositionsList.filter(p => p._cr5db_reportstopositionid_value === posId);
+
+              const renderNode = (pos: any, depth: number) => {
+                const children = getChildren(pos.cr5db_jobpositionid);
+                const posUsers = usersList.filter(u => u._cr5db_jobposition_value === pos.cr5db_jobpositionid);
+
+                return (
+                  <div key={pos.cr5db_jobpositionid} style={{ marginLeft: depth > 0 ? '40px' : '0px', marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', backgroundColor: '#fff', border: '1px solid var(--color-border)', borderLeft: `4px solid var(--color-primary)`, borderRadius: '8px', width: 'fit-content', minWidth: '320px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                        <span style={{ fontSize: '14px', fontWeight: 700 }}>{pos.cr5db_positionname}</span>
+                        <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>{pos.cr5db_departmentname || 'Chưa có phòng ban'}</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {posUsers.map(u => (
+                          <div key={u.cr5db_userid} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', backgroundColor: '#f3f2f1', padding: '4px 8px', borderRadius: '4px' }}>
+                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: 'var(--color-primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700 }}>
+                              {u.cr5db_fullname.substring(0, 2).toUpperCase()}
+                            </div>
+                            <span style={{ fontWeight: 600 }}>{u.cr5db_fullname}</span>
+                          </div>
+                        ))}
+                        {posUsers.length === 0 && <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>Chưa có người đảm nhiệm</span>}
+                      </div>
+                    </div>
+                    {children.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '2px solid var(--color-border-light)', marginLeft: '16px' }}>
+                        {children.map(child => renderNode(child, depth + 1))}
+                      </div>
+                    )}
+                  </div>
+                );
+              };
+
+              if (jobPositionsList.length === 0) return <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>Chưa có dữ liệu chức danh.</div>;
+              if (rootPositions.length === 0) {
+                // If there are no roots (maybe all have a parent, which is circular, or data is incomplete), fallback to rendering implicit roots.
+                const validParentIds = new Set(jobPositionsList.map(p => p.cr5db_jobpositionid));
+                const implicitRoots = jobPositionsList.filter(p => p._cr5db_reportstopositionid_value && !validParentIds.has(p._cr5db_reportstopositionid_value));
+                if (implicitRoots.length > 0) {
+                   return implicitRoots.map(r => renderNode(r, 0));
+                }
+                return <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>Dữ liệu sơ đồ bị vòng lặp, không thể hiển thị.</div>;
+              }
+
+              return rootPositions.map(root => renderNode(root, 0));
+            })()}
+          </div>
+        </div>
       ) : null}
     </div>
   )
@@ -8388,9 +8572,9 @@ return (
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Danh muc KPI</h2>
+          <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Danh mục KPI</h2>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>
-            Quan ly thu vien KPI chuan va cac muc tieu danh gia
+            Quản lý thư viện KPI chuẩn và các mục tiêu đánh giá
           </p>
         </div>
         <button
@@ -8412,9 +8596,9 @@ return (
       {/* Stats bar */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
         {[
-          { label: 'Thu vien KPI', value: kpiLibrariesList.length, color: '#7c3aed', icon: '📊' },
-          { label: 'Muc tieu', value: objectivesList.length, color: '#0ea5e9', icon: '🎯' },
-          { label: 'KPI Targets su dung', value: kpiTargets.length, color: '#10b981', icon: '✅' },
+          { label: 'Thư viện KPI', value: kpiLibrariesList.length, color: '#7c3aed', icon: '📊' },
+          { label: 'Mục tiêu', value: objectivesList.length, color: '#0ea5e9', icon: '🎯' },
+          { label: 'KPI Targets sử dụng', value: kpiTargets.length, color: '#10b981', icon: '✅' },
         ].map(stat => (
           <div key={stat.label} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '20px', display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{ fontSize: '28px' }}>{stat.icon}</div>
@@ -8471,7 +8655,7 @@ return (
                       <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'linear-gradient(135deg, #ede9fe, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>📊</div>
                       <div>
                         <div style={{ fontWeight: 700, fontSize: '15px', color: 'var(--color-text)' }}>{lib.cr5db_kpiname}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>Don vi: <strong style={{ color: 'var(--color-primary)' }}>{lib.cr5db_unit || 'N/A'}</strong></div>
+                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>Đơn vị: <strong style={{ color: 'var(--color-primary)' }}>{lib.cr5db_unit || 'N/A'}</strong></div>
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
@@ -10072,8 +10256,35 @@ return (
               </select>
             </div>
           </div>
+          <div>
+            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Năng lực yêu cầu</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '10px' }}>
+              {competencyCatalogList.map(comp => {
+                const isChecked = newJobPosCompetencyIds.includes(comp.new_competencycatalogid);
+                return (
+                  <label key={comp.new_competencycatalogid} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setNewJobPosCompetencyIds([...newJobPosCompetencyIds, comp.new_competencycatalogid]);
+                        } else {
+                          setNewJobPosCompetencyIds(newJobPosCompetencyIds.filter(id => id !== comp.new_competencycatalogid));
+                        }
+                      }}
+                    />
+                    <span>{comp.new_name} ({comp.new_type === 'Core' ? 'Lõi' : comp.new_type === 'Leadership' ? 'Lãnh đạo' : 'Chuyên môn'})</span>
+                  </label>
+                );
+              })}
+              {competencyCatalogList.length === 0 && (
+                <span style={{ fontSize: '12px', color: '#666' }}>Chưa có từ điển năng lực nào.</span>
+              )}
+            </div>
+          </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-            <button type="button" onClick={() => { setShowJobPositionModal(false); setEditingJobPosition(null); setNewJobPosName(''); setNewJobPosQuota(1); setNewJobPosDeptId(''); setNewJobPosCatalogId(''); }} className="btn-filled-3">Hủy</button>
+            <button type="button" onClick={() => { setShowJobPositionModal(false); setEditingJobPosition(null); setNewJobPosName(''); setNewJobPosQuota(1); setNewJobPosDeptId(''); setNewJobPosCatalogId(''); setNewJobPosCompetencyIds([]); }} className="btn-filled-3">Hủy</button>
             <button type="submit" className="btn-primary">{editingJobPosition ? 'Update' : 'Tạo mới'}</button>
           </div>
         </form>

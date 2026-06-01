@@ -4,7 +4,7 @@ import { dataSourcesInfo } from '../../../.power/schemas/appschemas/dataSourcesI
 import { getClient } from '@microsoft/power-apps/data';
 
 export class New_idpService {
-  private static readonly dataSourceName = 'new_idp';
+  private static readonly dataSourceName = 'new_idps';
   private static readonly client = getClient(dataSourcesInfo);
 
   public static async create(record: any): Promise<IOperationResult<any>> {

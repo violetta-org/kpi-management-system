@@ -54,6 +54,13 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "cr5db_overtimerequests": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cr5db_overtimerequestid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "cr5db_departments": {
     "tableId": "",
     "version": "",
@@ -100,6 +107,69 @@ export const dataSourcesInfo = {
     "tableId": "",
     "version": "",
     "primaryKey": "cr5db_kpitargetid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_competencyassessments": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_competencyassessmentid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_employeeprocesses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_employeeprocessid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_idps": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_idpid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_idpactions": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_idpactionid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_leavebalances": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_leavebalanceid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_leaverequests": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_leaverequestid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_processsteps": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_processstepid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_processtemplates": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_processtemplateid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "new_processtemplatesteps": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_processtemplatestepid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },

@@ -5,7 +5,7 @@ import { getClient } from '@microsoft/power-apps/data';
 import type { LeaveRequest } from '../../lib/types';
 
 export class New_leaverequestService {
-  private static readonly dataSourceName = 'new_leaverequest';
+  private static readonly dataSourceName = 'new_leaverequests';
 
   private static readonly client = getClient(dataSourcesInfo);
 

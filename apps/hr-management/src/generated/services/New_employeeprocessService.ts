@@ -4,7 +4,7 @@ import { dataSourcesInfo } from '../../../.power/schemas/appschemas/dataSourcesI
 import { getClient } from '@microsoft/power-apps/data';
 
 export class New_employeeprocessService {
-  private static readonly dataSourceName = 'new_employeeprocess';
+  private static readonly dataSourceName = 'new_employeeprocesses';
   private static readonly client = getClient(dataSourcesInfo);
 
   public static async create(record: any): Promise<IOperationResult<any>> {
