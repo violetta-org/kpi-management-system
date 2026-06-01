@@ -131,35 +131,30 @@ def main():
     print("\n🌱 Starting KPI Library Seeding Process...")
     
     kpi_lib_data = [
-        # Software Engineering / R&D
-        {"cr5db_kpiname": "Tỷ lệ hoàn thành Task đúng hạn (On-time Delivery)", "cr5db_unit": "%", "cr5db_formula": "(Số Task hoàn thành đúng hạn / Tổng số Task) * 100", "new_direction": 1},
-        {"cr5db_kpiname": "Số lượng Bug nghiêm trọng (Critical Bugs) phát sinh", "cr5db_unit": "Bug", "cr5db_formula": "Tổng số lượng bug mức độ Critical/Blocker trên Production", "new_direction": -1},
-        {"cr5db_kpiname": "Độ bao phủ mã nguồn (Code Coverage)", "cr5db_unit": "%", "cr5db_formula": "Tỷ lệ % code được Unit Test bao phủ", "new_direction": 1},
-        {"cr5db_kpiname": "Thời gian giải quyết Bug (Bug Resolution Time)", "cr5db_unit": "Giờ", "cr5db_formula": "Tổng thời gian từ lúc tạo bug đến khi đóng bug / Tổng số bug", "new_direction": -1},
-        {"cr5db_kpiname": "Tỷ lệ lỗi khi triển khai (Deployment Failure Rate)", "cr5db_unit": "%", "cr5db_formula": "(Số lần deploy thất bại / Tổng số lần deploy) * 100", "new_direction": -1},
+        # --- 1: TỐI ĐA HÓA (Higher is better) ---
+        {"cr5db_kpiname": "Tăng tỷ lệ hoàn thành dự án đúng hạn lên 95% trong Quý 3", "cr5db_unit": "%", "cr5db_formula": "(Số dự án đúng hạn / Tổng dự án) * 100", "new_direction": 1},
+        {"cr5db_kpiname": "Đạt 90% điểm hài lòng nhân viên (eNPS) vào cuối năm", "cr5db_unit": "Điểm", "cr5db_formula": "Tỷ lệ % người ủng hộ - Tỷ lệ % người phản đối", "new_direction": 1},
+        {"cr5db_kpiname": "Nâng tỷ lệ chuyển đổi khách hàng mới (Conversion Rate) lên 15%", "cr5db_unit": "%", "cr5db_formula": "(Khách hàng mới / Tổng số Lead) * 100", "new_direction": 1},
+        {"cr5db_kpiname": "Tăng trưởng MRR (Doanh thu định kỳ) 20% mỗi quý", "cr5db_unit": "%", "cr5db_formula": "((MRR quý này - MRR quý trước) / MRR quý trước) * 100", "new_direction": 1},
+        {"cr5db_kpiname": "Duy trì Server Uptime ở mức 99.99% trong năm 2026", "cr5db_unit": "%", "cr5db_formula": "(Thời gian server chạy / Tổng thời gian) * 100", "new_direction": 1},
         
-        # Human Resources (HR)
-        {"cr5db_kpiname": "Tỷ lệ thời gian Timesheet hợp lệ", "cr5db_unit": "%", "cr5db_formula": "(Số giờ Timesheet hợp lệ / Tổng số giờ làm việc quy định) * 100", "new_direction": 1},
-        {"cr5db_kpiname": "Thời gian tuyển dụng trung bình (Time to Hire)", "cr5db_unit": "Ngày", "cr5db_formula": "Tổng số ngày từ lúc đăng tuyển đến khi nhận offer / Tổng số người được tuyển", "new_direction": -1},
-        {"cr5db_kpiname": "Tỷ lệ giữ chân nhân viên (Employee Retention Rate)", "cr5db_unit": "%", "cr5db_formula": "((Tổng nhân viên - Số người nghỉ việc) / Tổng nhân viên) * 100", "new_direction": 1},
-        {"cr5db_kpiname": "Mức độ hài lòng của nhân viên (eNPS)", "cr5db_unit": "Điểm", "cr5db_formula": "% Promoter - % Detractor", "new_direction": 1},
-        {"cr5db_kpiname": "Tỷ lệ hoàn thành đào tạo (Training Completion Rate)", "cr5db_unit": "%", "cr5db_formula": "(Số nhân viên hoàn thành khóa học / Tổng số người được phân công) * 100", "new_direction": 1},
-        
-        # Sales & Marketing
-        {"cr5db_kpiname": "Tỷ lệ chuyển đổi khách hàng (Conversion Rate)", "cr5db_unit": "%", "cr5db_formula": "(Số khách hàng mua hàng / Tổng số lead) * 100", "new_direction": 1},
-        {"cr5db_kpiname": "Chi phí để có một khách hàng mới (CAC)", "cr5db_unit": "VND", "cr5db_formula": "Tổng chi phí Marketing & Sales / Số khách hàng mới thu được", "new_direction": -1},
-        {"cr5db_kpiname": "Doanh thu tăng trưởng hàng tháng (MRR Growth)", "cr5db_unit": "%", "cr5db_formula": "((MRR tháng này - MRR tháng trước) / MRR tháng trước) * 100", "new_direction": 1},
-        {"cr5db_kpiname": "Chỉ số hài lòng khách hàng (CSAT)", "cr5db_unit": "%", "cr5db_formula": "(Số lượng đánh giá hài lòng / Tổng số đánh giá) * 100", "new_direction": 1},
-        
-        # Finance & Operations
-        {"cr5db_kpiname": "Tỷ suất lợi nhuận ròng (Net Profit Margin)", "cr5db_unit": "%", "cr5db_formula": "(Lợi nhuận ròng / Tổng doanh thu) * 100", "new_direction": 1},
-        {"cr5db_kpiname": "Biến động chi phí ngân sách (Budget Variance)", "cr5db_unit": "%", "cr5db_formula": "((Chi phí thực tế - Chi phí dự kiến) / Chi phí dự kiến) * 100", "new_direction": -1},
-        {"cr5db_kpiname": "Tỷ lệ thời gian máy chủ hoạt động (Server Uptime)", "cr5db_unit": "%", "cr5db_formula": "(Thời gian server hoạt động / Tổng thời gian trong tháng) * 100", "new_direction": 1},
-        {"cr5db_kpiname": "Chỉ số hoàn vốn đầu tư (ROI)", "cr5db_unit": "%", "cr5db_formula": "((Lợi nhuận từ đầu tư - Chi phí đầu tư) / Chi phí đầu tư) * 100", "new_direction": 1},
-        
-        # Customer Success & Support
-        {"cr5db_kpiname": "Thời gian phản hồi đầu tiên (First Response Time)", "cr5db_unit": "Phút", "cr5db_formula": "Tổng thời gian chờ phản hồi đầu tiên / Số lượng ticket", "new_direction": -1},
-        {"cr5db_kpiname": "Tỷ lệ giải quyết trong cuộc gọi đầu tiên (FCR)", "cr5db_unit": "%", "cr5db_formula": "(Số ticket giải quyết ngay lần đầu / Tổng số ticket) * 100", "new_direction": 1}
+        # --- 2: TỐI THIỂU HÓA (Lower is better) ---
+        {"cr5db_kpiname": "Giảm tỷ lệ lỗi nghiêm trọng (Critical Bugs) xuống dưới 2% ở mỗi Sprint", "cr5db_unit": "%", "cr5db_formula": "(Bug Critical / Tổng số Bug) * 100", "new_direction": 2},
+        {"cr5db_kpiname": "Rút ngắn thời gian phản hồi hỗ trợ (FCR) xuống dưới 15 phút", "cr5db_unit": "Phút", "cr5db_formula": "Tổng thời gian chờ / Số lượng ticket", "new_direction": 2},
+        {"cr5db_kpiname": "Giảm tỷ lệ nghỉ việc (Turnover Rate) của nhân sự Core xuống dưới 5%", "cr5db_unit": "%", "cr5db_formula": "(Số nhân viên Core nghỉ / Tổng nhân viên Core) * 100", "new_direction": 2},
+        {"cr5db_kpiname": "Tối ưu hóa chi phí thu hút khách hàng (CAC) giảm 10%", "cr5db_unit": "%", "cr5db_formula": "((CAC cũ - CAC mới) / CAC cũ) * 100", "new_direction": 2},
+        {"cr5db_kpiname": "Giảm tỷ lệ triển khai thất bại (Deployment Failure Rate) xuống 0%", "cr5db_unit": "%", "cr5db_formula": "(Số lần deploy thất bại / Tổng deploy) * 100", "new_direction": 2},
+
+        # --- 3: ĐẠT / KHÔNG ĐẠT (Binary - 1: Đạt, 0: Không đạt) ---
+        {"cr5db_kpiname": "Vượt qua kỳ kiểm toán bảo mật ISO 27001 không có lỗi nghiêm trọng", "cr5db_unit": "Binary", "cr5db_formula": "1 = Đạt chứng chỉ, 0 = Không đạt", "new_direction": 3},
+        {"cr5db_kpiname": "Hoàn thiện 100% tài liệu pháp lý cho sản phẩm mới trước 30/06", "cr5db_unit": "Binary", "cr5db_formula": "1 = Hoàn thành, 0 = Chưa hoàn thành", "new_direction": 3},
+        {"cr5db_kpiname": "100% nhân sự hoàn thành khóa đào tạo An toàn thông tin Q1", "cr5db_unit": "Binary", "cr5db_formula": "1 = Tất cả hoàn thành, 0 = Có người chưa hoàn thành", "new_direction": 3},
+        {"cr5db_kpiname": "Tổ chức thành công sự kiện Year End Party 2026", "cr5db_unit": "Binary", "cr5db_formula": "1 = Sự kiện diễn ra thành công, 0 = Hủy/Lỗi", "new_direction": 3},
+
+        # --- 4: CỘT MỐC (Milestone - Tiến độ 0 -> 100%) ---
+        {"cr5db_kpiname": "Phát hành thành công Phase 1 của dự án ERP mới (Cột mốc)", "cr5db_unit": "%", "cr5db_formula": "Tỷ lệ % các module Phase 1 đã hoàn thành", "new_direction": 4},
+        {"cr5db_kpiname": "Triển khai hệ thống đánh giá hiệu suất (Performance Review System)", "cr5db_unit": "%", "cr5db_formula": "Số phòng ban đã áp dụng / Tổng số phòng ban", "new_direction": 4},
+        {"cr5db_kpiname": "Mở rộng chi nhánh sang thị trường Nhật Bản (Tiến độ)", "cr5db_unit": "%", "cr5db_formula": "Tỷ lệ các thủ tục pháp lý và văn phòng đã hoàn thiện", "new_direction": 4}
     ]
     
     created_count = 0
