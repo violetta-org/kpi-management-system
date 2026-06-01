@@ -352,7 +352,7 @@ export function useAppState() {
     if (activeRole === 'Admin') return;
     if (usersList.length === 0) return; // Wait for data to load
 
-    const BASELINE_TABS = ['dashboard', 'tasks', 'timesheets', 'kpi', 'requests'];
+    const BASELINE_TABS = ['dashboard', 'tasks', 'timesheets', 'kpi', 'requests', 'my-processes'];
     if (BASELINE_TABS.includes(activeTab)) return;
 
     const currentUser = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());

@@ -4393,7 +4393,7 @@ return (
           <span className="nav-icon"><TaskIcon /></span>{t('sidebar.tasks')}
         </button>
         <button onClick={() => setActiveTab('my-processes')} className={`nav-item ${activeTab === 'my-processes' ? 'active' : ''}`}>
-          <span className="nav-icon"><i className="fas fa-clipboard-list" /></span>My Tasks
+          <span className="nav-icon"><RequestIcon /></span>Quy trình của tôi
         </button>
         <button onClick={() => setActiveTab('timesheets')} className={`nav-item ${activeTab === 'timesheets' ? 'active' : ''}`}>
           <span className="nav-icon"><ClockIcon /></span>{t('sidebar.timesheets')}
