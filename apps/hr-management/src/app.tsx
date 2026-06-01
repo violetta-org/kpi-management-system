@@ -130,7 +130,7 @@ const BellIcon = () => (
 // );
 
 import { FEATURE_TABS, hasTabPermission } from './lib/types';
-import type { User, Task, PermissionGroup, EvaluationPeriod } from './lib/types';
+import type { User, Task, PermissionGroup, EvaluationPeriod, Holiday } from './lib/types';
 import { getTranslation } from './lib/locales';
 
 function calculateActualValue(
@@ -237,6 +237,7 @@ function App() {
   const [allocationPercentage, setAllocationPercentage] = React.useState(100);
   const [allocationName, setAllocationName] = React.useState('');
   const [editingAllocation, setEditingAllocation] = React.useState<any | null>(null);
+  const [editingHoliday, setEditingHoliday] = React.useState<Holiday | null>(null);
 
   // AI Suggestion states
   const [showAiSuggestions, setShowAiSuggestions] = React.useState(false);
@@ -2210,20 +2211,44 @@ function App() {
     if (!newHolidayName.trim() || !newHolidayDate) return;
     try {
       setIsLoading(true);
-      await Cr5db_holidayService.create({
-        cr5db_name: newHolidayName,
-        cr5db_date: new Date(newHolidayDate).toISOString()
-      });
+      if (editingHoliday) {
+        await Cr5db_holidayService.update(editingHoliday.cr5db_holidayid, {
+          cr5db_name: newHolidayName,
+          cr5db_date: new Date(newHolidayDate).toISOString()
+        });
+      } else {
+        await Cr5db_holidayService.create({
+          cr5db_name: newHolidayName,
+          cr5db_date: new Date(newHolidayDate).toISOString()
+        });
+      }
       setShowHolidayModal(false);
+      setEditingHoliday(null);
       setNewHolidayName('');
       setNewHolidayDate('');
       await fetchLiveValues();
     } catch (err: any) {
       const errMsg = err?.message || err?.error || JSON.stringify(err);
-      console.error("🔴🔴🔴 [HOLIDAY CREATE ERROR] 🔴🔴🔴\n" +
+      console.error("🔴🔴🔴 [HOLIDAY SAVE ERROR] 🔴🔴🔴\n" +
                     `Error Message: ${errMsg}\n` +
                     "Full Error Object:", err);
-      alert('Lỗi khi thêm ngày lễ: ' + errMsg);
+      alert('Lỗi khi lưu ngày lễ: ' + errMsg);
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteHoliday = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa ngày lễ này không?")) return;
+    try {
+      setIsLoading(true);
+      await Cr5db_holidayService.delete(id);
+      await fetchLiveValues();
+    } catch (err: any) {
+      const errMsg = err?.message || err?.error || JSON.stringify(err);
+      console.error("🔴🔴🔴 [HOLIDAY DELETE ERROR] 🔴🔴🔴\n" +
+                    `Error Message: ${errMsg}\n` +
+                    "Full Error Object:", err);
+      alert('Lỗi khi xóa ngày lễ: ' + errMsg);
       setIsLoading(false);
     }
   };
@@ -5331,6 +5356,7 @@ return (
                     <tr style={{ backgroundColor: '#FAF9F9', borderBottom: '1px solid var(--color-border)' }}>
                       <th style={{ padding: '12px' }}>Tên Ngày Lễ</th>
                       <th style={{ padding: '12px' }}>Ngày (YYYY-MM-DD)</th>
+                      <th style={{ padding: '12px' }}>Hành động</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -5338,10 +5364,31 @@ return (
                       <tr key={h.cr5db_holidayid} style={{ borderBottom: '1px solid var(--color-border)' }}>
                         <td style={{ padding: '12px', fontWeight: 600 }}>{h.cr5db_name}</td>
                         <td style={{ padding: '12px' }}>{h.cr5db_date ? new Date(h.cr5db_date).toLocaleDateString('vi-VN') : ''}</td>
+                        <td style={{ padding: '12px' }}>
+                          <button
+                            onClick={() => {
+                              setEditingHoliday(h);
+                              setNewHolidayName(h.cr5db_name);
+                              setNewHolidayDate(h.cr5db_date ? new Date(h.cr5db_date).toISOString().split('T')[0] : '');
+                              setShowHolidayModal(true);
+                            }}
+                            className="btn-filled-3"
+                            style={{ padding: '4px 8px', marginRight: '8px', fontSize: '11px' }}
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            onClick={() => handleDeleteHoliday(h.cr5db_holidayid)}
+                            className="btn-filled-3"
+                            style={{ padding: '4px 8px', fontSize: '11px', color: '#a80000', borderColor: '#a80000' }}
+                          >
+                            Xóa
+                          </button>
+                        </td>
                       </tr>
                     ))}
                     {holidaysList.length === 0 && (
-                      <tr><td colSpan={2} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Chưa có ngày lễ nào được cấu hình</td></tr>
+                      <tr><td colSpan={3} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Chưa có ngày lễ nào được cấu hình</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -11370,7 +11417,7 @@ return (
   showHolidayModal && (
     <div className="modal-overlay">
       <div className="modal-content" style={{ maxWidth: '400px' }}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Thêm Ngày Lễ</h3>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>{editingHoliday ? 'Sửa Ngày Lễ' : 'Thêm Ngày Lễ'}</h3>
         <form onSubmit={handleHolidaySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Tên Ngày Lễ</label>
@@ -11393,7 +11440,7 @@ return (
             />
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-            <button type="button" onClick={() => setShowHolidayModal(false)} className="btn-filled-3">Hủy</button>
+            <button type="button" onClick={() => { setShowHolidayModal(false); setEditingHoliday(null); }} className="btn-filled-3">Hủy</button>
             <button type="submit" className="btn-primary" disabled={isLoading}>Lưu</button>
           </div>
         </form>
