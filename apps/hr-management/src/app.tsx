@@ -2218,9 +2218,10 @@ function App() {
       setNewHolidayName('');
       setNewHolidayDate('');
       await fetchLiveValues();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Lỗi khi thêm ngày lễ.');
+      const errMsg = err?.message || err?.error || JSON.stringify(err);
+      alert('Lỗi khi thêm ngày lễ: ' + errMsg);
       setIsLoading(false);
     }
   };
