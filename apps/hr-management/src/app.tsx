@@ -2757,38 +2757,41 @@ function App() {
     }
     setIsAiGenerating(true);
     try {
-      const reversedKey = "hRjnjWTTEz97SEMRksC7me4IY3rbydGW4aSKvarwKLdp4pjSHiR_ksg";
-      const apiKey = reversedKey.split("").reverse().join("");
+      // Get Gemini Key from localStorage or use default hardcoded fallback key
+      let geminiKey = '';
+      try {
+        geminiKey = localStorage.getItem('VIBE_GEMINI_API_KEY') || '';
+      } catch (e) {
+        console.warn('Failed to read Gemini key from localStorage:', e);
+      }
       
-      const response = await fetch('https://corsproxy.io/?https://api.groq.com/openai/v1/chat/completions', {
+      if (!geminiKey || geminiKey.trim() === '') {
+        geminiKey = "AQ.Ab8RN6LeX5xGlbM8m3ses5e0A_GSqcCq8rj2fclEtRf0_Kmwjw";
+      }
+
+      const prompt = `Bạn là chuyên gia nhân sự (HR Expert). Nhiệm vụ của bạn là tối ưu hóa tên mục tiêu KPI sau đây để đạt chuẩn S.M.A.R.T (Cụ thể, Đo lường được, Khả thi, Liên quan, Có thời hạn). Hãy trả về duy nhất một câu KPI tiếng Việt đã được tối ưu, độ dài không quá 25 từ, ngôn ngữ chuyên nghiệp. Tuyệt đối không giải thích hay thêm bất kỳ chữ nào ngoài câu trả lời.\n\nOriginal KPI: ${kpiLibName}`;
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'llama3-70b-8192',
-          temperature: 0.7,
-          max_tokens: 100,
-          messages: [
-            { 
-              role: 'system', 
-              content: "Bạn là chuyên gia nhân sự (HR Expert). Nhiệm vụ của bạn là tối ưu hóa tên mục tiêu KPI sau đây để đạt chuẩn S.M.A.R.T (Cụ thể, Đo lường được, Khả thi, Liên quan, Có thời hạn). Hãy trả về duy nhất một câu KPI tiếng Việt đã được tối ưu, độ dài không quá 25 từ, ngôn ngữ chuyên nghiệp. Tuyệt đối không giải thích hay thêm bất kỳ chữ nào ngoài câu trả lời." 
-            },
-            { 
-              role: 'user', 
-              content: `Original KPI: ${kpiLibName}` 
-            }
-          ]
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 150
+          }
         })
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP Error ${response.status}: ${await response.text()}`);
       }
-      
+
       const data = await response.json();
-      const optimizedKpi = data.choices[0]?.message?.content?.trim();
+      const optimizedKpi = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      
       if (optimizedKpi) {
         setKpiLibName(optimizedKpi);
       } else {
