@@ -187,6 +187,11 @@
           "entitySetName": "cr5db_userprojectroles",
           "logicalName": "cr5db_userprojectrole",
           "isHidden": false
+        },
+        "cr5db_holiday": {
+          "entitySetName": "cr5db_holidaies",
+          "logicalName": "cr5db_holiday",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""
