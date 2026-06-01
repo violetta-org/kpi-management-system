@@ -15,29 +15,26 @@ except ImportError:
     print("Please run: pip install msal requests")
     sys.exit(1)
 
-try:
-    from dotenv import load_dotenv
-    # Load .env file from the project root (one directory up from seed/)
-    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
-    load_dotenv(env_path)
-except ImportError:
-    pass
-
-# Configuration from environment variables
-CLIENT_ID = os.environ.get("POWER_APPS_CLIENT_ID")
-TENANT_ID = os.environ.get("POWER_APPS_TENANT_ID")
-AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
-
-if not CLIENT_ID or not TENANT_ID:
-    print("❌ Error: Environment variables POWER_APPS_CLIENT_ID and POWER_APPS_TENANT_ID must be set.")
-    print("Example (Windows):")
-    print("  set POWER_APPS_CLIENT_ID=your-client-id")
-    print("  set POWER_APPS_TENANT_ID=your-tenant-id")
-    sys.exit(1)
+# Power Platform CLI Client ID (Public App, no secret needed)
+CLIENT_ID = "51f81489-12ee-4a9e-aaae-a2591f45987d"
+AUTHORITY = "https://login.microsoftonline.com/common"
 
 def discover_env_url():
     """Discover the Dataverse environment URL from the configuration."""
     print("🔍 Discovering Dataverse Environment URL...")
+    # Check apps/hr-management/power.config.json first
+    config_path = "./apps/hr-management/power.config.json"
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+                env_url = config.get("EnvironmentUrl") or config.get("environmentUrl")
+                if env_url:
+                    return env_url
+        except Exception:
+            pass
+            
+    # Check root power.config.json
     try:
         if os.path.exists("power.config.json"):
             with open("power.config.json", "r") as f:
@@ -48,8 +45,7 @@ def discover_env_url():
     except Exception as e:
         print(f"⚠️ Warning: Could not read power.config.json: {e}")
         
-    print("❌ Error: Could not discover environment URL. Please provide it via --url argument or set it in power.config.json.")
-    sys.exit(1)
+    return "https://orgcaf78765.crm5.dynamics.com/"
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Dataverse Evaluation Period Seeder")
