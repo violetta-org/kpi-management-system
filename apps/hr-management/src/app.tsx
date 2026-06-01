@@ -4218,6 +4218,11 @@ const filteredTasks = tasks.filter(t => {
   return true;
 });
 
+const normalizeGuid = (guid?: string) => {
+  if (!guid) return '';
+  return guid.replace(/[{}]/g, '').toLowerCase();
+};
+
 const parseDateOnly = (value?: string) => {
   if (!value) return null;
   const d = new Date(value);
@@ -7627,7 +7632,7 @@ return (
                             label="Xé nhỏ dự án"
                             onClick={async () => {
                               const pName = currentActiveProject.cr5db_projectname || 'Dự án';
-                              const projPhaseIds = projectPhases.filter(ph => ph._cr5db_projectid_value === currentActiveProject.cr5db_projectid).map(ph => ph.cr5db_projectphaseid);
+                              const projPhaseIds = projectPhases.filter(ph => normalizeGuid(ph._cr5db_projectid_value) === normalizeGuid(currentActiveProject.cr5db_projectid)).map(ph => ph.cr5db_projectphaseid);
                               const existingTasks = tasks.filter(t => t._cr5db_projectphaseid_value && projPhaseIds.includes(t._cr5db_projectphaseid_value)).map(t => t.cr5db_taskname || '');
                               return await AIService.breakdownProjectTasks(pName, existingTasks);
                             }}
@@ -7666,7 +7671,7 @@ return (
                       </div>
 
                       {(() => {
-                        const phases = projectPhases.filter(ph => ph._cr5db_projectid_value === currentActiveProject.cr5db_projectid);
+                        const phases = projectPhases.filter(ph => normalizeGuid(ph._cr5db_projectid_value) === normalizeGuid(currentActiveProject.cr5db_projectid));
                         if (phases.length === 0) {
                           return <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontStyle: 'italic', padding: '6px' }}>Chưa ghi nhận giai đoạn nào.</div>;
                         }
@@ -7745,8 +7750,7 @@ return (
 
                       {(() => {
                         const risks = projectRisks.filter(risk =>
-                          risk._new_project_value === currentActiveProject.cr5db_projectid ||
-                          risk._new_project_value?.toLowerCase() === currentActiveProject.cr5db_projectid?.toLowerCase()
+                          normalizeGuid(risk._new_project_value) === normalizeGuid(currentActiveProject.cr5db_projectid)
                         );
                         if (risks.length === 0) {
                           return <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontStyle: 'italic', padding: '6px' }}>Chưa ghi nhận rủi ro nào.</div>;
