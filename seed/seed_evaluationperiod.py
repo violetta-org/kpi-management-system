@@ -15,6 +15,14 @@ except ImportError:
     print("Please run: pip install msal requests")
     sys.exit(1)
 
+try:
+    from dotenv import load_dotenv
+    # Load .env file from the project root (one directory up from seed/)
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+    load_dotenv(env_path)
+except ImportError:
+    pass
+
 # Configuration from environment variables
 CLIENT_ID = os.environ.get("POWER_APPS_CLIENT_ID")
 TENANT_ID = os.environ.get("POWER_APPS_TENANT_ID")
