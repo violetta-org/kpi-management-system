@@ -2219,8 +2219,10 @@ function App() {
       setNewHolidayDate('');
       await fetchLiveValues();
     } catch (err: any) {
-      console.error(err);
       const errMsg = err?.message || err?.error || JSON.stringify(err);
+      console.error("🔴🔴🔴 [HOLIDAY CREATE ERROR] 🔴🔴🔴\n" +
+                    `Error Message: ${errMsg}\n` +
+                    "Full Error Object:", err);
       alert('Lỗi khi thêm ngày lễ: ' + errMsg);
       setIsLoading(false);
     }
@@ -2749,13 +2751,16 @@ function App() {
   }, [kpiLibName, kpiLibUnit, showKpiLibraryModal]);
 
   const handleAiImproveKpi = async () => {
-    if (!kpiLibName.trim()) return;
+    if (!kpiLibName.trim()) {
+      alert("Vui lòng nhập Tên KPI trước khi nhấn làm mượt bằng AI!");
+      return;
+    }
     setIsAiGenerating(true);
     try {
       const reversedKey = "hRjnjWTTEz97SEMRksC7me4IY3rbydGW4aSKvarwKLdp4pjSHiR_ksg";
       const apiKey = reversedKey.split("").reverse().join("");
       
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const response = await fetch('https://corsproxy.io/?https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
