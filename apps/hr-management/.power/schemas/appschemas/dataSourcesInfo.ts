@@ -341,10 +341,10 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
-  "new_holiday": {
+  "cr5db_holiday": {
     "tableId": "",
     "version": "",
-    "primaryKey": "new_holidayid",
+    "primaryKey": "cr5db_holidayid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },

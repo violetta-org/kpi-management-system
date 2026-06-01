@@ -169,9 +169,9 @@ export interface LeaveRequest {
 }
 
 export interface Holiday {
-  new_holidayid: string;
-  new_name: string;
-  new_date: string;
+  cr5db_holidayid: string;
+  cr5db_name: string;
+  cr5db_date: string;
 }
 
 export interface OvertimeRequest {

@@ -2211,8 +2211,8 @@ function App() {
     try {
       setIsLoading(true);
       await New_holidayService.create({
-        new_name: newHolidayName,
-        new_date: new Date(newHolidayDate).toISOString()
+        cr5db_name: newHolidayName,
+        cr5db_date: new Date(newHolidayDate).toISOString()
       });
       setShowHolidayModal(false);
       setNewHolidayName('');
@@ -4200,7 +4200,7 @@ const calculateWorkingDays = (startDate: string, endDate: string) => {
 
   // Tạo mảng các chuỗi YYYY-MM-DD của ngày Lễ để tra cứu nhanh
   const holidayDates = holidaysList.map(h => {
-    const d = parseDateOnly(h.new_date);
+    const d = parseDateOnly(h.cr5db_date);
     return d ? d.toISOString().split('T')[0] : null;
   }).filter(d => d !== null);
 
@@ -5295,9 +5295,9 @@ return (
                   </thead>
                   <tbody>
                     {holidaysList.map(h => (
-                      <tr key={h.new_holidayid} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                        <td style={{ padding: '12px', fontWeight: 600 }}>{h.new_name}</td>
-                        <td style={{ padding: '12px' }}>{h.new_date ? new Date(h.new_date).toLocaleDateString('vi-VN') : ''}</td>
+                      <tr key={h.cr5db_holidayid} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <td style={{ padding: '12px', fontWeight: 600 }}>{h.cr5db_name}</td>
+                        <td style={{ padding: '12px' }}>{h.cr5db_date ? new Date(h.cr5db_date).toLocaleDateString('vi-VN') : ''}</td>
                       </tr>
                     ))}
                     {holidaysList.length === 0 && (

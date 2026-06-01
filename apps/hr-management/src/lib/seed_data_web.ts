@@ -1471,15 +1471,15 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
   await tryCall("Tạo dữ liệu ngày Lễ và Làm thêm giờ (OT)...", async () => {
     // Tạo Ngày Lễ 2026
     const holidays = [
-      { new_name: "Tết Dương Lịch 2026", new_date: "2026-01-01T00:00:00Z" },
-      { new_name: "Giỗ tổ Hùng Vương 2026", new_date: "2026-04-26T00:00:00Z" }, // Mùng 10/3 AL
-      { new_name: "Nghỉ bù Giỗ tổ", new_date: "2026-04-27T00:00:00Z" }, // Bù
-      { new_name: "Ngày Giải phóng miền Nam", new_date: "2026-04-30T00:00:00Z" },
-      { new_name: "Quốc tế Lao động", new_date: "2026-05-01T00:00:00Z" }
+      { cr5db_name: "Tết Dương Lịch 2026", cr5db_date: "2026-01-01T00:00:00Z" },
+      { cr5db_name: "Giỗ tổ Hùng Vương 2026", cr5db_date: "2026-04-26T00:00:00Z" }, // Mùng 10/3 AL
+      { cr5db_name: "Nghỉ bù Giỗ tổ", cr5db_date: "2026-04-27T00:00:00Z" }, // Bù
+      { cr5db_name: "Ngày Giải phóng miền Nam", cr5db_date: "2026-04-30T00:00:00Z" },
+      { cr5db_name: "Quốc tế Lao động", cr5db_date: "2026-05-01T00:00:00Z" }
     ];
 
     for (const h of holidays) {
-      await safeCreate(`Holiday[${h.new_name}]`, () => New_holidayService.create(h as any));
+      await safeCreate(`Holiday[${h.cr5db_name}]`, () => New_holidayService.create(h as any));
     }
 
     // Tạo OT mẫu cho dev1
@@ -1619,7 +1619,7 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
   await tryDeleteAll("new_leavebalance", New_leavebalanceService);
   await tryDeleteAll("new_processstep", New_processstepService);
   await tryDeleteAll("new_employeeprocess", New_employeeprocessService);
-  await tryDeleteAll("new_holiday", New_holidayService);
+  await tryDeleteAll("cr5db_holiday", New_holidayService);
   await tryDeleteAll("new_overtimerequest", New_overtimerequestService);
 
   progressCallback("Dọn dẹp hoàn tất thành công!");

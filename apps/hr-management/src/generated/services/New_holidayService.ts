@@ -5,7 +5,7 @@ import { getClient } from '@microsoft/power-apps/data';
 import type { Holiday } from '../../lib/types';
 
 export class New_holidayService {
-  private static readonly dataSourceName = 'new_holiday';
+  private static readonly dataSourceName = 'cr5db_holiday';
   private static readonly client = getClient(dataSourcesInfo);
 
   public static async create(record: Partial<Holiday>): Promise<IOperationResult<Holiday>> {
