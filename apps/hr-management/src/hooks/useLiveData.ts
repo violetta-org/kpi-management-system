@@ -145,7 +145,10 @@ export function useLiveData(setters: LiveDataSetters) {
           return res.data || [];
         } catch (e: any) {
           const errMsg = e?.message || e?.error?.message || (typeof e === 'object' ? JSON.stringify(e) : String(e));
-          console.error(`[Dataverse Load Error] Table: ${tableName}. Details:`, e);
+          console.error("🔴🔴🔴 [DATAVERSE LOAD ERROR] 🔴🔴🔴\n" +
+                        `Table: ${tableName}\n` +
+                        `Error Message: ${errMsg}\n` +
+                        "Full Error Object:", e);
           loadErrors.push({ table: tableName, error: errMsg });
           return [];
         }
@@ -258,6 +261,10 @@ export function useLiveData(setters: LiveDataSetters) {
         ChangeRequests: rawRequests.length,
         SystemParameters: rawParams.length,
         EvaluationPeriods: rawEvaluationPeriods.length,
+        Holidays: rawHolidays.length,
+        LeaveBalances: rawLeaveBalances.length,
+        LeaveRequests: rawLeaveRequests.length,
+        OvertimeRequests: rawOvertimeRequests.length,
         LoadErrors: loadErrors.length
       });
       // Log first raw risk record if any to debug field names
