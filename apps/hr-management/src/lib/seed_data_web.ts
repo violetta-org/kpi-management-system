@@ -1014,6 +1014,13 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
     guids["users"] = {};
     const users = [
       {
+        cr5db_fullname: "Student Approver",
+        cr5db_email: "102230208@sv1.dut.udn.vn",
+        cr5db_isactive: true,
+        cr5db_systemrole: "Admin",
+        "cr5db_JobPosition@odata.bind": bindOData("cr5db_jobpositions", guids["jobpositions"]?.[0])
+      },
+      {
         cr5db_fullname: "Violetta Admin",
         cr5db_email: "admin@company.com",
         cr5db_isactive: true,
@@ -1345,30 +1352,34 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
 
   // 15. Approval Routes
   await tryCall("Tạo quy tắc phê duyệt (Approval Routes)...", async () => {
-    const routes = [
-      {
-        cr5db_routename: "Duyệt yêu cầu tuyển dụng nhân sự mới",
-        cr5db_targetentity: 4, // HeadcountRequests
-        cr5db_operationtype: 4, // All
-        cr5db_requesterrole: 2, // ProjectManager
-        cr5db_routingtype: 2, // SPECIFIC_ROLE
-        cr5db_approverrole: "pg_admin", // Ban Giám Đốc
-        cr5db_priority: 1,
-        cr5db_isactive: true
-      },
-      {
-        cr5db_routename: "Duyệt thay đổi vị trí công việc",
-        cr5db_targetentity: 3, // JobPositions
-        cr5db_operationtype: 4, // All
-        cr5db_requesterrole: 3, // HRManager
-        cr5db_routingtype: 2, // SPECIFIC_ROLE
-        cr5db_approverrole: "pg_admin", // Ban Giám Đốc
-        cr5db_priority: 1,
-        cr5db_isactive: true
-      }
+    const approverUserId = guids["users"]["102230208@sv1.dut.udn.vn"];
+    if (!approverUserId) {
+      console.warn("⚠️ Không tìm thấy User ID cho 102230208@sv1.dut.udn.vn, bỏ qua gán người duyệt chỉ định.");
+      return;
+    }
+
+    const entities = [
+      { name: "Công việc (Tasks)", code: 1 },
+      { name: "KPI Targets", code: 2 },
+      { name: "Vị trí công việc (Job Positions)", code: 3 },
+      { name: "Định biên nhân sự (Headcount Requests)", code: 4 },
+      { name: "Dự án (Projects)", code: 5 },
+      { name: "Người dùng (Users)", code: 6 }
     ];
-    for (const r of routes) {
-      await safeCreate(`ApprovalRoute[${r.cr5db_routename}]`, () => Cr5db_approvalroutesesService.create(r as any));
+
+    for (const ent of entities) {
+      await safeCreate(`ApprovalRoute[Duyệt mọi thay đổi trên ${ent.name}]`, () => 
+        Cr5db_approvalroutesesService.create({
+          cr5db_routename: `Duyệt mọi thay đổi trên ${ent.name}`,
+          cr5db_targetentity: ent.code,
+          cr5db_operationtype: 4, // All
+          cr5db_requesterrole: 1, // Employee
+          cr5db_routingtype: 4, // SPECIFIC_USER
+          cr5db_priority: 10,
+          cr5db_isactive: true,
+          "cr5db_ApproverUser@odata.bind": bindOData("cr5db_users", approverUserId)
+        } as any)
+      );
     }
   });
 
