@@ -1401,9 +1401,9 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
       const hrDeptId = guids["depts"] && guids["depts"]["HR"];
 
       const steps = [
-        { new_name: "Chuẩn bị chỗ ngồi & Thiết bị", new_order: 1, ...(itDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", itDeptId) } : { new_assigneerole: "IT" }) },
-        { new_name: "Ký Hợp đồng thử việc", new_order: 2, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", hrDeptId) } : { new_assigneerole: "HR" }) },
-        { new_name: "Đào tạo hội nhập văn hóa", new_order: 3, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", hrDeptId) } : { new_assigneerole: "HR" }) },
+        { new_name: "Chuẩn bị chỗ ngồi & Thiết bị", new_order: 1, ...(itDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departments", itDeptId) } : { new_assigneerole: "IT" }) },
+        { new_name: "Ký Hợp đồng thử việc", new_order: 2, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departments", hrDeptId) } : { new_assigneerole: "HR" }) },
+        { new_name: "Đào tạo hội nhập văn hóa", new_order: 3, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departments", hrDeptId) } : { new_assigneerole: "HR" }) },
         { new_name: "Giới thiệu đội nhóm", new_assigneerole: "Manager", new_order: 4 },
         { new_name: "Hoàn tất hồ sơ cá nhân", new_assigneerole: "Employee", new_order: 5 }
       ];
@@ -1431,10 +1431,10 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
 
       const steps = [
         { new_name: "Bàn giao công việc & Tài liệu", new_assigneerole: "Employee", new_order: 1 },
-        { new_name: "Thu hồi thiết bị & Thẻ từ", new_order: 2, ...(itDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", itDeptId) } : { new_assigneerole: "IT" }) },
-        { new_name: "Khóa quyền truy cập hệ thống", new_order: 3, ...(itDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", itDeptId) } : { new_assigneerole: "IT" }) },
-        { new_name: "Thanh toán & Chốt lương", new_order: 4, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", hrDeptId) } : { new_assigneerole: "HR" }) },
-        { new_name: "Exit Interview (Phỏng vấn thôi việc)", new_order: 5, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departmentses", hrDeptId) } : { new_assigneerole: "HR" }) }
+        { new_name: "Thu hồi thiết bị & Thẻ từ", new_order: 2, ...(itDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departments", itDeptId) } : { new_assigneerole: "IT" }) },
+        { new_name: "Khóa quyền truy cập hệ thống", new_order: 3, ...(itDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departments", itDeptId) } : { new_assigneerole: "IT" }) },
+        { new_name: "Thanh toán & Chốt lương", new_order: 4, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departments", hrDeptId) } : { new_assigneerole: "HR" }) },
+        { new_name: "Exit Interview (Phỏng vấn thôi việc)", new_order: 5, ...(hrDeptId ? { "new_AssignedDepartmentId@odata.bind": bindOData("cr5db_departments", hrDeptId) } : { new_assigneerole: "HR" }) }
       ];
 
       for (const step of steps) {

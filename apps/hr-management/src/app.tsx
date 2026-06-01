@@ -1811,7 +1811,7 @@ function App() {
         new_name: processName,
         new_type: template.new_type,
         new_status: 'In Progress',
-        "new_EmployeeId@odata.bind": `/cr5db_userses(${employee.cr5db_userid})`,
+        "new_EmployeeId@odata.bind": `/cr5db_users(${employee.cr5db_userid})`,
         "new_TemplateId@odata.bind": `/new_processtemplates(${template.new_processtemplateid})`
       };
 
@@ -1829,10 +1829,10 @@ function App() {
             "new_ProcessId@odata.bind": `/new_employeeprocesses(${processId})`
           };
           if (tStep._new_assigneddepartment_value) {
-            newStepPayload["new_AssignedDepartmentId@odata.bind"] = `/cr5db_departmentses(${tStep._new_assigneddepartment_value})`;
+            newStepPayload["new_AssignedDepartmentId@odata.bind"] = `/cr5db_departments(${tStep._new_assigneddepartment_value})`;
           }
           if (tStep._new_assigneduser_value) {
-            newStepPayload["new_AssignedUserId@odata.bind"] = `/cr5db_userses(${tStep._new_assigneduser_value})`;
+            newStepPayload["new_AssignedUserId@odata.bind"] = `/cr5db_users(${tStep._new_assigneduser_value})`;
           }
           await New_processstepService.create(newStepPayload);
         }
@@ -1883,7 +1883,7 @@ function App() {
       const payload: any = {
         new_idp1: "IDP - " + (currentUserObj?.cr5db_fullname || "User"),
         new_status: "Bản nháp",
-        "new_EmployeeId@odata.bind": `/cr5db_userses(${currentUserObj?.cr5db_userid})`,
+        "new_EmployeeId@odata.bind": `/cr5db_users(${currentUserObj?.cr5db_userid})`,
       };
       await New_idpService.create(payload);
       await fetchLiveValues();
@@ -2176,7 +2176,7 @@ function App() {
         new_durationdays: days,
         new_reason: newLeaveReason,
         new_status: 'Pending',
-        "_new_employeeid_value@odata.bind": `/cr5db_userses(${currentUserId})`
+        "_new_employeeid_value@odata.bind": `/cr5db_users(${currentUserId})`
       } as any);
       setShowLeaveModal(false);
       setNewLeaveStartDate('');
@@ -2335,7 +2335,7 @@ function App() {
         new_ottype: newOtType,
         new_reason: newOtReason,
         new_status: 'Pending',
-        "_new_employeeid_value@odata.bind": `/cr5db_userses(${currentUserId})`
+        "_new_employeeid_value@odata.bind": `/cr5db_users(${currentUserId})`
       } as any);
       setShowOvertimeModal(false);
       await fetchLiveValues();
