@@ -771,7 +771,7 @@ import {
   New_processstepService,
   New_leavebalanceService,
   New_leaverequestService,
-  New_holidayService,
+  Cr5db_holidayService,
   New_overtimerequestService
 } from '../generated';
 
@@ -1479,7 +1479,7 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
     ];
 
     for (const h of holidays) {
-      await safeCreate(`Holiday[${h.cr5db_name}]`, () => New_holidayService.create(h as any));
+      await safeCreate(`Holiday[${h.cr5db_name}]`, () => Cr5db_holidayService.create(h as any));
     }
 
     // Tạo OT mẫu cho dev1
@@ -1619,7 +1619,7 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
   await tryDeleteAll("new_leavebalance", New_leavebalanceService);
   await tryDeleteAll("new_processstep", New_processstepService);
   await tryDeleteAll("new_employeeprocess", New_employeeprocessService);
-  await tryDeleteAll("cr5db_holiday", New_holidayService);
+  await tryDeleteAll("cr5db_holiday", Cr5db_holidayService);
   await tryDeleteAll("new_overtimerequest", New_overtimerequestService);
 
   progressCallback("Dọn dẹp hoàn tất thành công!");

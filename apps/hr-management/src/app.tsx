@@ -36,7 +36,7 @@ import { New_jobcompetencyService } from './generated/services/New_jobcompetency
 import { New_competencyassessmentService } from './generated/services/New_competencyassessmentService';
 import { New_leaverequestService } from './generated/services/New_leaverequestService';
 import { New_leavebalanceService } from './generated/services/New_leavebalanceService';
-import { New_holidayService } from './generated/services/New_holidayService';
+import { Cr5db_holidayService } from './generated/services/Cr5db_holidayService';
 import { New_overtimerequestService } from './generated/services/New_overtimerequestService';
 
 import { calculateKpiAchievementRate } from './utils/kpiLogic';
@@ -2210,7 +2210,7 @@ function App() {
     if (!newHolidayName.trim() || !newHolidayDate) return;
     try {
       setIsLoading(true);
-      await New_holidayService.create({
+      await Cr5db_holidayService.create({
         cr5db_name: newHolidayName,
         cr5db_date: new Date(newHolidayDate).toISOString()
       });

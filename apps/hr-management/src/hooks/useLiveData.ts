@@ -35,7 +35,7 @@ import { New_leavebalanceService } from '../generated/services/New_leavebalanceS
 import { New_leaverequestService } from '../generated/services/New_leaverequestService';
 import { New_employeeprocessService } from '../generated/services/New_employeeprocessService';
 import { New_processstepService } from '../generated/services/New_processstepService';
-import { New_holidayService } from '../generated/services/New_holidayService';
+import { Cr5db_holidayService } from '../generated/services/Cr5db_holidayService';
 import { New_overtimerequestService } from '../generated/services/New_overtimerequestService';
 import type { User, Task, HeadcountRequest, KPITarget, PermissionGroup, EvaluationPeriod, BonusMatrix, Holiday, OvertimeRequest } from '../lib/types';
 
@@ -228,7 +228,7 @@ export function useLiveData(setters: LiveDataSetters) {
         safeGet('Process Steps', New_processstepService.getAll),
         safeGet('Leave Balances', New_leavebalanceService.getAll),
         safeGet('Leave Requests', New_leaverequestService.getAll),
-        safeGet('Holidays', New_holidayService.getAll),
+        safeGet('Holidays', Cr5db_holidayService.getAll),
         safeGet('Overtime Requests', New_overtimerequestService.getAll)
       ]);
 

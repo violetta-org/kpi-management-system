@@ -84,5 +84,5 @@ export * from './services/New_leavebalanceService';
 export * from './services/New_leaverequestService';
 export * from './services/New_employeeprocessService';
 export * from './services/New_processstepService';
-export * from './services/New_holidayService';
+export * from './services/Cr5db_holidayService';
 export * from './services/New_overtimerequestService';

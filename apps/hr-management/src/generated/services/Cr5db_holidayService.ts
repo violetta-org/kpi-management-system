@@ -4,43 +4,43 @@ import { dataSourcesInfo } from '../../../.power/schemas/appschemas/dataSourcesI
 import { getClient } from '@microsoft/power-apps/data';
 import type { Holiday } from '../../lib/types';
 
-export class New_holidayService {
+export class Cr5db_holidayService {
   private static readonly dataSourceName = 'cr5db_holiday';
   private static readonly client = getClient(dataSourcesInfo);
 
   public static async create(record: Partial<Holiday>): Promise<IOperationResult<Holiday>> {
-    return await New_holidayService.client.createRecordAsync<Partial<Holiday>, Holiday>(
-      New_holidayService.dataSourceName,
+    return await Cr5db_holidayService.client.createRecordAsync<Partial<Holiday>, Holiday>(
+      Cr5db_holidayService.dataSourceName,
       record
     );
   }
 
   public static async update(id: string, changedFields: Partial<Holiday>): Promise<IOperationResult<Holiday>> {
-    return await New_holidayService.client.updateRecordAsync<Partial<Holiday>, Holiday>(
-      New_holidayService.dataSourceName,
+    return await Cr5db_holidayService.client.updateRecordAsync<Partial<Holiday>, Holiday>(
+      Cr5db_holidayService.dataSourceName,
       id,
       changedFields
     );
   }
 
   public static async delete(id: string): Promise<void> {
-    await New_holidayService.client.deleteRecordAsync(
-      New_holidayService.dataSourceName,
+    await Cr5db_holidayService.client.deleteRecordAsync(
+      Cr5db_holidayService.dataSourceName,
       id
     );
   }
 
   public static async get(id: string, options?: IGetOptions): Promise<IOperationResult<Holiday>> {
-    return await New_holidayService.client.retrieveRecordAsync<Holiday>(
-      New_holidayService.dataSourceName,
+    return await Cr5db_holidayService.client.retrieveRecordAsync<Holiday>(
+      Cr5db_holidayService.dataSourceName,
       id,
       options
     );
   }
 
   public static async getAll(options?: IGetAllOptions): Promise<IOperationResult<Holiday[]>> {
-    return await New_holidayService.client.retrieveMultipleRecordsAsync<Holiday>(
-      New_holidayService.dataSourceName,
+    return await Cr5db_holidayService.client.retrieveMultipleRecordsAsync<Holiday>(
+      Cr5db_holidayService.dataSourceName,
       options
     );
   }
