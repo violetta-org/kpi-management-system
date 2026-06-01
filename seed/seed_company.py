@@ -323,8 +323,7 @@ def main():
     
     # 1. Companies
     companies_data = [
-        {"cr5db_companycode": "FPT", "cr5db_companyname": "FPT Software Joint Stock Company"},
-        {"cr5db_companycode": "FJP", "cr5db_companyname": "FPT Japan Co., Ltd."}
+        {"cr5db_companycode": "FPT", "cr5db_companyname": "FPT Software Joint Stock Company"}
     ]
     guids["companies"] = []
     for c in companies_data:
