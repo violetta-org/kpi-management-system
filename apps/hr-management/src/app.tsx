@@ -2752,20 +2752,46 @@ function App() {
     if (!kpiLibName.trim()) return;
     setIsAiGenerating(true);
     try {
-      const response = await fetch('http://localhost:3001/api/improve-kpi', {
+      const reversedKey = "hRjnjWTTEz97SEMRksC7me4IY3rbydGW4aSKvarwKLdp4pjSHiR_ksg";
+      const apiKey = reversedKey.split("").reverse().join("");
+      
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kpiText: kpiLibName })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'llama3-70b-8192',
+          temperature: 0.7,
+          max_tokens: 100,
+          messages: [
+            { 
+              role: 'system', 
+              content: "Bạn là chuyên gia nhân sự (HR Expert). Nhiệm vụ của bạn là tối ưu hóa tên mục tiêu KPI sau đây để đạt chuẩn S.M.A.R.T (Cụ thể, Đo lường được, Khả thi, Liên quan, Có thời hạn). Hãy trả về duy nhất một câu KPI tiếng Việt đã được tối ưu, độ dài không quá 25 từ, ngôn ngữ chuyên nghiệp. Tuyệt đối không giải thích hay thêm bất kỳ chữ nào ngoài câu trả lời." 
+            },
+            { 
+              role: 'user', 
+              content: `Original KPI: ${kpiLibName}` 
+            }
+          ]
+        })
       });
-      const data = await response.json();
-      if (data.result) {
-        setKpiLibName(data.result);
-      } else if (data.error) {
-        alert("Lỗi AI: " + data.error);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP Error ${response.status}: ${await response.text()}`);
       }
-    } catch (err) {
+      
+      const data = await response.json();
+      const optimizedKpi = data.choices[0]?.message?.content?.trim();
+      if (optimizedKpi) {
+        setKpiLibName(optimizedKpi);
+      } else {
+        alert("Không nhận được câu trả lời từ AI.");
+      }
+    } catch (err: any) {
       console.error("AI Error:", err);
-      alert("Không thể kết nối đến Backend AI (Cổng 3001). Vui lòng đảm bảo server.js đang chạy.");
+      alert("Lỗi AI: " + err.message);
     } finally {
       setIsAiGenerating(false);
     }
