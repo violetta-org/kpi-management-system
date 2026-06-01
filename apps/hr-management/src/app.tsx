@@ -36,7 +36,7 @@ import { New_jobcompetencyService } from './generated/services/New_jobcompetency
 import { New_competencyassessmentService } from './generated/services/New_competencyassessmentService';
 import { New_leaverequestService } from './generated/services/New_leaverequestService';
 import { New_leavebalanceService } from './generated/services/New_leavebalanceService';
-import { Cr5db_holidayService } from './generated/services/Cr5db_holidayService';
+import { Cr5db_holidaiesService } from './generated/services/Cr5db_holidaiesService';
 import { New_overtimerequestService } from './generated/services/New_overtimerequestService';
 
 import { calculateKpiAchievementRate } from './utils/kpiLogic';
@@ -2212,15 +2212,15 @@ function App() {
     try {
       setIsLoading(true);
       if (editingHoliday) {
-        await Cr5db_holidayService.update(editingHoliday.cr5db_holidayid, {
+        await Cr5db_holidaiesService.update(editingHoliday.cr5db_holidayid, {
           cr5db_name: newHolidayName,
           cr5db_date: new Date(newHolidayDate).toISOString()
-        });
+        } as any);
       } else {
-        await Cr5db_holidayService.create({
+        await Cr5db_holidaiesService.create({
           cr5db_name: newHolidayName,
           cr5db_date: new Date(newHolidayDate).toISOString()
-        });
+        } as any);
       }
       setShowHolidayModal(false);
       setEditingHoliday(null);
@@ -2241,7 +2241,7 @@ function App() {
     if (!window.confirm("Bạn có chắc chắn muốn xóa ngày lễ này không?")) return;
     try {
       setIsLoading(true);
-      await Cr5db_holidayService.delete(id);
+      await Cr5db_holidaiesService.delete(id);
       await fetchLiveValues();
     } catch (err: any) {
       const errMsg = err?.message || err?.error || JSON.stringify(err);

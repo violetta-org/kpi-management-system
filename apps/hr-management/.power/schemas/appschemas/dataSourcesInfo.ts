@@ -47,6 +47,13 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "cr5db_holidaies": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cr5db_holidayid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "cr5db_departments": {
     "tableId": "",
     "version": "",
@@ -247,111 +254,6 @@ export const dataSourcesInfo = {
     "tableId": "",
     "version": "",
     "primaryKey": "cr5db_userid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "cr5db_workhours": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "cr5db_workhourid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "new_bonusmatrix": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "new_bonusmatrixid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "new_competencycatalog": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "new_competencycatalogid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "new_jobcompetency": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "new_jobcompetencyid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "new_competencyassessment": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "new_competencyassessmentid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "new_idp": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "new_idpid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "new_idpaction": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "new_idp_actionid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "new_processtemplate": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "new_processtemplateid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "new_processtemplatestep": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "new_processtemplatestepid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "new_employeeprocess": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "new_employeeprocessid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "new_processstep": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "new_processstepid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "new_leavebalance": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "new_leavebalanceid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "new_leaverequest": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "new_leaverequestid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "cr5db_holiday": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "cr5db_holidayid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "new_overtimerequest": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "new_overtimerequestid",
     "dataSourceType": "Dataverse",
     "apis": {}
   }

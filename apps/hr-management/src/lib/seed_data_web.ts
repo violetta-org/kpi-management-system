@@ -771,7 +771,7 @@ import {
   New_processstepService,
   New_leavebalanceService,
   New_leaverequestService,
-  Cr5db_holidayService,
+  Cr5db_holidaiesService,
   New_overtimerequestService
 } from '../generated';
 
@@ -813,6 +813,7 @@ const PLURAL_TO_SINGULAR: Record<string, string> = {
   "cr5db_approvalrouteses": "cr5db_approvalroutes",
   "cr5db_changerequestses": "cr5db_changerequests",
   "cr5db_roleassignments": "cr5db_roleassignment",
+  "cr5db_holidaies": "cr5db_holiday",
   "cr5db_systemroles": "cr5db_systemrole",
   "cr5db_taskownerships": "cr5db_taskownership",
   "cr5db_timesheetaudits": "cr5db_timesheetaudit",
@@ -1479,7 +1480,7 @@ export async function runWebSeeding(progressCallback: (status: string) => void):
     ];
 
     for (const h of holidays) {
-      await safeCreate(`Holiday[${h.cr5db_name}]`, () => Cr5db_holidayService.create(h as any));
+      await safeCreate(`Holiday[${h.cr5db_name}]`, () => Cr5db_holidaiesService.create(h as any));
     }
 
     // Tạo OT mẫu cho dev1
@@ -1619,7 +1620,7 @@ export async function runWebCleanup(progressCallback: (status: string) => void):
   await tryDeleteAll("new_leavebalance", New_leavebalanceService);
   await tryDeleteAll("new_processstep", New_processstepService);
   await tryDeleteAll("new_employeeprocess", New_employeeprocessService);
-  await tryDeleteAll("cr5db_holiday", Cr5db_holidayService);
+  await tryDeleteAll("cr5db_holidaies", Cr5db_holidaiesService);
   await tryDeleteAll("new_overtimerequest", New_overtimerequestService);
 
   progressCallback("Dọn dẹp hoàn tất thành công!");

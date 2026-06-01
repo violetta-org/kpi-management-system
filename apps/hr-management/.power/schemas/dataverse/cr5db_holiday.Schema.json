@@ -1,110 +1,38 @@
 {
-  "name": "cr5db_task",
-  "title": "Tasks",
+  "name": "cr5db_holiday",
+  "title": "Holidays",
   "schema": {
     "type": "array",
     "items": {
       "type": "object",
       "x-ms-dataverse-entity": true,
-      "x-ms-dataverse-entityset": "cr5db_tasks",
-      "x-ms-dataverse-primary-id": "cr5db_taskid",
-      "x-ms-dataverse-primary-name": "cr5db_taskname",
+      "x-ms-dataverse-entityset": "cr5db_holidaies",
+      "x-ms-dataverse-primary-id": "cr5db_holidayid",
+      "x-ms-dataverse-primary-name": "cr5db_name",
       "properties": {
-        "cr5db_assigneeid": {
+        "cr5db_date": {
           "type": "string",
-          "title": "Assignee",
-          "x-ms-dataverse-attribute": "cr5db_assigneeid",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "cr5db_AssigneeID"
-        },
-        "cr5db_assigneeidname": {
-          "type": "string",
-          "title": "cr5db_assigneeidname",
-          "x-ms-dataverse-attribute": "cr5db_assigneeidname",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "cr5db_AssigneeIDName",
-          "x-ms-read-only": true,
-          "maxLength": 850
-        },
-        "cr5db_description": {
-          "type": "string",
-          "title": "Description",
-          "x-ms-dataverse-attribute": "cr5db_description",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "cr5db_Description",
-          "maxLength": 4000
-        },
-        "cr5db_duedate": {
-          "type": "string",
-          "title": "Due Date",
-          "x-ms-dataverse-attribute": "cr5db_duedate",
+          "title": "Date",
+          "x-ms-dataverse-attribute": "cr5db_date",
           "x-ms-dataverse-type": "DateTimeType",
-          "x-ms-schema-name": "cr5db_DueDate"
+          "x-ms-schema-name": "cr5db_Date"
         },
-        "cr5db_objectivename": {
+        "cr5db_holidayid": {
           "type": "string",
-          "title": "Objective",
-          "x-ms-dataverse-attribute": "cr5db_objectivename",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "cr5db_ObjectiveName"
-        },
-        "cr5db_objectivenamename": {
-          "type": "string",
-          "title": "cr5db_objectivenamename",
-          "x-ms-dataverse-attribute": "cr5db_objectivenamename",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "cr5db_ObjectiveNameName",
-          "x-ms-read-only": true,
-          "maxLength": 850
-        },
-        "cr5db_parenttask": {
-          "type": "string",
-          "title": "Task",
-          "x-ms-dataverse-attribute": "cr5db_parenttask",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "cr5db_ParentTask"
-        },
-        "cr5db_parenttaskname": {
-          "type": "string",
-          "title": "cr5db_parenttaskname",
-          "x-ms-dataverse-attribute": "cr5db_parenttaskname",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "cr5db_ParentTaskName",
-          "x-ms-read-only": true,
-          "maxLength": 850
-        },
-        "cr5db_projectphaseid": {
-          "type": "string",
-          "title": "Project Phase",
-          "x-ms-dataverse-attribute": "cr5db_projectphaseid",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "cr5db_ProjectPhaseID"
-        },
-        "cr5db_projectphaseidname": {
-          "type": "string",
-          "title": "cr5db_projectphaseidname",
-          "x-ms-dataverse-attribute": "cr5db_projectphaseidname",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "cr5db_ProjectPhaseIDName",
-          "x-ms-read-only": true,
-          "maxLength": 850
-        },
-        "cr5db_taskid": {
-          "type": "string",
-          "title": "Task",
-          "x-ms-dataverse-attribute": "cr5db_taskid",
+          "title": "Holiday",
+          "x-ms-dataverse-attribute": "cr5db_holidayid",
           "x-ms-dataverse-type": "UniqueidentifierType",
-          "x-ms-schema-name": "cr5db_TaskId",
+          "x-ms-schema-name": "cr5db_HolidayId",
           "x-ms-dataverse-primary-id": true,
           "required": true,
           "x-ms-keyType": "primary"
         },
-        "cr5db_taskname": {
+        "cr5db_name": {
           "type": "string",
-          "title": "Task Name",
-          "x-ms-dataverse-attribute": "cr5db_taskname",
+          "title": "Name",
+          "x-ms-dataverse-attribute": "cr5db_name",
           "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "cr5db_TaskName",
+          "x-ms-schema-name": "cr5db_Name",
           "x-ms-dataverse-primary-name": true,
           "required": true,
           "maxLength": 850
@@ -240,22 +168,6 @@
           "required": true,
           "maxLength": 100
         },
-        "new_kpitarget": {
-          "type": "string",
-          "title": "KPI Target",
-          "x-ms-dataverse-attribute": "new_kpitarget",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "new_KPITarget"
-        },
-        "new_kpitargetname": {
-          "type": "string",
-          "title": "new_kpitargetname",
-          "x-ms-dataverse-attribute": "new_kpitargetname",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "new_KPITargetName",
-          "x-ms-read-only": true,
-          "maxLength": 850
-        },
         "overriddencreatedon": {
           "type": "string",
           "title": "Record Created On",
@@ -352,7 +264,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "1731abd6-cb1f-f111-88b1-002248199820",
+          "x-ms-optionsetmetadataid": "5fd0be00-2e5d-f111-a826-000d3a8248ce",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status",
           "x-ms-optionSetType": "State"
@@ -383,7 +295,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "2131abd6-cb1f-f111-88b1-002248199820",
+          "x-ms-optionsetmetadataid": "69d0be00-2e5d-f111-a826-000d3a8248ce",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status Reason",
           "x-ms-optionSetType": "Status"
@@ -420,8 +332,8 @@
         }
       },
       "required": [
-        "cr5db_taskid",
-        "cr5db_taskname",
+        "cr5db_holidayid",
+        "cr5db_name",
         "createdbyyominame",
         "createdonbehalfbyyominame",
         "modifiedbyyominame",

@@ -35,7 +35,7 @@ import { New_leavebalanceService } from '../generated/services/New_leavebalanceS
 import { New_leaverequestService } from '../generated/services/New_leaverequestService';
 import { New_employeeprocessService } from '../generated/services/New_employeeprocessService';
 import { New_processstepService } from '../generated/services/New_processstepService';
-import { Cr5db_holidayService } from '../generated/services/Cr5db_holidayService';
+import { Cr5db_holidaiesService } from '../generated/services/Cr5db_holidaiesService';
 import { New_overtimerequestService } from '../generated/services/New_overtimerequestService';
 import type { User, Task, HeadcountRequest, KPITarget, PermissionGroup, EvaluationPeriod, BonusMatrix, Holiday, OvertimeRequest } from '../lib/types';
 
@@ -228,7 +228,7 @@ export function useLiveData(setters: LiveDataSetters) {
         safeGet('Process Steps', New_processstepService.getAll),
         safeGet('Leave Balances', New_leavebalanceService.getAll),
         safeGet('Leave Requests', New_leaverequestService.getAll),
-        safeGet('Holidays', Cr5db_holidayService.getAll),
+        safeGet('Holidays', Cr5db_holidaiesService.getAll),
         safeGet('Overtime Requests', New_overtimerequestService.getAll)
       ]);
 
@@ -637,7 +637,11 @@ export function useLiveData(setters: LiveDataSetters) {
       setters.setProcessStepList(rawProcessSteps);
       setters.setLeaveBalancesList(rawLeaveBalances);
       setters.setLeaveRequestsList(rawLeaveRequests);
-      setters.setHolidaysList(rawHolidays);
+      setters.setHolidaysList((rawHolidays || []).map((h: any) => ({
+        cr5db_holidayid: h.cr5db_holidayid,
+        cr5db_name: h.cr5db_name || '',
+        cr5db_date: h.cr5db_date || ''
+      })));
       setters.setOvertimeRequestsList(rawOvertimeRequests);
 
     } catch (err: any) {
