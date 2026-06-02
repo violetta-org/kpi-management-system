@@ -1,0 +1,66 @@
+import React, { useState, useEffect } from 'react';
+
+interface OtApprovalModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onApprove: (hours: number) => void;
+  onReject: () => void;
+  initialHours?: string;
+}
+
+export const OtApprovalModal: React.FC<OtApprovalModalProps> = ({
+  isOpen,
+  onApprove,
+  onReject,
+  initialHours = ''
+}) => {
+  const [otApprovedHours, setOtApprovedHours] = useState(initialHours);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setOtApprovedHours(initialHours);
+    }
+  }, [isOpen, initialHours]);
+
+  if (!isOpen) return null;
+
+  const handleApproveOtSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    await onApprove(Number(otApprovedHours));
+    setIsLoading(false);
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: '400px' }}>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Duyệt Làm thêm giờ (OT)</h3>
+        <form onSubmit={handleApproveOtSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Số giờ duyệt</label>
+            <input
+              type="number"
+              step="0.5"
+              required
+              value={otApprovedHours}
+              onChange={e => setOtApprovedHours(e.target.value)}
+              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+            <button
+              type="button"
+              onClick={onReject}
+              className="btn-filled-3"
+              style={{ color: '#A80000', backgroundColor: '#FDE7E9' }}
+            >
+              Từ chối
+            </button>
+            <button type="submit" className="btn-primary" disabled={isLoading}>Duyệt</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};

@@ -79,6 +79,10 @@ import { AssignAppraisalModal } from './components/modals/AssignAppraisalModal';
 import { LeaveBalanceModal } from './components/modals/LeaveBalanceModal';
 import { HolidayModal } from './components/modals/HolidayModal';
 import { OvertimeModal } from './components/modals/OvertimeModal';
+import { OtApprovalModal } from './components/modals/OtApprovalModal';
+import { DashboardSettingsModal } from './components/modals/DashboardSettingsModal';
+import { NotificationsModal } from './components/modals/NotificationsModal';
+
 import { CompanyModal } from './components/modals/CompanyModal';
 import { DepartmentModal } from './components/modals/DepartmentModal';
 import { PositionCatalogModal } from './components/modals/PositionCatalogModal';
@@ -207,8 +211,7 @@ function App() {
             showOvertimeModal, setShowOvertimeModal,
                             showOtApprovalModal, setShowOtApprovalModal,
     otToApproveId, setOtToApproveId,
-    otApprovedHours, setOtApprovedHours,
-    showKpiModal, setShowKpiModal,
+        showKpiModal, setShowKpiModal,
     editingKpi, setEditingKpi,
     activeTimesheetSubTab, setActiveTimesheetSubTab,
     activePerformanceSubTab, setActivePerformanceSubTab,
@@ -1465,14 +1468,13 @@ function App() {
     }
   };
 
-  const handleApproveOtSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otToApproveId) return;
+  const handleApproveOtSubmit = async (hours: number) => {
+        if (!otToApproveId) return;
     try {
       setIsLoading(true);
       await Cr5db_overtimerequestService.update(otToApproveId, {
         cr5db_status: 'Approved',
-        cr5db_approvedhours: parseFloat(otApprovedHours) || 0
+        cr5db_approvedhours: parseFloat(hours.toString()) || 0
       });
       setShowOtApprovalModal(false);
       await fetchLiveValues();
@@ -4707,8 +4709,7 @@ return (
                               style={{ padding: '4px 8px', marginRight: '8px' }}
                               onClick={() => {
                                 setOtToApproveId(ot.cr5db_overtimerequestid);
-                                setOtApprovedHours(ot.cr5db_hours.toString());
-                                setShowOtApprovalModal(true);
+                                                                setShowOtApprovalModal(true);
                               }}
                             >
                               Duyệt
@@ -9417,52 +9418,15 @@ return (
 {/* System Notifications Modal */ }
 {
   showNotificationsModal && (
-    <div className="modal-overlay" onClick={() => setShowNotificationsModal(false)}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-        <h3 style={{ marginBottom: '16px', fontSize: '15px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ color: 'var(--color-primary)', display: 'flex', alignItems: 'center' }}><BellIcon /></span>
-          <span>Thông báo hệ thống</span>
-        </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto' }}>
-          {/* Overdue alert */}
-          {hasOverdueTasks && (
-            <div style={{ padding: '10px 12px', border: '1px solid var(--color-primary)', borderRadius: '6px', fontSize: '13px', backgroundColor: '#FDF3F3' }}>
-              <strong style={{ color: 'var(--color-primary)' }}>Trễ hạn:</strong> Bạn đang có công việc cần hoàn thành gấp.
-            </div>
-          )}
-          {/* Timesheet Pending alert */}
-          {checkPermission('resources') && pendingApprovalsTimesheets.length > 0 && (
-            <div style={{ padding: '10px 12px', border: '1px solid #E29E2E', borderRadius: '6px', fontSize: '13px', backgroundColor: '#FFFDF6' }}>
-              <strong style={{ color: '#E29E2E' }}>Duyệt giờ:</strong> Đang có {pendingApprovalsTimesheets.length} timesheets đang chờ bạn phê duyệt.
-            </div>
-          )}
-
-          {/* Dataverse notifications list */}
-          {systemNotifications.length === 0 ? (
-            <div style={{ padding: '12px', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
-              Không có thông báo mới từ hệ thống Dataverse.
-            </div>
-          ) : (
-            systemNotifications.map(n => (
-              <div key={n.cr5db_systemnotificationid} style={{ padding: '10px 12px', border: '1px solid var(--color-border-light)', borderRadius: '6px', fontSize: '13px', backgroundColor: n.cr5db_isread ? '#ffffff' : '#FAF9F9' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <strong style={{ color: 'var(--color-text)' }}>{n.cr5db_systemnotification1}</strong>
-                  {!n.cr5db_isread && <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--color-primary)', display: 'inline-block' }} />}
-                </div>
-                <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: '12px', lineHeight: '1.4' }}>{n.cr5db_content}</p>
-                {n.cr5db_deeplinkurl && (
-                  <a href={n.cr5db_deeplinkurl} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: 'var(--color-primary)', textDecoration: 'none', display: 'inline-block', marginTop: '6px', fontWeight: 600 }}>Chi tiết ➔</a>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-          <button onClick={() => setShowNotificationsModal(false)} className="btn-filled-3">Đóng</button>
-        </div>
-      </div>
-    </div>
-  )
+  <NotificationsModal
+    isOpen={showNotificationsModal}
+    onClose={() => setShowNotificationsModal(false)}
+    hasOverdueTasks={hasOverdueTasks}
+    checkPermission={checkPermission}
+    pendingApprovalsTimesheets={pendingApprovalsTimesheets}
+    systemNotifications={systemNotifications}
+  />
+)
 }
 
 {/* 8. Universal Change Request Reason & Approver Selection Modal */ }
@@ -9605,96 +9569,36 @@ return (
 {/* OT Approval Modal */ }
 {
   showOtApprovalModal && (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '400px' }}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Duyệt Làm thêm giờ (OT)</h3>
-        <form onSubmit={handleApproveOtSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Số giờ duyệt</label>
-            <input
-              type="number"
-              step="0.5"
-              required
-              value={otApprovedHours}
-              onChange={e => setOtApprovedHours(e.target.value)}
-              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-            <button
-              type="button"
-              onClick={() => {
-                handleRejectOt(otToApproveId);
-                setShowOtApprovalModal(false);
-              }}
-              className="btn-filled-3"
-              style={{ color: '#A80000', backgroundColor: '#FDE7E9' }}
-            >
-              Từ chối
-            </button>
-            <button type="submit" className="btn-primary" disabled={isLoading}>Duyệt</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
+  <OtApprovalModal
+    isOpen={showOtApprovalModal}
+    onClose={() => setShowOtApprovalModal(false)}
+    onApprove={handleApproveOtSubmit}
+    onReject={() => {
+      handleRejectOt(otToApproveId);
+      setShowOtApprovalModal(false);
+    }}
+  />
+)
 }
 
 {/* Dashboard Settings Modal */ }
 {
   showDashboardSettingsModal && (
-    <div className="modal-overlay" style={{ display: 'flex' }}>
-      <div className="modal-content" style={{ width: '480px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Cấu hình Dashboard Widgets</h3>
-          <button
-            onClick={() => setShowDashboardSettingsModal(false)}
-            style={{ background: 'transparent', border: 'none', fontSize: '18px', cursor: 'pointer', fontWeight: 700 }}
-          >
-            ✕
-          </button>
-        </div>
-
-        <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
-          Lựa chọn các widget hiển thị trên Dashboard chính của bạn:
-        </p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto', marginBottom: '20px', paddingRight: '8px' }}>
-          {Object.entries(widgetsRegistry)
-            .filter(([_, w]) => w.roles.includes(activeRole))
-            .map(([id, w]) => {
-              const isChecked = enabledWidgets.includes(id);
-              return (
-                <label key={id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', border: '1px solid var(--color-border-light)', borderRadius: '6px', cursor: 'pointer', transition: 'background-color 0.2s' }}>
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={() => {
-                      if (isChecked) {
-                        saveEnabledWidgets(enabledWidgets.filter(x => x !== id));
-                      } else {
-                        saveEnabledWidgets([...enabledWidgets, id]);
-                      }
-                    }}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                  <div>
-                    <div style={{ fontSize: '13.5px', fontWeight: 600 }}>{w.title}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Kích thước: {w.size === 'small' ? 'Nhỏ' : w.size === 'medium' ? 'Trung bình' : 'Lớn'}</div>
-                  </div>
-                </label>
-              );
-            })}
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button onClick={() => setShowDashboardSettingsModal(false)} className="btn-filled-2" style={{ padding: '8px 20px', borderRadius: '4px' }}>
-            Hoàn tất
-          </button>
-        </div>
-      </div>
-    </div>
-  )
+  <DashboardSettingsModal
+    isOpen={showDashboardSettingsModal}
+    onClose={() => setShowDashboardSettingsModal(false)}
+    widgetsRegistry={widgetsRegistry}
+    activeRole={activeRole}
+    enabledWidgets={enabledWidgets}
+    onToggleWidget={(id, isChecked) => {
+      if (isChecked) {
+        saveEnabledWidgets(enabledWidgets.filter(x => x !== id));
+      } else {
+        saveEnabledWidgets([...enabledWidgets, id]);
+      }
+    }}
+  />
+)
 }
 
 {/* 🤖 AI Chatbot Float Widget */ }
