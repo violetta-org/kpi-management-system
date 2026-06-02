@@ -76,6 +76,9 @@ import { ObjectiveModal } from './components/modals/ObjectiveModal';
 import { BonusMatrixModal } from './components/modals/BonusMatrixModal';
 import { PeriodModal } from './components/modals/PeriodModal';
 import { AssignAppraisalModal } from './components/modals/AssignAppraisalModal';
+import { LeaveBalanceModal } from './components/modals/LeaveBalanceModal';
+import { HolidayModal } from './components/modals/HolidayModal';
+import { OvertimeModal } from './components/modals/OvertimeModal';
 import { CompanyModal } from './components/modals/CompanyModal';
 import { DepartmentModal } from './components/modals/DepartmentModal';
 import { PositionCatalogModal } from './components/modals/PositionCatalogModal';
@@ -197,23 +200,12 @@ function App() {
     showLeaveModal, setShowLeaveModal,
     showLeaveBalanceModal, setShowLeaveBalanceModal,
     editingLeaveBalance, setEditingLeaveBalance,
-    newBalanceEntitlement, setNewBalanceEntitlement,
-    newBalanceCarriedOver, setNewBalanceCarriedOver,
-    newBalanceUsedDays, setNewBalanceUsedDays,
-
+            
     holidaysList, setHolidaysList,
     overtimeRequestsList, setOvertimeRequestsList,
     showHolidayModal, setShowHolidayModal,
-    newHolidayName, setNewHolidayName,
-    newHolidayDate, setNewHolidayDate,
-    showOvertimeModal, setShowOvertimeModal,
-    newOtDate, setNewOtDate,
-    newOtStartTime, setNewOtStartTime,
-    newOtEndTime, setNewOtEndTime,
-    newOtHours, setNewOtHours,
-    newOtType, setNewOtType,
-    newOtReason, setNewOtReason,
-    showOtApprovalModal, setShowOtApprovalModal,
+            showOvertimeModal, setShowOvertimeModal,
+                            showOtApprovalModal, setShowOtApprovalModal,
     otToApproveId, setOtToApproveId,
     otApprovedHours, setOtApprovedHours,
     showKpiModal, setShowKpiModal,
@@ -1433,33 +1425,26 @@ function App() {
     }
   };
 
-  const handleHolidaySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newHolidayName.trim() || !newHolidayDate) return;
+  const handleHolidaySubmit = async (data: { name: string; date: string; }) => {
     try {
       setIsLoading(true);
       if (editingHoliday) {
         await Cr5db_holidaiesService.update(editingHoliday.cr5db_holidayid, {
-          cr5db_name: newHolidayName,
-          cr5db_date: new Date(newHolidayDate).toISOString()
+          cr5db_name: data.name,
+          cr5db_date: new Date(data.date).toISOString()
         } as any);
       } else {
         await Cr5db_holidaiesService.create({
-          cr5db_name: newHolidayName,
-          cr5db_date: new Date(newHolidayDate).toISOString()
+          cr5db_name: data.name,
+          cr5db_date: new Date(data.date).toISOString()
         } as any);
       }
       setShowHolidayModal(false);
       setEditingHoliday(null);
-      setNewHolidayName('');
-      setNewHolidayDate('');
       await fetchLiveValues();
-    } catch (err: any) {
-      const errMsg = err?.message || err?.error || JSON.stringify(err);
-      console.error("🔴🔴🔴 [HOLIDAY SAVE ERROR] 🔴🔴🔴\n" +
-                    `Error Message: ${errMsg}\n` +
-                    "Full Error Object:", err);
-      alert('Lỗi khi lưu ngày lễ: ' + errMsg);
+    } catch (err) {
+      console.error(err);
+      alert('Không thể lưu ngày lễ');
       setIsLoading(false);
     }
   };
@@ -1524,16 +1509,15 @@ function App() {
     }
   };
 
-  const handleSaveLeaveBalance = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveLeaveBalance = async (data: { entitlement: number; carriedOver: number; usedDays: number; }) => {
     if (!editingLeaveBalance) return;
     try {
       setIsLoading(true);
       await New_leavebalanceService.update(editingLeaveBalance.new_leavebalanceid, {
-        new_totalentitlement: parseInt(newBalanceEntitlement) || 0,
-        new_carriedover: parseInt(newBalanceCarriedOver) || 0,
-        new_useddays: parseInt(newBalanceUsedDays) || 0
-      });
+        new_totalentitlement: data.entitlement,
+        new_carriedover: data.carriedOver,
+        new_useddays: data.usedDays
+      } as any);
       setShowLeaveBalanceModal(false);
       setEditingLeaveBalance(null);
       await fetchLiveValues();
@@ -1545,30 +1529,26 @@ function App() {
   };
 
 
-  const handleOvertimeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newOtDate || !newOtStartTime || !newOtEndTime || !newOtHours || !newOtReason.trim()) {
-      alert('Vui lòng điền đầy đủ thông tin OT.');
-      return;
-    }
+  const handleOvertimeSubmit = async (data: { type: string; date: string; startTime: string; endTime: string; hours: number; reason: string; }) => {
     try {
       setIsLoading(true);
       await Cr5db_overtimerequestService.create({
-        cr5db_name: `OT ${newOtDate} - ${currentUserName}`,
-        cr5db_date: new Date(newOtDate).toISOString(),
-        cr5db_starttime: newOtStartTime,
-        cr5db_endtime: newOtEndTime,
-        cr5db_hours: parseFloat(newOtHours),
-        cr5db_ottype: newOtType,
-        cr5db_reason: newOtReason,
+        cr5db_name: `OT ${data.date} - ${currentUserName}`,
+        cr5db_date: new Date(data.date).toISOString(),
+        cr5db_starttime: data.startTime,
+        cr5db_endtime: data.endTime,
+        cr5db_hours: data.hours,
+        cr5db_ottype: data.type,
+        cr5db_reason: data.reason,
         cr5db_status: 'Pending',
         "cr5db_employee@odata.bind": `/cr5db_users(${currentUserId})`
       } as any);
       setShowOvertimeModal(false);
       await fetchLiveValues();
+      alert("Đã gửi đơn OT thành công!");
     } catch (err) {
       console.error(err);
-      alert('Lỗi khi gửi đơn OT.');
+      alert("Lỗi khi gửi đơn OT");
       setIsLoading(false);
     }
   };
@@ -4573,10 +4553,7 @@ return (
                               style={{ padding: '4px 8px' }}
                               onClick={() => {
                                 setEditingLeaveBalance(lb);
-                                setNewBalanceEntitlement(lb.new_totalentitlement.toString());
-                                setNewBalanceCarriedOver(lb.new_carriedover.toString());
-                                setNewBalanceUsedDays((lb.new_useddays || 0).toString());
-                                setShowLeaveBalanceModal(true);
+                                                                                                                                setShowLeaveBalanceModal(true);
                               }}
                             >
                               Cập nhật
@@ -4599,9 +4576,7 @@ return (
                     className="btn-primary"
                     style={{ fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px' }}
                     onClick={() => {
-                      setNewHolidayName('');
-                      setNewHolidayDate('');
-                      setShowHolidayModal(true);
+                                                                  setShowHolidayModal(true);
                     }}
                   >
                     + Thêm Ngày Lễ
@@ -4624,9 +4599,7 @@ return (
                           <button
                             onClick={() => {
                               setEditingHoliday(h);
-                              setNewHolidayName(h.cr5db_name);
-                              setNewHolidayDate(h.cr5db_date ? new Date(h.cr5db_date).toISOString().split('T')[0] : '');
-                              setShowHolidayModal(true);
+                                                                                          setShowHolidayModal(true);
                             }}
                             className="btn-filled-3"
                             style={{ padding: '4px 8px', marginRight: '8px', fontSize: '11px' }}
@@ -4660,13 +4633,7 @@ return (
                     className="btn-primary"
                     style={{ fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '8px' }}
                     onClick={() => {
-                      setNewOtDate('');
-                      setNewOtStartTime('18:00');
-                      setNewOtEndTime('20:00');
-                      setNewOtHours('2');
-                      setNewOtType('Weekday');
-                      setNewOtReason('');
-                      setShowOvertimeModal(true);
+                                                                                                                                                          setShowOvertimeModal(true);
                     }}
                   >
                     + Xin làm thêm giờ
@@ -9611,170 +9578,30 @@ return (
   
   {/* Leave Balance Modal */ }
 {
-  showLeaveBalanceModal && (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '400px' }}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Cập nhật Quỹ phép</h3>
-        <form onSubmit={handleSaveLeaveBalance} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Phép chuẩn</label>
-            <input
-              type="number"
-              required
-              value={newBalanceEntitlement}
-              onChange={e => setNewBalanceEntitlement(e.target.value)}
-              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Tồn năm trước</label>
-            <input
-              type="number"
-              required
-              value={newBalanceCarriedOver}
-              onChange={e => setNewBalanceCarriedOver(e.target.value)}
-              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Đã dùng</label>
-            <input
-              type="number"
-              required
-              value={newBalanceUsedDays}
-              onChange={e => setNewBalanceUsedDays(e.target.value)}
-              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-            <button type="button" onClick={() => { setShowLeaveBalanceModal(false); setEditingLeaveBalance(null); }} className="btn-filled-3">Hủy</button>
-            <button type="submit" className="btn-primary" disabled={isLoading}>Lưu</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
+  <LeaveBalanceModal
+    isOpen={showLeaveBalanceModal}
+    onClose={() => { setShowLeaveBalanceModal(false); setEditingLeaveBalance(null); }}
+    onSave={handleSaveLeaveBalance}
+    editingLeaveBalance={editingLeaveBalance}
+  />
 }
-
 {/* Holiday Modal */ }
 {
-  showHolidayModal && (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '400px' }}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>{editingHoliday ? 'Sửa Ngày Lễ' : 'Thêm Ngày Lễ'}</h3>
-        <form onSubmit={handleHolidaySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Tên Ngày Lễ</label>
-            <input
-              type="text"
-              required
-              value={newHolidayName}
-              onChange={e => setNewHolidayName(e.target.value)}
-              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Ngày</label>
-            <input
-              type="date"
-              required
-              value={newHolidayDate}
-              onChange={e => setNewHolidayDate(e.target.value)}
-              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-            <button type="button" onClick={() => { setShowHolidayModal(false); setEditingHoliday(null); }} className="btn-filled-3">Hủy</button>
-            <button type="submit" className="btn-primary" disabled={isLoading}>Lưu</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
+  <HolidayModal
+    isOpen={showHolidayModal}
+    onClose={() => { setShowHolidayModal(false); setEditingHoliday(null); }}
+    onSave={handleHolidaySubmit}
+    editingHoliday={editingHoliday}
+  />
 }
-
 {/* Overtime Request Modal */ }
 {
-  showOvertimeModal && (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '400px' }}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Xin Làm thêm giờ (OT)</h3>
-        <form onSubmit={handleOvertimeSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Loại OT</label>
-            <select
-              value={newOtType}
-              onChange={e => setNewOtType(e.target.value)}
-              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px' }}
-            >
-              <option value="Weekday">Ngày thường (Weekday)</option>
-              <option value="Weekend">Cuối tuần (Weekend)</option>
-              <option value="Holiday">Ngày lễ (Holiday)</option>
-              <option value="Night">Ca đêm (Night)</option>
-            </select>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Ngày OT</label>
-            <input
-              type="date"
-              required
-              value={newOtDate}
-              onChange={e => setNewOtDate(e.target.value)}
-              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Giờ bắt đầu</label>
-              <input
-                type="time"
-                required
-                value={newOtStartTime}
-                onChange={e => setNewOtStartTime(e.target.value)}
-                style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Giờ kết thúc</label>
-              <input
-                type="time"
-                required
-                value={newOtEndTime}
-                onChange={e => setNewOtEndTime(e.target.value)}
-                style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
-              />
-            </div>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Số giờ</label>
-            <input
-              type="number"
-              step="0.5"
-              required
-              value={newOtHours}
-              onChange={e => setNewOtHours(e.target.value)}
-              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Lý do</label>
-            <textarea
-              required
-              value={newOtReason}
-              onChange={e => setNewOtReason(e.target.value)}
-              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', minHeight: '60px', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-            <button type="button" onClick={() => setShowOvertimeModal(false)} className="btn-filled-3">Hủy</button>
-            <button type="submit" className="btn-primary" disabled={isLoading}>Gửi đơn</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
+  <OvertimeModal
+    isOpen={showOvertimeModal}
+    onClose={() => setShowOvertimeModal(false)}
+    onSave={handleOvertimeSubmit}
+  />
 }
-
 {/* OT Approval Modal */ }
 {
   showOtApprovalModal && (

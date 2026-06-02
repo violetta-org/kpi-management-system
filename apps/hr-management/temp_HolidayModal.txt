@@ -1,0 +1,33 @@
+showHolidayModal && (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: '400px' }}>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>{editingHoliday ? 'Sửa Ngày Lễ' : 'Thêm Ngày Lễ'}</h3>
+        <form onSubmit={handleHolidaySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Tên Ngày Lễ</label>
+            <input
+              type="text"
+              required
+              value={newHolidayName}
+              onChange={e => setNewHolidayName(e.target.value)}
+              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Ngày</label>
+            <input
+              type="date"
+              required
+              value={newHolidayDate}
+              onChange={e => setNewHolidayDate(e.target.value)}
+              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+            <button type="button" onClick={() => { setShowHolidayModal(false); setEditingHoliday(null); }} className="btn-filled-3">Hủy</button>
+            <button type="submit" className="btn-primary" disabled={isLoading}>Lưu</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
