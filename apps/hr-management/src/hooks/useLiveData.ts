@@ -89,12 +89,12 @@ export interface LiveDataSetters {
   // Default select setters populated on first load
   setNewReqDeptId: (v: string) => void;
   setNewJobPosDeptId: (v: string) => void;
-  setNewTaskAssigneeId: (v: string) => void;
+  
   setAssignRoleUserId: (v: string) => void;
   setNewReqCatalogId: (v: string) => void;
   setNewJobPosCatalogId: (v: string) => void;
   setSelectedDeptCompanyId: (v: string) => void;
-  setNewTimesheetTaskId: (v: string) => void;
+  
 }
 
 /**
@@ -384,7 +384,6 @@ export function useLiveData(setters: LiveDataSetters) {
         setters.setNewJobPosDeptId(allDepts[0].cr5db_departmentid);
       }
       if (allUsers.length > 0) {
-        setters.setNewTaskAssigneeId(allUsers[0].cr5db_userid);
         setters.setAssignRoleUserId(allUsers[0].cr5db_userid);
       }
       if (allCatalogs.length > 0) {
@@ -468,7 +467,6 @@ export function useLiveData(setters: LiveDataSetters) {
         };
       });
       setters.setTasks(mappedTasks);
-      if (mappedTasks.length > 0) setters.setNewTimesheetTaskId(mappedTasks[0].cr5db_taskid);
 
       // Map Headcount Requests
       const mappedHeadcount: HeadcountRequest[] = (headcountResponse.data || []).map((r: any) => {

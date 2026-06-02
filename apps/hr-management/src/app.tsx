@@ -66,6 +66,14 @@ import {
   BellIcon
 } from './components/icons';
 
+import { TaskModal } from './components/modals/TaskModal';
+import { LeaveRequestModal } from './components/modals/LeaveRequestModal';
+import { TimesheetModal } from './components/modals/TimesheetModal';
+import { KpiModal } from './components/modals/KpiModal';
+
+
+
+
 const getPeriodStatus = (p: EvaluationPeriod): { text: string; bg: string; color: string } => {
   if (p.cr5db_islocked) {
     return { text: "🔒 Đã khóa (Locked)", bg: "#FDE7E9", color: "#A80000" };
@@ -175,10 +183,6 @@ function App() {
     changeRequestsList, setChangeRequestsList,
     projectTeamsList, setProjectTeamsList,
     showLeaveModal, setShowLeaveModal,
-    newLeaveType, setNewLeaveType,
-    newLeaveStartDate, setNewLeaveStartDate,
-    newLeaveEndDate, setNewLeaveEndDate,
-    newLeaveReason, setNewLeaveReason,
     showLeaveBalanceModal, setShowLeaveBalanceModal,
     editingLeaveBalance, setEditingLeaveBalance,
     newBalanceEntitlement, setNewBalanceEntitlement,
@@ -202,17 +206,6 @@ function App() {
     otApprovedHours, setOtApprovedHours,
     showKpiModal, setShowKpiModal,
     editingKpi, setEditingKpi,
-    kpiTargetName, setKpiTargetName,
-    kpiTargetValue, setKpiTargetValue,
-    kpiActualValue, setKpiActualValue,
-    kpiWeight, setKpiWeight,
-    kpiUnit, setKpiUnit,
-    kpiEmployeeId, setKpiEmployeeId,
-    kpiObjectiveId, setKpiObjectiveId,
-    kpiLibraryId, setKpiLibraryId,
-    kpiPeriod, setKpiPeriod,
-    kpiParentKpiId, setKpiParentKpiId,
-    kpiRollupMethod, setKpiRollupMethod,
     activeTimesheetSubTab, setActiveTimesheetSubTab,
     activePerformanceSubTab, setActivePerformanceSubTab,
     activeResourcesSubTab, setActiveResourcesSubTab,
@@ -266,21 +259,8 @@ function App() {
     isLoading, setIsLoading,
     errorMsg, setErrorMsg,
     showTaskModal, setShowTaskModal,
-    newTaskName, setNewTaskName,
-    newTaskDesc, setNewTaskDesc,
-    newTaskAssigneeId, setNewTaskAssigneeId,
-    newTaskDueDate, setNewTaskDueDate,
-    newTaskObjectiveId, setNewTaskObjectiveId,
-    newTaskParentId, setNewTaskParentId,
-    newTaskProjectId, setNewTaskProjectId,
-    newTaskPhaseId, setNewTaskPhaseId,
     editingTask, setEditingTask,
-    newTaskStatus, setNewTaskStatus,
     showTimesheetModal, setShowTimesheetModal,
-    newTimesheetHours, setNewTimesheetHours,
-    newTimesheetDate, setNewTimesheetDate,
-    newTimesheetDesc, setNewTimesheetDesc,
-    newTimesheetTaskId, setNewTimesheetTaskId,
     showRejectionModal, setShowRejectionModal,
     timesheetToRejectId, setTimesheetToRejectId,
     rejectionReason, setRejectionReason,
@@ -397,9 +377,9 @@ function App() {
     language, toggleLanguage,
   } = s;
 
-  const [kpiStandardHoursLimit, setKpiStandardHoursLimit] = React.useState<number>(0);
-  const [kpiActiveTasksLimit, setKpiActiveTasksLimit] = React.useState<number>(0);
-  const [newTaskKpiTargetId, setNewTaskKpiTargetId] = React.useState<string>('');
+  const [] = React.useState<number>(0);
+  const [] = React.useState<number>(0);
+  const [] = React.useState<string>('');
 
   const t = (key: string) => getTranslation(key, language);
 
@@ -637,10 +617,9 @@ function App() {
     setTasks, setHeadcountRequests, setKpiTargets,
     setTimesheets, setAppraisals, setEvaluationPeriodsList,
     setNewReqDeptId, setNewJobPosDeptId,
-    setNewTaskAssigneeId, setAssignRoleUserId,
+    setAssignRoleUserId,
     setNewReqCatalogId, setNewJobPosCatalogId,
-    setSelectedDeptCompanyId, setNewTimesheetTaskId,
-    setPermissionGroups, setDefaultGroups,
+    setSelectedDeptCompanyId, setPermissionGroups, setDefaultGroups,
     setDefaultGroupsDbId, setBonusMatrixList,
     setCompetencyCatalogList, setJobCompetenciesList, setCompetencyAssessmentsList,
     setIdpList, setIdpActionList,
@@ -696,16 +675,26 @@ function App() {
   // ── CRUD API Calls ───────────────────────────────────────────────────────
 
   // Tasks CRUD
-  const handleSaveTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTaskName.trim()) return;
+  const handleSaveTask = async (taskData: {
+    name: string;
+    desc: string;
+    projectId: string;
+    phaseId: string;
+    objectiveId: string;
+    parentId: string;
+    assigneeId: string;
+    kpiTargetId: string;
+    dueDate: string;
+    status: 'Not Started' | 'In Progress' | 'Completed';
+  }) => {
+    if (!taskData.name.trim()) return;
 
     if (editingTask && getObjectivePeriodLockStatus(editingTask._cr5db_objectivename_value)) {
       alert("Công việc này thuộc chu kỳ đánh giá đã bị khóa. Không thể cập nhật.");
       return;
     }
-    if (!editingTask && newTaskObjectiveId && getObjectivePeriodLockStatus(newTaskObjectiveId)) {
-      alert("Mục tiêu được chọn thuộc chu kỳ đánh giá đã bị khóa. Không thể tạo công việc mới.");
+    if (!editingTask && taskData.objectiveId && getObjectivePeriodLockStatus(taskData.objectiveId)) {
+      alert("Mục tiêu được chọn thuộc chu kỳ đánh giá đã bị khóa. Không thể gán chỉ tiêu/công việc mới.");
       return;
     }
 
@@ -713,13 +702,13 @@ function App() {
       setIsLoading(true);
       const currentUserRecord = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       const targetAssigneeId = editingTask
-        ? (newTaskAssigneeId || editingTask._cr5db_assigneeid_value)
-        : (newTaskAssigneeId || currentUserRecord?.cr5db_userid);
+        ? (taskData.assigneeId || editingTask._cr5db_assigneeid_value)
+        : (taskData.assigneeId || currentUserRecord?.cr5db_userid);
 
       let bypassReasonStr = '';
 
-      if (newTaskKpiTargetId && targetAssigneeId) {
-        const targetKpi = kpiTargets.find(k => k.cr5db_kpitargetid === newTaskKpiTargetId);
+      if (taskData.kpiTargetId && targetAssigneeId) {
+        const targetKpi = kpiTargets.find(k => k.cr5db_kpitargetid === taskData.kpiTargetId);
         const limit = targetKpi?.new_activetaskslimit || 0;
         if (targetKpi && limit > 0) {
           const kpiActiveTasks = tasks.filter(t =>
@@ -755,80 +744,80 @@ function App() {
       }
 
       const payload: any = {
-        cr5db_taskname: newTaskName,
-        cr5db_description: newTaskDesc,
-        cr5db_duedate: newTaskDueDate || new Date().toISOString().split('T')[0],
+        cr5db_taskname: taskData.name,
+        cr5db_description: taskData.desc,
+        cr5db_duedate: taskData.dueDate || new Date().toISOString().split('T')[0],
       };
 
       if (editingTask) {
-        if (newTaskAssigneeId) {
-          payload["cr5db_AssigneeID@odata.bind"] = `/cr5db_users(${newTaskAssigneeId})`;
+        if (taskData.assigneeId) {
+          payload["cr5db_AssigneeID@odata.bind"] = `/cr5db_users(${taskData.assigneeId})`;
         } else {
           payload.cr5db_AssigneeID = null;
         }
 
-        if (newTaskObjectiveId) {
-          payload["cr5db_ObjectiveName@odata.bind"] = `/cr5db_objectives(${newTaskObjectiveId})`;
+        if (taskData.objectiveId) {
+          payload["cr5db_ObjectiveName@odata.bind"] = `/cr5db_objectives(${taskData.objectiveId})`;
         } else {
           payload.cr5db_ObjectiveName = null;
         }
 
-        if (newTaskParentId) {
-          payload["cr5db_ParentTask@odata.bind"] = `/cr5db_tasks(${newTaskParentId})`;
+        if (taskData.parentId) {
+          payload["cr5db_ParentTask@odata.bind"] = `/cr5db_tasks(${taskData.parentId})`;
         } else {
           payload.cr5db_ParentTask = null;
         }
 
-        if (newTaskPhaseId) {
-          payload["cr5db_ProjectPhaseID@odata.bind"] = `/cr5db_projectphases(${newTaskPhaseId})`;
+        if (taskData.phaseId) {
+          payload["cr5db_ProjectPhaseID@odata.bind"] = `/cr5db_projectphases(${taskData.phaseId})`;
         } else {
           payload.cr5db_ProjectPhaseID = null;
         }
 
-        if (newTaskKpiTargetId) {
-          payload["new_KPITarget@odata.bind"] = `/cr5db_kpitargets(${newTaskKpiTargetId})`;
+        if (taskData.kpiTargetId) {
+          payload["new_KPITarget@odata.bind"] = `/cr5db_kpitargets(${taskData.kpiTargetId})`;
         } else {
           payload.new_KPITarget = null;
         }
 
-        payload.statecode = newTaskStatus === 'Completed' ? 1 : 0;
-        payload.statuscode = newTaskStatus === 'Completed' ? 2 : 1;
+        payload.statecode = taskData.status === 'Completed' ? 1 : 0;
+        payload.statuscode = taskData.status === 'Completed' ? 2 : 1;
 
-        await executeCrudWithApproval("Tasks", "Update", payload, editingTask.cr5db_taskid, `Cập nhật công việc: ${newTaskName}`, editingTask);
+        await executeCrudWithApproval("Tasks", "Update", payload, editingTask.cr5db_taskid, `Cập nhật công việc: ${taskData.name}`, editingTask);
 
         const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
         await Cr5db_audittraillogsService.create({
           cr5db_logname: "Task Update Request",
-          cr5db_actionexecuted: `Requested/Executed task update: ${newTaskName}`,
+          cr5db_actionexecuted: `Requested/Executed task update: ${taskData.name}`,
           cr5db_changedfromvalue: editingTask.cr5db_status,
           cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}${bypassReasonStr ? ` | Bypass Reason: ${bypassReasonStr}` : ''}`
         } as any);
       } else {
         const currentUserRecord = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
-        const assigneeId = newTaskAssigneeId || currentUserRecord?.cr5db_userid;
+        const assigneeId = taskData.assigneeId || currentUserRecord?.cr5db_userid;
 
         if (assigneeId) {
           payload["cr5db_AssigneeID@odata.bind"] = `/cr5db_users(${assigneeId})`;
         }
-        if (newTaskObjectiveId) {
-          payload["cr5db_ObjectiveName@odata.bind"] = `/cr5db_objectives(${newTaskObjectiveId})`;
+        if (taskData.objectiveId) {
+          payload["cr5db_ObjectiveName@odata.bind"] = `/cr5db_objectives(${taskData.objectiveId})`;
         }
-        if (newTaskParentId) {
-          payload["cr5db_ParentTask@odata.bind"] = `/cr5db_tasks(${newTaskParentId})`;
+        if (taskData.parentId) {
+          payload["cr5db_ParentTask@odata.bind"] = `/cr5db_tasks(${taskData.parentId})`;
         }
-        if (newTaskPhaseId) {
-          payload["cr5db_ProjectPhaseID@odata.bind"] = `/cr5db_projectphases(${newTaskPhaseId})`;
+        if (taskData.phaseId) {
+          payload["cr5db_ProjectPhaseID@odata.bind"] = `/cr5db_projectphases(${taskData.phaseId})`;
         }
-        if (newTaskKpiTargetId) {
-          payload["new_KPITarget@odata.bind"] = `/cr5db_kpitargets(${newTaskKpiTargetId})`;
+        if (taskData.kpiTargetId) {
+          payload["new_KPITarget@odata.bind"] = `/cr5db_kpitargets(${taskData.kpiTargetId})`;
         }
 
-        await executeCrudWithApproval("Tasks", "Create", payload, undefined, `Tạo công việc mới: ${newTaskName}`);
+        await executeCrudWithApproval("Tasks", "Create", payload, undefined, `Tạo công việc mới: ${taskData.name}`);
 
         const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
         await Cr5db_audittraillogsService.create({
           cr5db_logname: "Task Creation Request",
-          cr5db_actionexecuted: `Requested/Executed task creation: ${newTaskName}`,
+          cr5db_actionexecuted: `Requested/Executed task creation: ${taskData.name}`,
           cr5db_changedfromvalue: "None",
           cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}${bypassReasonStr ? ` | Bypass Reason: ${bypassReasonStr}` : ''}`
         } as any);
@@ -836,15 +825,6 @@ function App() {
 
       setShowTaskModal(false);
       setEditingTask(null);
-      setNewTaskName('');
-      setNewTaskDesc('');
-      setNewTaskProjectId('');
-      setNewTaskPhaseId('');
-      setNewTaskObjectiveId('');
-      setNewTaskParentId('');
-      setNewTaskAssigneeId('');
-      setNewTaskKpiTargetId('');
-      // Note: fetchLiveValues is called inside executeCrudWithApproval or inside modal submit
     } catch (err) {
       console.error(err);
       alert("Không thể lưu công việc.");
@@ -903,16 +883,20 @@ function App() {
   };
 
   // Timesheets
-  const handleAddTimesheet = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTimesheetDesc.trim()) return;
-    const tsDate = newTimesheetDate || new Date().toISOString().split('T')[0];
+  const handleAddTimesheet = async (timesheetData: {
+    hours: number;
+    date: string;
+    description: string;
+    taskId: string;
+  }) => {
+    if (!timesheetData.description.trim()) return;
+    const tsDate = timesheetData.date || new Date().toISOString().split('T')[0];
     if (isDateInLockedPeriod(tsDate)) {
       alert("Không thể ghi nhận giờ làm việc cho ngày thuộc chu kỳ đánh giá đã bị khóa.");
       return;
     }
-    if (newTimesheetTaskId) {
-      const taskObj = tasks.find(t => t.cr5db_taskid === newTimesheetTaskId);
+    if (timesheetData.taskId) {
+      const taskObj = tasks.find(t => t.cr5db_taskid === timesheetData.taskId);
       if (taskObj && getObjectivePeriodLockStatus(taskObj._cr5db_objectivename_value)) {
         alert("Nhiệm vụ được chọn thuộc chu kỳ đánh giá đã bị khóa. Không thể ghi nhận giờ.");
         return;
@@ -922,17 +906,15 @@ function App() {
       setIsLoading(true);
       const matchedUser = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       const record = {
-        cr5db_timesheetlog1: newTimesheetDesc,
-        cr5db_actualhoursworked: Number(newTimesheetHours),
+        cr5db_timesheetlog1: timesheetData.description,
+        cr5db_actualhoursworked: Number(timesheetData.hours),
         cr5db_logdate: tsDate,
         "cr5db_UserID@odata.bind": matchedUser ? `/cr5db_users(${matchedUser.cr5db_userid})` : undefined,
-        "cr5db_TaskID@odata.bind": newTimesheetTaskId ? `/cr5db_tasks(${newTimesheetTaskId})` : undefined,
+        "cr5db_TaskID@odata.bind": timesheetData.taskId ? `/cr5db_tasks(${timesheetData.taskId})` : undefined,
         statecode: 0
       };
       await Cr5db_timesheetlogsService.create(record as any);
       setShowTimesheetModal(false);
-      setNewTimesheetDesc('');
-      setNewTimesheetHours(8);
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
@@ -1408,13 +1390,17 @@ function App() {
     }
   };
 
-  const handleLeaveRequestSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newLeaveStartDate || !newLeaveEndDate || !newLeaveReason.trim()) {
+  const handleLeaveRequestSubmit = async (leaveData: {
+    type: string;
+    startDate: string;
+    endDate: string;
+    reason: string;
+  }) => {
+    if (!leaveData.startDate || !leaveData.endDate || !leaveData.reason.trim()) {
       alert('Vui lòng điền đầy đủ thông tin (Ngày bắt đầu, kết thúc, lý do).');
       return;
     }
-    const days = calculateWorkingDays(newLeaveStartDate, newLeaveEndDate);
+    const days = calculateWorkingDays(leaveData.startDate, leaveData.endDate);
     if (days <= 0) {
       alert('Khoảng thời gian không hợp lệ hoặc không có ngày làm việc.');
       return;
@@ -1422,19 +1408,16 @@ function App() {
     try {
       setIsLoading(true);
       await New_leaverequestService.create({
-        new_name: `Nghỉ ${newLeaveType} - ${currentUserName}`,
-        new_leavetype: newLeaveType,
-        new_startdate: new Date(newLeaveStartDate).toISOString(),
-        new_enddate: new Date(newLeaveEndDate).toISOString(),
+        new_name: `Nghỉ ${leaveData.type} - ${currentUserName}`,
+        new_leavetype: leaveData.type,
+        new_startdate: new Date(leaveData.startDate).toISOString(),
+        new_enddate: new Date(leaveData.endDate).toISOString(),
         new_durationdays: days,
-        new_reason: newLeaveReason,
+        new_reason: leaveData.reason,
         new_status: 'Pending',
         "_new_employeeid_value@odata.bind": `/cr5db_users(${currentUserId})`
       } as any);
       setShowLeaveModal(false);
-      setNewLeaveStartDate('');
-      setNewLeaveEndDate('');
-      setNewLeaveReason('');
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
@@ -3356,9 +3339,22 @@ const handleDeleteAllocation = async (allocationId: string) => {
 };
 
 // KPI Target CRUD Handlers
-const handleSaveKpi = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (activeRole === 'Employee') {
+const handleSaveKpi = async (kpiData: {
+  targetName: string;
+  targetValue: number;
+  actualValue: number;
+  weight: number;
+  unit: string;
+  employeeId: string;
+  objectiveId: string;
+  libraryId: string;
+  parentKpiId: string;
+  rollupMethod: string;
+  period: string;
+  standardHoursLimit: number;
+  activeTasksLimit: number;
+}) => {
+  if (activeRole === 'Employee' && !checkPermission('kpi-catalog')) {
     if (!editingKpi) return;
     if (getObjectivePeriodLockStatus(editingKpi._cr5db_parentobjective_value)) {
       alert("KPI này thuộc chu kỳ đánh giá đã bị khóa. Không thể cập nhật.");
@@ -3367,14 +3363,14 @@ const handleSaveKpi = async (e: React.FormEvent) => {
     try {
       setIsLoading(true);
       const payload = {
-        cr5db_actualvalue: Number(kpiActualValue)
+        cr5db_actualvalue: Number(kpiData.actualValue)
       };
       await executeCrudWithApproval(
         "KPITargets",
         "Update",
         payload,
         editingKpi.cr5db_kpitargetid,
-        `Cập nhật thực tế KPI ${editingKpi.cr5db_kpiname} thành ${kpiActualValue}`,
+        `Cập nhật thực tế KPI ${editingKpi.cr5db_kpiname} thành ${kpiData.actualValue}`,
         editingKpi
       );
 
@@ -3382,7 +3378,7 @@ const handleSaveKpi = async (e: React.FormEvent) => {
       const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       await Cr5db_audittraillogsService.create({
         cr5db_logname: "KPI Quick Update Request",
-        cr5db_actionexecuted: `Requested/Executed KPI ${editingKpi.cr5db_kpiname} actual value update to ${kpiActualValue}`,
+        cr5db_actionexecuted: `Requested/Executed KPI ${editingKpi.cr5db_kpiname} actual value update to ${kpiData.actualValue}`,
         cr5db_changedfromvalue: editingKpi.cr5db_actualvalue?.toString() || "0",
         cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
       } as any);
@@ -3398,7 +3394,7 @@ const handleSaveKpi = async (e: React.FormEvent) => {
   }
 
   // Manager / Admin CRUD
-  if (!kpiTargetName.trim() || !kpiEmployeeId || !kpiObjectiveId || !kpiLibraryId) {
+  if (!kpiData.targetName.trim() || !kpiData.employeeId || !kpiData.objectiveId || !kpiData.libraryId) {
     alert("Vui lòng nhập đầy đủ tên mục tiêu, người thực hiện, mục tiêu chung và mã KPI.");
     return;
   }
@@ -3406,7 +3402,7 @@ const handleSaveKpi = async (e: React.FormEvent) => {
     alert("KPI này thuộc chu kỳ đánh giá đã bị khóa. Không thể cập nhật.");
     return;
   }
-  if (kpiObjectiveId && getObjectivePeriodLockStatus(kpiObjectiveId)) {
+  if (kpiData.objectiveId && getObjectivePeriodLockStatus(kpiData.objectiveId)) {
     alert("Mục tiêu được chọn thuộc chu kỳ đánh giá đã bị khóa. Không thể gán KPI mới.");
     return;
   }
@@ -3414,17 +3410,17 @@ const handleSaveKpi = async (e: React.FormEvent) => {
   try {
     setIsLoading(true);
     const payload: any = {
-      cr5db_kpitarget1: kpiTargetName,
-      cr5db_targetvalue: Number(kpiTargetValue),
-      cr5db_actualvalue: Number(kpiActualValue),
-      cr5db_weightpercentage: Number(kpiWeight),
-      new_rollupmethod: kpiRollupMethod,
-      new_standardhourslimit: Number(kpiStandardHoursLimit),
-      new_activetaskslimit: Number(kpiActiveTasksLimit),
-      "cr5db_EmployeeID@odata.bind": `/cr5db_users(${kpiEmployeeId})`,
-      "cr5db_ParentObjective@odata.bind": `/cr5db_objectives(${kpiObjectiveId})`,
-      "cr5db_KPICode@odata.bind": `/cr5db_kpilibraries(${kpiLibraryId})`,
-      ...(kpiParentKpiId ? { "new_ParentKpi@odata.bind": `/cr5db_kpitargets(${kpiParentKpiId})` } : {})
+      cr5db_kpitarget1: kpiData.targetName,
+      cr5db_targetvalue: Number(kpiData.targetValue),
+      cr5db_actualvalue: Number(kpiData.actualValue),
+      cr5db_weightpercentage: Number(kpiData.weight),
+      new_rollupmethod: kpiData.rollupMethod,
+      new_standardhourslimit: Number(kpiData.standardHoursLimit),
+      new_activetaskslimit: Number(kpiData.activeTasksLimit),
+      "cr5db_EmployeeID@odata.bind": `/cr5db_users(${kpiData.employeeId})`,
+      "cr5db_ParentObjective@odata.bind": `/cr5db_objectives(${kpiData.objectiveId})`,
+      "cr5db_KPICode@odata.bind": `/cr5db_kpilibraries(${kpiData.libraryId})`,
+      ...(kpiData.parentKpiId ? { "new_ParentKpi@odata.bind": `/cr5db_kpitargets(${kpiData.parentKpiId})` } : {})
     };
 
     if (editingKpi) {
@@ -3433,7 +3429,7 @@ const handleSaveKpi = async (e: React.FormEvent) => {
         "Update",
         payload,
         editingKpi.cr5db_kpitargetid,
-        `Cập nhật mục tiêu KPI: ${kpiTargetName}`,
+        `Cập nhật mục tiêu KPI: ${kpiData.targetName}`,
         editingKpi
       );
 
@@ -3441,7 +3437,7 @@ const handleSaveKpi = async (e: React.FormEvent) => {
       const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       await Cr5db_audittraillogsService.create({
         cr5db_logname: "KPI Update Request",
-        cr5db_actionexecuted: `Requested/Executed update for KPI: ${kpiTargetName}`,
+        cr5db_actionexecuted: `Requested/Executed update for KPI: ${kpiData.targetName}`,
         cr5db_changedfromvalue: editingKpi.cr5db_kpitarget1 || "None",
         cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
       } as any);
@@ -3451,14 +3447,14 @@ const handleSaveKpi = async (e: React.FormEvent) => {
         "Create",
         payload,
         undefined,
-        `Tạo mục tiêu KPI mới: ${kpiTargetName}`
+        `Tạo mục tiêu KPI mới: ${kpiData.targetName}`
       );
 
       // Audit log
       const activeUserObj = usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase());
       await Cr5db_audittraillogsService.create({
         cr5db_logname: "KPI Creation Request",
-        cr5db_actionexecuted: `Requested/Executed KPI creation: ${kpiTargetName}`,
+        cr5db_actionexecuted: `Requested/Executed KPI creation: ${kpiData.targetName}`,
         cr5db_changedfromvalue: "None",
         cr5db_changedtovalue: `By: ${activeUserObj?.cr5db_fullname || currentUserEmail}`
       } as any);
@@ -3466,19 +3462,6 @@ const handleSaveKpi = async (e: React.FormEvent) => {
 
     setShowKpiModal(false);
     setEditingKpi(null);
-    setKpiTargetName('');
-    setKpiTargetValue(100);
-    setKpiActualValue(0);
-    setKpiWeight(10);
-    setKpiUnit('%');
-    setKpiEmployeeId('');
-    setKpiObjectiveId('');
-    setKpiLibraryId('');
-    setKpiParentKpiId('');
-    setKpiRollupMethod('Manual');
-    setKpiPeriod(evaluationPeriodsList[0]?.cr5db_evaluationperiod1 || 'Q2/2026');
-    setKpiStandardHoursLimit(0);
-    setKpiActiveTasksLimit(0);
   } catch (err) {
     console.error(err);
     alert("Không thể lưu mục tiêu KPI.");
@@ -4184,16 +4167,16 @@ return (
                                 onClick={() => {
                                   const phase = projectPhases.find(p => p.cr5db_projectphaseid === task._cr5db_projectphaseid_value);
                                   setEditingTask(task);
-                                  setNewTaskName(task.cr5db_taskname);
-                                  setNewTaskDesc(task.cr5db_description);
-                                  setNewTaskProjectId(phase?._cr5db_projectid_value || '');
-                                  setNewTaskPhaseId(task._cr5db_projectphaseid_value || '');
-                                  setNewTaskObjectiveId(task._cr5db_objectivename_value || '');
-                                  setNewTaskParentId(task._cr5db_parenttask_value || '');
-                                  setNewTaskAssigneeId(task._cr5db_assigneeid_value || '');
-                                  setNewTaskKpiTargetId(task._new_kpitarget_value || '');
-                                  setNewTaskDueDate(task.cr5db_due_date ? new Date(task.cr5db_due_date).toISOString().split('T')[0] : '');
-                                  setNewTaskStatus(task.cr5db_status);
+                                  (task.cr5db_taskname);
+                                  (task.cr5db_description);
+                                  (phase?._cr5db_projectid_value || '');
+                                  (task._cr5db_projectphaseid_value || '');
+                                  (task._cr5db_objectivename_value || '');
+                                  (task._cr5db_parenttask_value || '');
+                                  (task._cr5db_assigneeid_value || '');
+                                  (task._new_kpitarget_value || '');
+                                  (task.cr5db_due_date ? new Date(task.cr5db_due_date).toISOString().split('T')[0] : '');
+                                  (task.cr5db_status);
                                   setShowTaskModal(true);
                                 }}
                                 disabled={isTaskLocked}
@@ -4916,19 +4899,19 @@ return (
               onClick={() => {
                 const firstLib = kpiLibrariesList[0];
                 setEditingKpi(null);
-                setKpiTargetName(firstLib ? (firstLib.cr5db_kpiname || '') : '');
-                setKpiTargetValue(100);
-                setKpiActualValue(0);
-                setKpiWeight(10);
-                setKpiUnit(firstLib ? (firstLib.cr5db_unit || '%') : '%');
+                (firstLib ? (firstLib.cr5db_kpiname || '') : '');
+                (100);
+                (0);
+                (10);
+                (firstLib ? (firstLib.cr5db_unit || '%') : '%');
                 const defaultPeriod = evaluationPeriodsList[0]?.cr5db_evaluationperiod1 || 'Q2/2026';
-                setKpiPeriod(defaultPeriod);
-                setKpiEmployeeId(usersList[0]?.cr5db_userid || '');
+                (defaultPeriod);
+                (usersList[0]?.cr5db_userid || '');
                 const firstMatchedObj = objectivesList.find(o => o.cr5db_periodnamename === defaultPeriod);
-                setKpiObjectiveId(firstMatchedObj?.cr5db_objectiveid || objectivesList[0]?.cr5db_objectiveid || '');
-                setKpiLibraryId(firstLib ? firstLib.cr5db_kpilibraryid : '');
-                setKpiStandardHoursLimit(4);
-                setKpiActiveTasksLimit(3);
+                (firstMatchedObj?.cr5db_objectiveid || objectivesList[0]?.cr5db_objectiveid || '');
+                (firstLib ? firstLib.cr5db_kpilibraryid : '');
+                (4);
+                (3);
                 setShowKpiModal(true);
               }}
               className="btn-primary"
@@ -5320,11 +5303,11 @@ return (
                                     <button
                                       onClick={() => {
                                         setEditingKpi(k);
-                                        setKpiActualValue(k.cr5db_actualvalue);
-                                        setKpiParentKpiId(k._new_parentkpi_value || '');
-                                        setKpiRollupMethod(k.new_rollupmethod || 'Manual');
-                                        setKpiStandardHoursLimit(k.new_standardhourslimit || 0);
-                                        setKpiActiveTasksLimit(k.new_activetaskslimit || 0);
+                                        (k.cr5db_actualvalue);
+                                        (k._new_parentkpi_value || '');
+                                        (k.new_rollupmethod || 'Manual');
+                                        (k.new_standardhourslimit || 0);
+                                        (k.new_activetaskslimit || 0);
                                         setShowKpiModal(true);
                                       }}
                                       className="btn-filled-3"
@@ -5338,19 +5321,19 @@ return (
                                       <button
                                         onClick={() => {
                                           setEditingKpi(k);
-                                          setKpiTargetName(k.cr5db_kpiname);
-                                          setKpiTargetValue(k.cr5db_targetvalue);
-                                          setKpiActualValue(k.cr5db_actualvalue);
-                                          setKpiWeight(k.cr5db_weightpercentage);
-                                          setKpiUnit(k.cr5db_unit);
-                                          setKpiPeriod(k.cr5db_period);
-                                          setKpiEmployeeId(k._cr5db_employeeid_value || '');
-                                          setKpiObjectiveId(k._cr5db_parentobjective_value || '');
-                                          setKpiLibraryId(k._cr5db_kpicode_value || '');
-                                          setKpiParentKpiId(k._new_parentkpi_value || '');
-                                          setKpiRollupMethod(k.new_rollupmethod || 'Manual');
-                                          setKpiStandardHoursLimit(k.new_standardhourslimit || 0);
-                                          setKpiActiveTasksLimit(k.new_activetaskslimit || 0);
+                                          (k.cr5db_kpiname);
+                                          (k.cr5db_targetvalue);
+                                          (k.cr5db_actualvalue);
+                                          (k.cr5db_weightpercentage);
+                                          (k.cr5db_unit);
+                                          (k.cr5db_period);
+                                          (k._cr5db_employeeid_value || '');
+                                          (k._cr5db_parentobjective_value || '');
+                                          (k._cr5db_kpicode_value || '');
+                                          (k._new_parentkpi_value || '');
+                                          (k.new_rollupmethod || 'Manual');
+                                          (k.new_standardhourslimit || 0);
+                                          (k.new_activetaskslimit || 0);
                                           setShowKpiModal(true);
                                         }}
                                         className="btn-filled-3"
@@ -8313,248 +8296,18 @@ return (
         </div >
       </main >
 
-  {/* Task Modal */ }
-{
-  showTaskModal && (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'oklab(0 0 0 / 0.5)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-      <div style={{ width: '550px', maxHeight: '503px', overflowY: 'auto', backgroundColor: '#ffffff', border: '1px solid #000000', borderRadius: '8px', padding: '24px', display: 'grid', gap: '16px', boxSizing: 'border-box', position: 'relative', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)', fontFamily: 'ui-sans-serif, system-ui, sans-serif' }}>
-
-        {/* Close Button */}
-        <button
-          type="button"
-          onClick={() => {
-            setShowTaskModal(false);
-            setEditingTask(null);
-            setNewTaskName('');
-            setNewTaskDesc('');
-            setNewTaskProjectId('');
-            setNewTaskPhaseId('');
-            setNewTaskObjectiveId('');
-            setNewTaskParentId('');
-            setNewTaskAssigneeId('');
-            setNewTaskKpiTargetId('');
-          }}
-          style={{ position: 'absolute', top: '16px', right: '16px', width: '16px', height: '16px', opacity: 0.7, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
-          title="Close"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000000" strokeWidth="2.5">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-
-        {/* Header */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'center' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 600, lineHeight: '28px', color: '#000000', margin: 0 }}>{editingTask ? 'Edit Task' : 'Create New Task'}</h3>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSaveTask} style={{ display: 'grid', gap: '16px', margin: 0 }}>
-          {/* Task Name */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '14px', fontWeight: 500, lineHeight: '14px', color: '#000000' }}>Task Name</label>
-            <input
-              type="text"
-              value={newTaskName}
-              onChange={(e) => setNewTaskName(e.target.value)}
-              style={{ height: '36px', padding: '4px 12px', border: '1px solid #000000', borderRadius: '6px', fontSize: '16px', fontWeight: 400, color: '#000000', boxSizing: 'border-box' }}
-              required
-              placeholder="Task Name"
-            />
-          </div>
-
-          {/* Description */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '14px', fontWeight: 500, lineHeight: '14px', color: '#000000' }}>Description</label>
-            <AIGenerateButton
-              onClick={async () => {
-                const selProject = projects.find(p => p.cr5db_projectid === newTaskProjectId);
-                const selPhase = projectPhases.find(ph => ph.cr5db_projectphaseid === newTaskPhaseId);
-                return await AIService.generateTaskDescription(
-                  newTaskName || 'Công việc mới',
-                  selProject?.cr5db_projectname || '',
-                  selPhase?.cr5db_projectphase1 || ''
-                );
-              }}
-              onSuccess={(text) => setNewTaskDesc(text)}
-            />
-            <textarea
-              value={newTaskDesc}
-              onChange={(e) => setNewTaskDesc(e.target.value)}
-              style={{ height: '64px', padding: '8px 12px', border: '1px solid #000000', borderRadius: '6px', fontSize: '16px', fontWeight: 400, color: '#000000', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }}
-              placeholder="Describe the task..."
-            />
-          </div>
-
-          {/* Select buttons (Comboboxes) */}
-          <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-            {/* Project */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '115px' }}>
-              <label style={{ fontSize: '14px', fontWeight: 500, lineHeight: '14px', color: '#000000' }}>Project</label>
-              <select
-                value={newTaskProjectId}
-                onChange={(e) => {
-                  setNewTaskProjectId(e.target.value);
-                  setNewTaskPhaseId(''); // Reset phase when project changes
-                }}
-                style={{ height: '36px', padding: '8px 12px', border: '1px solid #000000', borderRadius: '6px', fontSize: '14px', fontWeight: 400, color: '#000000', backgroundColor: '#ffffff', cursor: 'pointer', boxSizing: 'border-box' }}
-              >
-                <option value="">Project</option>
-                {projects.map(p => (
-                  <option key={p.cr5db_projectid} value={p.cr5db_projectid}>{p.cr5db_projectname}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Phase */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '109px' }}>
-              <label style={{ fontSize: '14px', fontWeight: 500, lineHeight: '14px', color: '#000000' }}>Phase</label>
-              <select
-                value={newTaskPhaseId}
-                onChange={(e) => setNewTaskPhaseId(e.target.value)}
-                style={{ height: '36px', padding: '8px 12px', border: '1px solid #000000', borderRadius: '6px', fontSize: '14px', fontWeight: 400, color: '#000000', backgroundColor: '#ffffff', cursor: 'pointer', boxSizing: 'border-box' }}
-                disabled={!newTaskProjectId}
-              >
-                <option value="">Phase</option>
-                {projectPhases
-                  .filter(phase => phase._cr5db_projectid_value === newTaskProjectId)
-                  .map(phase => (
-                    <option key={phase.cr5db_projectphaseid} value={phase.cr5db_projectphaseid}>{phase.cr5db_phasename}</option>
-                  ))
-                }
-              </select>
-            </div>
-
-            {/* Objective */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '128px' }}>
-              <label style={{ fontSize: '14px', fontWeight: 500, lineHeight: '14px', color: '#000000' }}>Objective</label>
-              <select
-                value={newTaskObjectiveId}
-                onChange={(e) => setNewTaskObjectiveId(e.target.value)}
-                style={{ height: '36px', padding: '8px 12px', border: '1px solid #000000', borderRadius: '6px', fontSize: '14px', fontWeight: 400, color: '#000000', backgroundColor: '#ffffff', cursor: 'pointer', boxSizing: 'border-box' }}
-              >
-                <option value="">Objective</option>
-                {objectivesList.map(o => (
-                  <option key={o.cr5db_objectiveid} value={o.cr5db_objectiveid}>{o.cr5db_objective1}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Subtask */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '141px' }}>
-              <label style={{ fontSize: '14px', fontWeight: 500, lineHeight: '14px', color: '#000000' }}>Subtask</label>
-              <select
-                value={newTaskParentId}
-                onChange={(e) => setNewTaskParentId(e.target.value)}
-                style={{ height: '36px', padding: '8px 12px', border: '1px solid #000000', borderRadius: '6px', fontSize: '14px', fontWeight: 400, color: '#000000', backgroundColor: '#ffffff', cursor: 'pointer', boxSizing: 'border-box' }}
-              >
-                <option value="">Subtask</option>
-                {tasks.map(t => (
-                  <option key={t.cr5db_taskid} value={t.cr5db_taskid}>{t.cr5db_taskname}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* KPI Target */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '141px' }}>
-              <label style={{ fontSize: '14px', fontWeight: 500, lineHeight: '14px', color: '#000000' }}>KPI Target</label>
-              <select
-                value={newTaskKpiTargetId}
-                onChange={(e) => setNewTaskKpiTargetId(e.target.value)}
-                style={{ height: '36px', padding: '8px 12px', border: '1px solid #000000', borderRadius: '6px', fontSize: '14px', fontWeight: 400, color: '#000000', backgroundColor: '#ffffff', cursor: 'pointer', boxSizing: 'border-box' }}
-              >
-                <option value="">KPI Target (Optional)</option>
-                {kpiTargets
-                  .filter(k => {
-                    const assignee = usersList.find(u => u.cr5db_userid === (newTaskAssigneeId || usersList.find(x => x.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase())?.cr5db_userid));
-                    return k.cr5db_user_email?.toLowerCase() === assignee?.cr5db_email?.toLowerCase();
-                  })
-                  .map(k => (
-                    <option key={k.cr5db_kpitargetid} value={k.cr5db_kpitargetid}>{k.cr5db_kpiname}</option>
-                  ))
-                }
-              </select>
-            </div>
-          </div>
-
-          {/* Status field (only in Edit mode) */}
-          {editingTask && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '14px', fontWeight: 500, lineHeight: '14px', color: '#000000' }}>Status</label>
-              <select
-                value={newTaskStatus}
-                onChange={(e) => setNewTaskStatus(e.target.value as any)}
-                style={{ height: '36px', padding: '8px 12px', border: '1px solid #000000', borderRadius: '6px', fontSize: '14px', fontWeight: 400, color: '#000000', backgroundColor: '#ffffff', cursor: 'pointer', boxSizing: 'border-box' }}
-              >
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-              </select>
-            </div>
-          )}
-
-          {/* Due Date & Assignee Selection */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', width: '100%', alignItems: 'end' }}>
-            {/* Due Date */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '14px', fontWeight: 500, lineHeight: '14px', color: '#000000' }}>Due Date</label>
-              <input
-                type="date"
-                value={newTaskDueDate}
-                onChange={(e) => setNewTaskDueDate(e.target.value)}
-                style={{ height: '36px', padding: '4px 12px', border: '1px solid #000000', borderRadius: '6px', fontSize: '16px', fontWeight: 400, color: '#000000', boxSizing: 'border-box', backgroundColor: '#ffffff' }}
-              />
-            </div>
-
-            {/* Assignee Dropdown */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '14px', fontWeight: 500, lineHeight: '14px', color: '#000000' }}>Assignee</label>
-              <select
-                value={newTaskAssigneeId}
-                onChange={(e) => setNewTaskAssigneeId(e.target.value)}
-                style={{ height: '36px', padding: '8px 12px', border: '1px solid #000000', borderRadius: '6px', fontSize: '14px', fontWeight: 400, color: '#000000', backgroundColor: '#ffffff', cursor: 'pointer', boxSizing: 'border-box', width: '100%' }}
-              >
-                <option value="">Chưa phân công</option>
-                {usersList.map(u => (
-                  <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname} ({u.cr5db_email})</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', width: '100%', marginTop: '8px' }}>
-            <button
-              type="submit"
-              style={{ border: 'none', borderRadius: '6px', padding: '8px 16px', height: '36px', width: '485px', fontWeight: 500, fontSize: '14px', backgroundColor: '#000000', color: '#ffffff', cursor: 'pointer', boxSizing: 'border-box' }}
-            >
-              {editingTask ? 'Save Changes' : 'Create Task'}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowTaskModal(false);
-                setEditingTask(null);
-                setNewTaskName('');
-                setNewTaskDesc('');
-                setNewTaskProjectId('');
-                setNewTaskPhaseId('');
-                setNewTaskObjectiveId('');
-                setNewTaskParentId('');
-                setNewTaskAssigneeId('');
-                setNewTaskKpiTargetId('');
-              }}
-              style={{ border: '1px solid #000000', borderRadius: '6px', padding: '8px 16px', height: '36px', width: '485px', fontWeight: 500, fontSize: '14px', backgroundColor: 'transparent', color: '#000000', cursor: 'pointer', boxSizing: 'border-box' }}
-            >
-              Cancel
-            </button>
-          </div>
-
-        </form>
-      </div>
-    </div>
-  )
-}
-
-{/* Headcount Request Modal */ }
+  {/* Task Modal */}
+  <TaskModal
+    isOpen={showTaskModal}
+    editingTask={editingTask}
+    onClose={() => {
+      setShowTaskModal(false);
+      setEditingTask(null);
+    }}
+    onSave={handleSaveTask}
+  />
+  
+  {/* Headcount Request Modal */ }
 {
   showHeadcountRequestModal && (
     <div className="modal-overlay">
@@ -8807,71 +8560,14 @@ return (
   )
 }
 
-{/* Timesheet Modal */ }
-{
-  showTimesheetModal && (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>Log Work Hours</h3>
-        <form onSubmit={handleAddTimesheet} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Mô tả công việc</label>
-            <AIGenerateButton
-              onClick={async () => {
-                const selTask = tasks.find(t => t.cr5db_taskid === newTimesheetTaskId);
-                return await AIService.refineTimesheetText(
-                  newTimesheetDesc || 'Đã làm việc',
-                  selTask?.cr5db_taskname || ''
-                );
-              }}
-              onSuccess={(text) => setNewTimesheetDesc(text)}
-            />
-            <input type="text" value={newTimesheetDesc} onChange={(e) => setNewTimesheetDesc(e.target.value)} className="input-spec" required placeholder="Hôm nay bạn đã làm gì..." />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Số giờ làm việc</label>
-              <input type="number" min={0.5} max={24} step={0.5} value={newTimesheetHours} onChange={(e) => setNewTimesheetHours(Number(e.target.value))} className="input-spec" style={{ height: '38px' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Ngày log</label>
-              <input type="date" value={newTimesheetDate} onChange={(e) => setNewTimesheetDate(e.target.value)} className="input-spec" style={{ height: '38px' }} />
-            </div>
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Liên kết nhiệm vụ (Task)</label>
-            <select value={newTimesheetTaskId} onChange={(e) => setNewTimesheetTaskId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
-              {tasks
-                .filter(t => {
-                  if (t.cr5db_status === 'Completed') return false;
-                  if (activeRole === 'Employee') {
-                    const isAssigned = t.cr5db_assignee_email.toLowerCase() === currentUserEmail.toLowerCase();
-                    const isCreatedByMe = t.createdbyname && (
-                      t.createdbyname.toLowerCase() === currentUserName.toLowerCase() ||
-                      (usersList.find(u => u.cr5db_email?.toLowerCase() === currentUserEmail.toLowerCase())?.cr5db_fullname?.toLowerCase() === t.createdbyname.toLowerCase())
-                    );
-                    const isSubtask = !!t._cr5db_parenttask_value;
-                    return isAssigned && !isCreatedByMe && !isSubtask;
-                  }
-                  return true;
-                })
-                .map(t => (
-                  <option key={t.cr5db_taskid} value={t.cr5db_taskid}>{t.cr5db_taskname}</option>
-                ))
-              }
-            </select>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-            <button type="button" onClick={() => setShowTimesheetModal(false)} className="btn-filled-3">Hủy</button>
-            <button type="submit" className="btn-primary">Ghi nhận</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-{/* KPI Library Modal */ }
+{/* Timesheet Modal */}
+  <TimesheetModal
+    isOpen={showTimesheetModal}
+    onClose={() => setShowTimesheetModal(false)}
+    onSave={handleAddTimesheet}
+  />
+  
+  {/* KPI Library Modal */ }
 {
   showKpiLibraryModal && (
     <div className="modal-overlay">
@@ -10033,287 +9729,18 @@ return (
   )
 }
 
-{/* KPI Modal */ }
-{
-  showKpiModal && (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: (activeRole === 'Employee' && !checkPermission('kpi-catalog')) ? '400px' : '500px' }}>
-        <h3 style={{ marginBottom: '16px', fontSize: '15px', fontWeight: 700 }}>
-          {(activeRole === 'Employee' && !checkPermission('kpi-catalog'))
-            ? 'Cập nhật tiến độ thực tế KPI'
-            : editingKpi ? 'Chỉnh sửa mục tiêu KPI' : 'Gán chỉ tiêu KPI mới'}
-        </h3>
-
-        <form onSubmit={handleSaveKpi} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {(activeRole === 'Employee' && !checkPermission('kpi-catalog')) ? (
-            // Employee Simplified Form
-            <>
-              <div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: '#FAF9F9', padding: '12px', borderRadius: '6px', border: '1px solid var(--color-border-light)' }}>
-                <div><strong>KPI:</strong> {editingKpi?.cr5db_kpiname}</div>
-                <div><strong>Mục tiêu chỉ tiêu:</strong> {editingKpi?.cr5db_targetvalue} {editingKpi?.cr5db_unit}</div>
-                <div><strong>Tỷ trọng:</strong> {editingKpi?.cr5db_weightpercentage}%</div>
-                <div><strong>Giai đoạn:</strong> {editingKpi?.cr5db_period}</div>
-              </div>
-              <div>
-                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Giá trị thực tế đạt được ({editingKpi?.cr5db_unit})</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={kpiActualValue}
-                  onChange={(e) => setKpiActualValue(Number(e.target.value))}
-                  className="input-spec"
-                  required
-                />
-              </div>
-            </>
-          ) : (
-            // Manager / Admin Complete Form
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Nhân viên thực hiện</label>
-                  <select
-                    value={kpiEmployeeId}
-                    onChange={(e) => setKpiEmployeeId(e.target.value)}
-                    className="input-spec"
-                    style={{ height: '38px', padding: '6px 12px' }}
-                    required
-                  >
-                    {usersList.map(u => (
-                      <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Mã KPI danh mục (Library)</label>
-                  <select
-                    value={kpiLibraryId}
-                    onChange={(e) => {
-                      const lib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === e.target.value);
-                      setKpiLibraryId(e.target.value);
-                      if (lib) {
-                        setKpiTargetName(lib.cr5db_kpiname);
-                        setKpiUnit(lib.cr5db_unit || '%');
-                      }
-                    }}
-                    className="input-spec"
-                    style={{ height: '38px', padding: '6px 12px' }}
-                    required
-                  >
-                    {kpiLibrariesList.map(lib => (
-                      <option key={lib.cr5db_kpilibraryid} value={lib.cr5db_kpilibraryid}>
-                        {lib.cr5db_kpiname} ({lib.cr5db_unit || '%'})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Tên mục tiêu KPI hiển thị</label>
-                <input
-                  type="text"
-                  value={kpiTargetName}
-                  onChange={(e) => setKpiTargetName(e.target.value)}
-                  className="input-spec"
-                  required
-                  placeholder="Ví dụ: Tăng trưởng doanh số Q2"
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Chu kỳ đánh giá (Period)</label>
-                  <select
-                    value={kpiPeriod}
-                    onChange={(e) => {
-                      const newPeriod = e.target.value;
-                      setKpiPeriod(newPeriod);
-                      const firstObj = objectivesList.find(o => o.cr5db_periodnamename === newPeriod);
-                      if (firstObj) {
-                        setKpiObjectiveId(firstObj.cr5db_objectiveid);
-                      } else {
-                        setKpiObjectiveId('');
-                      }
-                    }}
-                    className="input-spec"
-                    style={{ height: '38px', padding: '6px 12px' }}
-                    required
-                  >
-                    {evaluationPeriodsList.map(ep => (
-                      <option key={ep.cr5db_evaluationperiodid} value={ep.cr5db_evaluationperiod1}>
-                        {ep.cr5db_evaluationperiod1}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Liên kết mục tiêu chung (Objective)</label>
-                  <select
-                    value={kpiObjectiveId}
-                    onChange={(e) => {
-                      const objId = e.target.value;
-                      setKpiObjectiveId(objId);
-                      const matchedObj = objectivesList.find(o => o.cr5db_objectiveid === objId);
-                      if (matchedObj && matchedObj.cr5db_periodnamename) {
-                        setKpiPeriod(matchedObj.cr5db_periodnamename);
-                      }
-                    }}
-                    className="input-spec"
-                    style={{ height: '38px', padding: '6px 12px' }}
-                    required
-                  >
-                    {objectivesList.filter(o => !kpiPeriod || o.cr5db_periodnamename === kpiPeriod || !o.cr5db_periodnamename || o.cr5db_objectiveid === kpiObjectiveId).map(o => (
-                      <option key={o.cr5db_objectiveid} value={o.cr5db_objectiveid}>
-                        {o.cr5db_objective1}{!o.cr5db_periodnamename ? ' (Không thuộc chu kỳ nào)' : ''}
-                      </option>
-                    ))}
-                    {objectivesList.filter(o => !kpiPeriod || o.cr5db_periodnamename === kpiPeriod || !o.cr5db_periodnamename || o.cr5db_objectiveid === kpiObjectiveId).length === 0 && (
-                      <option value="">Không có mục tiêu nào trong chu kỳ này</option>
-                    )}
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Liên kết KPI cấp trên (Parent KPI)</label>
-                  <select
-                    value={kpiParentKpiId}
-                    onChange={(e) => setKpiParentKpiId(e.target.value)}
-                    className="input-spec"
-                    style={{ height: '38px', padding: '6px 12px' }}
-                  >
-                    <option value="">-- Không có (KPI độc lập) --</option>
-                    {kpiTargets
-                      .filter(k => k.cr5db_kpitargetid !== editingKpi?.cr5db_kpitargetid) // Không chọn chính nó
-                      .filter(k => !kpiPeriod || k.cr5db_period === kpiPeriod) // Cùng chu kỳ
-                      .map(k => (
-                        <option key={k.cr5db_kpitargetid} value={k.cr5db_kpitargetid}>
-                          {k.cr5db_kpiname} ({k.cr5db_employee_name || 'No Assignee'})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Phương pháp tính điểm (Rollup Method)</label>
-                  <select
-                    value={kpiRollupMethod}
-                    onChange={(e) => setKpiRollupMethod(e.target.value)}
-                    className="input-spec"
-                    style={{ height: '38px', padding: '6px 12px' }}
-                    required
-                  >
-                    <option value="Manual">Manual (Nhập tay / Chỉ xem liên kết)</option>
-                    <option value="Average">Average (Trung bình cộng các KPI con)</option>
-                    <option value="Sum">Sum (Cộng dồn Actual của các KPI con)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Mục tiêu chỉ tiêu</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={kpiTargetValue}
-                    onChange={(e) => setKpiTargetValue(Number(e.target.value))}
-                    className="input-spec"
-                    required
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Thực tế hiện tại</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={kpiActualValue}
-                    onChange={(e) => setKpiActualValue(Number(e.target.value))}
-                    className="input-spec"
-                    required
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Đơn vị đo lường</label>
-                  <input
-                    type="text"
-                    value={kpiUnit}
-                    onChange={(e) => setKpiUnit(e.target.value)}
-                    className="input-spec"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>
-                    Giới hạn Giờ làm việc (Hours Limit)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min={0}
-                    value={kpiStandardHoursLimit}
-                    onChange={(e) => setKpiStandardHoursLimit(Number(e.target.value))}
-                    className="input-spec"
-                    required
-                  />
-                  <span style={{ fontSize: '10px', color: '#666666' }}>Gợi ý: {Math.round(kpiWeight * 0.4)} giờ/tuần (dựa trên {kpiWeight}%)</span>
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>
-                    Giới hạn Tasks mở (WIP Limit)
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={kpiActiveTasksLimit}
-                    onChange={(e) => setKpiActiveTasksLimit(Number(e.target.value))}
-                    className="input-spec"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Tỷ trọng (%) trong tổng KPI</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={kpiWeight}
-                  onChange={(e) => setKpiWeight(Number(e.target.value))}
-                  className="input-spec"
-                  required
-                />
-              </div>
-            </>
-          )}
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-            <button
-              type="button"
-              onClick={() => {
-                setShowKpiModal(false);
-                setEditingKpi(null);
-              }}
-              className="btn-filled-3"
-            >
-              Hủy
-            </button>
-            <button type="submit" className="btn-filled-2" style={{ backgroundColor: '#742774' }}>
-              {editingKpi ? 'Cập nhật' : 'Gán chỉ tiêu'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-{/* Resource Allocation Modal */ }
+{/* KPI Modal */}
+  <KpiModal
+    isOpen={showKpiModal}
+    editingKpi={editingKpi}
+    onClose={() => {
+      setShowKpiModal(false);
+      setEditingKpi(null);
+    }}
+    onSave={handleSaveKpi}
+  />
+  
+  {/* Resource Allocation Modal */ }
 {
   showAllocationModal && (
     <div className="modal-overlay">
@@ -10739,76 +10166,14 @@ return (
   )
 }
 
-{/* Leave Request Modal */ }
-{
-  showLeaveModal && (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '400px' }}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700 }}>Đăng ký nghỉ phép</h3>
-        <form onSubmit={handleLeaveRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Loại phép</label>
-            <select
-              value={newLeaveType}
-              onChange={e => setNewLeaveType(e.target.value)}
-              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px' }}
-            >
-              <option value="Annual Leave">Phép năm (Annual Leave)</option>
-              <option value="Sick Leave">Nghỉ ốm (Sick Leave)</option>
-              <option value="Unpaid Leave">Nghỉ không lương (Unpaid Leave)</option>
-            </select>
-          </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Từ ngày</label>
-              <input
-                type="date"
-                required
-                value={newLeaveStartDate}
-                onChange={e => setNewLeaveStartDate(e.target.value)}
-                style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Đến ngày</label>
-              <input
-                type="date"
-                required
-                value={newLeaveEndDate}
-                onChange={e => setNewLeaveEndDate(e.target.value)}
-                style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', boxSizing: 'border-box' }}
-              />
-            </div>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Số ngày dự kiến (trừ T7, CN)</label>
-            <input
-              type="text"
-              disabled
-              value={newLeaveStartDate && newLeaveEndDate ? calculateWorkingDays(newLeaveStartDate, newLeaveEndDate) + ' ngày' : '0 ngày'}
-              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', backgroundColor: '#f5f5f5' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>Lý do</label>
-            <textarea
-              required
-              value={newLeaveReason}
-              onChange={e => setNewLeaveReason(e.target.value)}
-              style={{ width: '100%', padding: '8px', border: '1px solid var(--color-border)', borderRadius: '6px', minHeight: '60px', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-            <button type="button" onClick={() => setShowLeaveModal(false)} className="btn-filled-3">Hủy</button>
-            <button type="submit" className="btn-primary" disabled={isLoading}>Gửi đơn</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-{/* Leave Balance Modal */ }
+{/* Leave Request Modal */}
+  <LeaveRequestModal
+    isOpen={showLeaveModal}
+    onClose={() => setShowLeaveModal(false)}
+    onSave={handleLeaveRequestSubmit}
+  />
+  
+  {/* Leave Balance Modal */ }
 {
   showLeaveBalanceModal && (
     <div className="modal-overlay">
