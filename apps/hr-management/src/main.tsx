@@ -4,9 +4,13 @@ import './index.css';
 
 // Import App
 import App from './app.tsx';
+import { AppStateProvider } from './context/AppStateContext.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <AppStateProvider>
+      <App />
+    </AppStateProvider>
   </StrictMode>,
 );
+

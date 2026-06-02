@@ -5,7 +5,7 @@ import { AIService, type PerformanceContext, type SystemSnapshot } from './featu
 import { AIChatbot } from './features/ai/AIChatbot';
 
 // Hooks
-import { useAppState } from './hooks/useAppState';
+import { useAppState } from './context/AppStateContext';
 import { useLiveData } from './hooks/useLiveData';
 import { buildApprovalEngine, renderDiffContainer, ENTITY_MAPPINGS } from './hooks/useApprovalEngine';
 
@@ -39,7 +39,32 @@ import { New_leavebalanceService } from './generated/services/New_leavebalanceSe
 import { Cr5db_holidaiesService } from './generated/services/Cr5db_holidaiesService';
 import { Cr5db_overtimerequestService } from './generated/services/Cr5db_overtimerequestService';
 
-import { calculateKpiAchievementRate } from './utils/kpiLogic';
+import { calculateKpiAchievementRate, calculateActualValue } from './utils/kpiLogic';
+import {
+  ComplianceMetricWidget,
+  BellCurveWidget,
+  DepartmentPerformanceWidget,
+  RiskAlertsWidget,
+  WorkloadHeatmapWidget,
+  FlightRiskDetectorWidget,
+  StrategicAlignmentWidget,
+  MyProgressRingsWidget,
+  IntegratedActionPanelWidget,
+  StatusTrackerWidget
+} from './features/dashboard/widgets';
+import {
+  DashboardIcon,
+  TaskIcon,
+  ClockIcon,
+  TargetIcon,
+  DirectoryIcon,
+  PerformanceIcon,
+  RequestIcon,
+  ResourceIcon,
+  ShieldIcon,
+  ShieldCheckIcon,
+  BellIcon
+} from './components/icons';
 
 const getPeriodStatus = (p: EvaluationPeriod): { text: string; bg: string; color: string } => {
   if (p.cr5db_islocked) {
@@ -58,159 +83,13 @@ const getPeriodStatus = (p: EvaluationPeriod): { text: string; bg: string; color
   return { text: "🟢 Đang diễn ra", bg: "#DFF6DD", color: "#107C41" };
 };
 
-// SVG Icons
-const DashboardIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="7" height="9" /><rect x="14" y="3" width="7" height="5" />
-    <rect x="14" y="12" width="7" height="9" /><rect x="3" y="16" width="7" height="5" />
-  </svg>
-);
-const TaskIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="9 11 12 14 22 4" />
-    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-  </svg>
-);
-const ClockIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-  </svg>
-);
-const TargetIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" />
-  </svg>
-);
-const DirectoryIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-  </svg>
-);
-const PerformanceIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" />
-    <path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34" /><path d="M12 2a4 4 0 0 0-4 4v8h8V6a4 4 0 0 0-4-4z" />
-  </svg>
-);
-const RequestIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
-  </svg>
-);
-const ResourceIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-  </svg>
-);
-const ShieldIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-  </svg>
-);
-const ShieldCheckIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    <polyline points="9 11 11 13 15 9" />
-  </svg>
-);
-
-const BellIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-  </svg>
-);
-// const UsersIcon = () => (
-//   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-//     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-//     <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-//   </svg>
-// );
+// SVG Icons imported from components/icons
 
 import { FEATURE_TABS, hasTabPermission } from './lib/types';
 import type { User, Task, PermissionGroup, EvaluationPeriod, Holiday } from './lib/types';
 import { getTranslation } from './lib/locales';
 
-function calculateActualValue(
-  k: any,
-  kpiTargets: any[],
-  tasks: any[],
-  timesheets: any[],
-  objectivesList: any[],
-  kpiLibrariesList: any[],
-  evaluationPeriodsList: any[],
-  visited = new Set<string>()
-): number {
-  if (!k) return 0;
-  if (visited.has(k.cr5db_kpitargetid)) return 0; // Prevent infinite loops
-  visited.add(k.cr5db_kpitargetid);
-
-  const rollupMethod = k.new_rollupmethod;
-  if (rollupMethod === 'Sum' || rollupMethod === 'Average') {
-    const children = kpiTargets.filter(child => child._new_parentkpi_value === k.cr5db_kpitargetid);
-    if (children.length > 0) {
-      let sum = 0;
-      children.forEach(child => {
-        sum += calculateActualValue(child, kpiTargets, tasks, timesheets, objectivesList, kpiLibrariesList, evaluationPeriodsList, visited);
-      });
-      return rollupMethod === 'Sum' ? sum : sum / children.length;
-    }
-  }
-
-  const kpiName = k.cr5db_kpiname || '';
-  const kpiCode = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value)?.cr5db_kpicatalogcode || '';
-  const email = k.cr5db_user_email || '';
-
-  if (kpiName.includes('#TASKS_ON_TIME') || kpiCode.includes('#TASKS_ON_TIME')) {
-    const userTasks = tasks.filter(t => t.cr5db_assignee_email?.toLowerCase() === email.toLowerCase());
-    if (userTasks.length === 0) return 0;
-
-    const kpiObjective = objectivesList.find(o => o.cr5db_objectiveid === k._cr5db_parentobjective_value);
-    const kpiPeriodName = kpiObjective?.cr5db_periodnamename || k.cr5db_period || '';
-
-    const periodTasks = userTasks.filter(t => {
-      if (!t._cr5db_objectivename_value) return false;
-      const tObj = objectivesList.find(o => o.cr5db_objectiveid === t._cr5db_objectivename_value);
-      return (tObj?.cr5db_periodnamename || '') === kpiPeriodName;
-    });
-
-    const relevantTasks = periodTasks.length > 0 ? periodTasks : userTasks;
-    const completedOnTime = relevantTasks.filter(t => {
-      const isCompleted = t.cr5db_status === 'Completed';
-      const compareDate = isCompleted
-        ? (t.cr5db_completeddate ? new Date(t.cr5db_completeddate) : new Date(t.modifiedon || Date.now()))
-        : new Date();
-      const isOverdue = t.cr5db_due_date && new Date(t.cr5db_due_date) < compareDate;
-      return isCompleted && !isOverdue;
-    });
-    return Math.round((completedOnTime.length / relevantTasks.length) * 100);
-  }
-
-  if (kpiName.includes('#HOURS_LOGGED') || kpiCode.includes('#HOURS_LOGGED')) {
-    const userTimesheets = timesheets.filter(ts => ts.cr5db_username?.toLowerCase() === email.toLowerCase() && ts.statuscode === 2 && !ts.cr5db_timesheetlog1?.startsWith('[Từ chối]'));
-
-    const kpiObjective = objectivesList.find(o => o.cr5db_objectiveid === k._cr5db_parentobjective_value);
-    const kpiPeriodName = kpiObjective?.cr5db_periodnamename || k.cr5db_period || '';
-    const periodObj = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === kpiPeriodName);
-
-    const start = periodObj?.cr5db_startdate ? new Date(periodObj.cr5db_startdate) : null;
-    const end = periodObj?.cr5db_enddate ? new Date(periodObj.cr5db_enddate) : null;
-
-    const periodTimesheets = userTimesheets.filter(ts => {
-      if (!ts.cr5db_logdate) return false;
-      const d = new Date(ts.cr5db_logdate);
-      if (start && d < start) return false;
-      if (end && d > end) return false;
-      return true;
-    });
-
-    return periodTimesheets.reduce((sum, ts) => sum + (ts.cr5db_actualhoursworked || 0), 0);
-  }
-
-  return k.cr5db_actualvalue || 0;
-}
+// calculateActualValue imported from utils/kpiLogic
 
 function App() {
   // ── Hooks ────────────────────────────────────────────────────────────────
@@ -534,708 +413,61 @@ function App() {
       title: language === 'vi' ? 'Tiến độ đánh giá nhân sự (Compliance)' : 'Evaluation Compliance Progress',
       size: 'medium',
       roles: ['Admin'],
-      render: () => {
-        const totalAp = appraisals.length;
-        const submittedAp = appraisals.filter(ap => ap.statecode === 1 || ap.statuscode === 2).length;
-        const evaluatedAp = appraisals.filter(ap => ap.cr5db_finalscore !== null && ap.cr5db_finalscore > 0).length;
-
-        const subRate = totalAp > 0 ? Math.round((submittedAp / totalAp) * 100) : 0;
-        const evalRate = totalAp > 0 ? Math.round((evaluatedAp / totalAp) * 100) : 0;
-
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '10px 0' }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
-                <span>{language === 'vi' ? 'Nhân sự đã nộp tự đánh giá' : 'Employees self-submitted'}</span>
-                <span>{submittedAp} / {totalAp} ({subRate}%)</span>
-              </div>
-              <div style={{ height: '10px', backgroundColor: '#f0f0f0', borderRadius: '5px', overflow: 'hidden' }}>
-                <div style={{ width: `${subRate}%`, height: '100%', backgroundColor: 'var(--color-primary)' }} />
-              </div>
-            </div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 600, marginBottom: '6px' }}>
-                <span>{language === 'vi' ? 'Quản lý đã đánh giá chung cuộc' : 'Managers evaluated'}</span>
-                <span>{evaluatedAp} / {totalAp} ({evalRate}%)</span>
-              </div>
-              <div style={{ height: '10px', backgroundColor: '#f0f0f0', borderRadius: '5px', overflow: 'hidden' }}>
-                <div style={{ width: `${evalRate}%`, height: '100%', backgroundColor: '#742774' }} />
-              </div>
-            </div>
-          </div>
-        );
-      }
+      render: () => <ComplianceMetricWidget />
     },
     bell_curve: {
       title: language === 'vi' ? 'Biểu đồ phân phối điểm (Bell Curve)' : 'Score Distribution Bell Curve',
       size: 'medium',
       roles: ['Admin'],
-      render: () => {
-        const outstanding = appraisals.filter(ap => ap.cr5db_finalscore >= 90).length;
-        const exceeds = appraisals.filter(ap => ap.cr5db_finalscore >= 80 && ap.cr5db_finalscore < 90).length;
-        const meets = appraisals.filter(ap => ap.cr5db_finalscore >= 70 && ap.cr5db_finalscore < 80).length;
-        const improvement = appraisals.filter(ap => ap.cr5db_finalscore >= 50 && ap.cr5db_finalscore < 70).length;
-        const unsatisfactory = appraisals.filter(ap => ap.cr5db_finalscore > 0 && ap.cr5db_finalscore < 50).length;
-
-        const data = [unsatisfactory, improvement, meets, exceeds, outstanding];
-        const labels = ['<50', '50-69', '70-79', '80-89', '>=90'];
-        const maxVal = Math.max(...data, 1);
-
-        const width = 360;
-        const height = 150;
-        const padding = 20;
-
-        const points = data.map((val, idx) => {
-          const x = padding + (idx * (width - 2 * padding) / 4);
-          const y = height - padding - (val * (height - 2 * padding) / maxVal);
-          return { x, y, val };
-        });
-
-        let pathD = `M ${points[0].x} ${points[0].y}`;
-        for (let i = 0; i < points.length - 1; i++) {
-          const p0 = points[i];
-          const p1 = points[i + 1];
-          const cpX1 = p0.x + (p1.x - p0.x) / 2;
-          const cpY1 = p0.y;
-          const cpX2 = p0.x + (p1.x - p0.x) / 2;
-          const cpY2 = p1.y;
-          pathD += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`;
-        }
-
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-            <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
-              <defs>
-                <linearGradient id="curveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-              <path d={`${pathD} L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`} fill="url(#curveGrad)" />
-              <path d={pathD} fill="none" stroke="var(--color-primary)" strokeWidth="3" />
-              {points.map((p, idx) => (
-                <g key={idx}>
-                  <circle cx={p.x} cy={p.y} r="5" fill="#ffffff" stroke="var(--color-primary)" strokeWidth="2" />
-                  <text x={p.x} y={p.y - 10} textAnchor="middle" fontSize="11px" fontWeight="bold" fill="var(--color-text)">
-                    {p.val}
-                  </text>
-                  <text x={p.x} y={height - 2} textAnchor="middle" fontSize="10px" fill="var(--color-text-secondary)">
-                    {labels[idx]}
-                  </text>
-                </g>
-              ))}
-            </svg>
-            <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '8px', textAlign: 'center' }}>
-              {language === 'vi' ? 'Số lượng nhân sự phân bố theo khung điểm đánh giá' : 'Number of staff distributed by rating scores'}
-            </div>
-          </div>
-        );
-      }
+      render: () => <BellCurveWidget />
     },
     department_performance: {
       title: language === 'vi' ? 'Hiệu suất theo công ty (Average Rate)' : 'Performance by Company',
       size: 'medium',
       roles: ['Admin'],
-      render: () => {
-        const getUserCompany = (u: any): string => {
-          if (!u._cr5db_jobposition_value) return '';
-          const pos = jobPositionsList.find(p => p.cr5db_jobpositionid === u._cr5db_jobposition_value);
-          if (!pos) return '';
-          const dept = departmentsList.find(d => d.cr5db_departmentid === pos._cr5db_department_value);
-          if (!dept) return '';
-          const company = companiesList.find(c => c.cr5db_companyid === dept._cr5db_companyid_value);
-          return company ? company.cr5db_companyname : '';
-        };
-
-        const companyPerformance = companiesList.map(c => {
-          const compUsers = usersList.filter(u => getUserCompany(u) === c.cr5db_companyname);
-          const compEmails = compUsers.map(u => u.cr5db_email?.toLowerCase()).filter(Boolean);
-          const compKpis = kpiTargets.filter(k => compEmails.includes(k.cr5db_user_email?.toLowerCase()));
-
-          let totalRate = 0;
-          let count = 0;
-          compKpis.forEach(k => {
-            const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-            totalRate += calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
-            count++;
-          });
-
-          const avgRate = count > 0 ? Math.round(totalRate / count) : 0;
-
-          const compTasks = tasks.filter(t => compEmails.includes(t.cr5db_assignee_email?.toLowerCase()));
-          const completed = compTasks.filter(t => t.cr5db_status === 'Completed').length;
-          const taskRate = compTasks.length > 0 ? Math.round((completed / compTasks.length) * 100) : 0;
-
-          return { company: c.cr5db_companyname, kpiRate: avgRate, taskRate };
-        });
-
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {companyPerformance.map(cp => (
-              <div key={cp.company} style={{ borderBottom: '1px solid var(--color-border-light)', paddingBottom: '8px' }}>
-                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px' }}>{cp.company}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                      <span>KPI Achievement</span>
-                      <span>{cp.kpiRate}%</span>
-                    </div>
-                    <div style={{ height: '6px', backgroundColor: '#f0f0f0', borderRadius: '3px' }}>
-                      <div style={{ width: `${cp.kpiRate}%`, height: '100%', backgroundColor: '#107C41' }} />
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-                      <span>Task Completion</span>
-                      <span>{cp.taskRate}%</span>
-                    </div>
-                    <div style={{ height: '6px', backgroundColor: '#f0f0f0', borderRadius: '3px' }}>
-                      <div style={{ width: `${cp.taskRate}%`, height: '100%', backgroundColor: '#E29E2E' }} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      }
+      render: () => <DepartmentPerformanceWidget />
     },
     risk_alerts: {
       title: language === 'vi' ? 'KPI Risk Predictor' : 'KPI Risk Predictor',
       size: 'medium',
       roles: ['Admin', 'Employee'],
-      render: () => {
-        const myKpis = activeRole === 'Employee'
-          ? kpiTargets.filter(k => k.cr5db_user_email?.toLowerCase() === currentUserEmail.toLowerCase())
-          : kpiTargets;
-
-        const now = Date.now();
-
-        const risks = myKpis.map(k => {
-          const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-          const rate = calculateKpiAchievementRate(k.cr5db_targetvalue || 100, resolveKpiActualValue(k), kpiLib?.new_direction);
-
-          // Determine Time Percent
-          let timePercent = 0;
-          let evaluationPeriod = evaluationPeriodsList.find(p => p.cr5db_evaluationperiod1 === k.cr5db_period);
-          if (evaluationPeriod && evaluationPeriod.cr5db_startdate && evaluationPeriod.cr5db_enddate) {
-            const start = new Date(evaluationPeriod.cr5db_startdate).getTime();
-            const end = new Date(evaluationPeriod.cr5db_enddate).getTime();
-            if (end > start) {
-              const elapsed = now - start;
-              const total = end - start;
-              timePercent = Math.max(0, Math.min(100, Math.round((elapsed / total) * 100)));
-            }
-          }
-
-          let status = 'On Track';
-          if (rate < 100) {
-            if (timePercent > rate + 20) {
-              status = 'High Risk';
-            } else if (timePercent > rate + 10) {
-              status = 'At Risk';
-            }
-          }
-
-          return { k, rate, timePercent, status };
-        }).filter(item => item.status !== 'On Track');
-
-        const behind = risks.filter(item => item.status === 'High Risk');
-        const atRisk = risks.filter(item => item.status === 'At Risk');
-
-        // Sort by biggest gap
-        risks.sort((a, b) => (b.timePercent - b.rate) - (a.timePercent - a.rate));
-
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <div style={{ flex: 1, backgroundColor: '#FFF4CE', border: '1px solid #795B00', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
-                <div style={{ fontSize: '20px', fontWeight: 700, color: '#795B00' }}>{atRisk.length}</div>
-                <div style={{ fontSize: '11px', color: '#795B00', fontWeight: 600 }}>At Risk (+10% lag)</div>
-              </div>
-              <div style={{ flex: 1, backgroundColor: '#FDE7E9', border: '1px solid #A80000', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
-                <div style={{ fontSize: '20px', fontWeight: 700, color: '#A80000' }}>{behind.length}</div>
-                <div style={{ fontSize: '11px', color: '#A80000', fontWeight: 600 }}>High Risk (+20% lag)</div>
-              </div>
-            </div>
-
-            <div style={{ maxHeight: '120px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {risks.slice(0, 3).map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', padding: '8px', backgroundColor: item.status === 'High Risk' ? '#FDF3F3' : '#FFFAF0', border: `1px solid ${item.status === 'High Risk' ? '#F3D6D6' : '#F3E5CD'}`, borderRadius: '6px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
-                    <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.k.cr5db_kpiname}</span>
-                    <span style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>
-                      Prog: <strong style={{ color: 'var(--color-primary)' }}>{item.rate}%</strong> | Time: <strong>{item.timePercent}%</strong>
-                    </span>
-                  </div>
-                  <div style={{ marginLeft: '8px', padding: '4px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, color: '#fff', backgroundColor: item.status === 'High Risk' ? '#dc2626' : '#d97706', whiteSpace: 'nowrap' }}>
-                    {item.status === 'High Risk' ? 'NGUY CƠ CAO' : 'CẢNH BÁO'}
-                  </div>
-                </div>
-              ))}
-              {risks.length > 3 && (
-                <div 
-                  style={{ fontSize: '11px', textAlign: 'center', color: 'var(--color-primary)', cursor: 'pointer', marginTop: '4px', fontWeight: 600 }} 
-                  onClick={() => setExpandedWidget({ id: 'kpi_risks', data: risks, title: language === 'vi' ? 'Tất cả cảnh báo KPI' : 'All KPI Alerts' })}
-                >
-                  {language === 'vi' ? `Xem tất cả ${risks.length} cảnh báo...` : `View all ${risks.length} alerts...`}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      }
+      render: () => <RiskAlertsWidget onExpand={setExpandedWidget} />
     },
     workload_heatmap: {
       title: language === 'vi' ? 'Workload Heatmap' : 'Workload Heatmap',
       size: 'medium',
       roles: ['Admin', 'ProjectManager'],
-      render: () => {
-        // Calculate workload for all users
-        const workloads = usersList.map(u => {
-          // 1. Allocation
-          const userAllocs = resourceAllocationsList.filter(a => a._cr5db_userid_value === u.cr5db_userid);
-          const totalAlloc = userAllocs.reduce((sum, a) => sum + (a.cr5db_allocationpercentage || 0), 0);
-
-          // 2. Active Tasks
-          const activeTasks = tasks.filter(t => t.cr5db_assignee_email?.toLowerCase() === (u.cr5db_email || '').toLowerCase() && t.cr5db_status !== 'Completed');
-          const taskCount = activeTasks.length;
-
-          // Classification
-          let status: 'Overloaded' | 'Optimal' | 'Underutilized' = 'Optimal';
-          if (totalAlloc > 100 || taskCount >= 5) {
-            status = 'Overloaded';
-          } else if (totalAlloc < 50 || taskCount === 0) {
-            status = 'Underutilized';
-          }
-
-          return { user: u, totalAlloc, taskCount, status };
-        });
-
-        // Sort: Overloaded first, then sort by Alloc descending
-        workloads.sort((a, b) => {
-          const rank = { 'Overloaded': 3, 'Optimal': 2, 'Underutilized': 1 };
-          if (rank[a.status] !== rank[b.status]) return rank[b.status] - rank[a.status];
-          return b.totalAlloc - a.totalAlloc;
-        });
-
-        // Top 5
-        const topWorkloads = workloads.slice(0, 5);
-
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-secondary)', paddingBottom: '4px', borderBottom: '1px solid var(--color-border-light)' }}>
-              <span>Nhân sự</span>
-              <span>Trạng thái</span>
-            </div>
-
-            {topWorkloads.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)', fontSize: '12px' }}>Không có dữ liệu phân bổ.</div>
-            ) : (
-              topWorkloads.map((wl, idx) => {
-                let barColor = 'var(--color-primary)';
-                let bgColor = '#e6f2eb';
-                if (wl.status === 'Overloaded') {
-                  barColor = '#dc2626';
-                  bgColor = '#FDF3F3';
-                } else if (wl.status === 'Underutilized') {
-                  barColor = '#9ca3af';
-                  bgColor = '#f3f4f6';
-                }
-
-                // Map alloc to progress bar width (cap at 100% for display)
-                const barWidth = Math.min(100, wl.totalAlloc || 10);
-
-                return (
-                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
-                      <span style={{ fontWeight: 600 }}>{wl.user.cr5db_fullname}</span>
-                      <span style={{ fontWeight: 700, color: barColor }}>
-                        {wl.status === 'Overloaded' ? '🔴 Quá tải' : wl.status === 'Optimal' ? '🟢 Tối ưu' : '⚪ Rảnh rỗi'}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ flex: 1, height: '8px', backgroundColor: bgColor, borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ width: `${barWidth}%`, height: '100%', backgroundColor: barColor, transition: 'width 0.3s ease' }} />
-                      </div>
-                      <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap', width: '90px', textAlign: 'right' }}>
-                        {wl.totalAlloc}% | {wl.taskCount} Tasks
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-            {workloads.length > 5 && (
-              <div 
-                style={{ fontSize: '11px', textAlign: 'center', color: 'var(--color-primary)', cursor: 'pointer', marginTop: '4px', fontWeight: 600 }}
-                onClick={() => setExpandedWidget({ id: 'workload_heatmap', data: workloads, title: language === 'vi' ? 'Workload Heatmap (Tất cả nhân sự)' : 'Workload Heatmap (All staff)' })}
-              >
-                {language === 'vi' ? `Xem tất cả ${workloads.length} nhân sự...` : `View all ${workloads.length} staff...`}
-              </div>
-            )}
-          </div>
-        );
-      }
+      render: () => <WorkloadHeatmapWidget onExpand={setExpandedWidget} />
     },
     flight_risk_detector: {
       title: language === 'vi' ? 'Flight Risk Detector' : 'Flight Risk Detector',
       size: 'medium',
       roles: ['Admin', 'HRManager'],
-      render: () => {
-        const risks = usersList.map(u => {
-          let riskScore = 0;
-          let riskFactors: string[] = [];
-
-          // 1. Burnout (40%)
-          const userAllocs = resourceAllocationsList.filter(a => a._cr5db_userid_value === u.cr5db_userid);
-          const totalAlloc = userAllocs.reduce((sum, a) => sum + (a.cr5db_allocationpercentage || 0), 0);
-          const activeTasks = tasks.filter(t => t.cr5db_assignee_email?.toLowerCase() === (u.cr5db_email || '').toLowerCase() && t.cr5db_status !== 'Completed');
-          if (totalAlloc > 100 || activeTasks.length >= 5) {
-            riskScore += 40;
-            riskFactors.push('Đang quá tải (Burnout)');
-          }
-
-          // 2. Leave Patterns (30%)
-          const userLeaves = leaveRequestsList.filter(lr => lr._new_employeeid_value === u.cr5db_userid);
-          const sickLeaves = userLeaves.filter(lr => lr.new_leavetype === 'Sick Leave' || lr.new_leavetype === 'Unpaid Leave');
-          if (sickLeaves.length >= 2 || userLeaves.length >= 4) {
-            riskScore += 30;
-            riskFactors.push('Xin nghỉ thất thường');
-          }
-
-          // 3. Appraisal Trend (30%)
-          const userApps = appraisals.filter(ap => ap.cr5db_employeeemail?.toLowerCase() === (u.cr5db_email || '').toLowerCase());
-          let compScore = 0;
-          if (userApps.length > 0) {
-            const sortedApps = [...userApps].sort((a, b) => {
-              const pA = evaluationPeriodsList.find(p => p.cr5db_evaluationperiodid === a._cr5db_periodid_value);
-              const pB = evaluationPeriodsList.find(p => p.cr5db_evaluationperiodid === b._cr5db_periodid_value);
-              const dA = pA?.cr5db_enddate ? new Date(pA.cr5db_enddate).getTime() : 0;
-              const dB = pB?.cr5db_enddate ? new Date(pB.cr5db_enddate).getTime() : 0;
-              return dB - dA;
-            });
-            compScore = sortedApps[0].cr5db_finalscore || 0;
-          }
-          const hash = u.cr5db_userid.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-          const tenureYears = (hash % 5) + 1; // Pseudo-random 1 to 5 years
-
-          if (compScore > 0 && compScore < 60) {
-            riskScore += 30;
-            riskFactors.push('Điểm đánh giá thấp');
-          } else if (compScore >= 85 && tenureYears >= 3) {
-            riskScore += 30;
-            riskFactors.push('Nguy cơ nhảy việc (Giỏi & Lâu năm)');
-          }
-
-          let riskLevel: 'High' | 'Medium' | 'Low' = 'Low';
-          if (riskScore >= 70) riskLevel = 'High';
-          else if (riskScore >= 40) riskLevel = 'Medium';
-
-          return { user: u, riskScore, riskFactors, riskLevel };
-        });
-
-        // Filter out Low risk and sort by score descending
-        const atRiskUsers = risks.filter(r => r.riskLevel !== 'Low').sort((a, b) => b.riskScore - a.riskScore).slice(0, 5);
-
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-secondary)', paddingBottom: '4px', borderBottom: '1px solid var(--color-border-light)' }}>
-              <span>Nhân sự</span>
-              <span>Mức độ Rủi ro</span>
-            </div>
-
-            {atRiskUsers.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)', fontSize: '12px' }}>Không phát hiện rủi ro nghỉ việc đáng kể.</div>
-            ) : (
-              atRiskUsers.map((r, idx) => {
-                let badgeColor = r.riskLevel === 'High' ? '#dc2626' : '#d97706';
-                let badgeBg = r.riskLevel === 'High' ? '#FDF3F3' : '#FFFAF0';
-
-                return (
-                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px', backgroundColor: badgeBg, borderRadius: '6px', border: `1px solid ${r.riskLevel === 'High' ? '#F3D6D6' : '#F3E5CD'}` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 600, fontSize: '12px' }}>{r.user.cr5db_fullname}</span>
-                      <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, color: '#fff', backgroundColor: badgeColor }}>
-                        {r.riskLevel === 'High' ? 'RỦI RO CAO' : 'TIỀM ẨN'}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      <span><strong>Tỷ lệ:</strong> <span style={{ color: badgeColor, fontWeight: 600 }}>{r.riskScore}%</span></span>
-                      <span><strong>Dấu hiệu:</strong> {r.riskFactors.join(', ')}</span>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-            {risks.filter(r => r.riskLevel !== 'Low').length > 5 && (
-              <div 
-                style={{ fontSize: '11px', textAlign: 'center', color: 'var(--color-primary)', cursor: 'pointer', marginTop: '4px', fontWeight: 600 }}
-                onClick={() => setExpandedWidget({ id: 'flight_risk_detector', data: risks.filter(r => r.riskLevel !== 'Low').sort((a, b) => b.riskScore - a.riskScore), title: language === 'vi' ? 'Flight Risk Detector (Tất cả cảnh báo)' : 'Flight Risk Detector (All alerts)' })}
-              >
-                {language === 'vi' ? `Xem tất cả ${risks.filter(r => r.riskLevel !== 'Low').length} cảnh báo...` : `View all ${risks.filter(r => r.riskLevel !== 'Low').length} alerts...`}
-              </div>
-            )}
-          </div>
-        );
-      }
+      render: () => <FlightRiskDetectorWidget onExpand={setExpandedWidget} />
     },
     strategic_alignment: {
       title: language === 'vi' ? 'Bản đồ căn chỉnh mục tiêu chiến lược' : 'Strategic Goal Alignment Map',
       size: 'large',
       roles: ['Admin', 'Employee'],
-      render: () => {
-        const myObjectives = activeRole === 'Employee'
-          ? objectivesList.filter(o => {
-            const personalKpis = kpiTargets.filter(k => k.cr5db_user_email?.toLowerCase() === currentUserEmail.toLowerCase() && k._cr5db_parentobjective_value === o.cr5db_objectiveid);
-            return personalKpis.length > 0;
-          })
-          : objectivesList;
-
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {myObjectives.slice(0, 3).map(obj => {
-              const objKpis = kpiTargets.filter(k => k._cr5db_parentobjective_value === obj.cr5db_objectiveid);
-              const objTasks = tasks.filter(t => t._cr5db_objectivename_value === obj.cr5db_objectiveid);
-
-              let totalRate = 0;
-              let kpiCount = 0;
-              objKpis.forEach(k => {
-                const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                totalRate += calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
-                kpiCount++;
-              });
-              const avgRate = kpiCount > 0 ? Math.round(totalRate / kpiCount) : 0;
-
-              return (
-                <div key={obj.cr5db_objectiveid} style={{ border: '1px solid var(--color-border)', borderRadius: '8px', padding: '16px', backgroundColor: '#fafafa' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--color-primary)' }}>🎯 {obj.cr5db_objective1}</div>
-                    <span style={{ fontSize: '12px', fontWeight: 700, padding: '2px 8px', backgroundColor: '#e2e8f0', borderRadius: '4px' }}>
-                      Progress: {avgRate}%
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div>
-                      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>KPI Targets ({objKpis.length})</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        {objKpis.slice(0, 2).map((k, idx) => (
-                          <div key={idx} style={{ fontSize: '12px', display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>• {k.cr5db_kpiname}</span>
-                            <span style={{ fontWeight: 600 }}>{resolveKpiActualValue(k)}/{k.cr5db_targetvalue}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>Tasks ({objTasks.length})</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        {objTasks.slice(0, 2).map((t, idx) => (
-                          <div key={idx} style={{ fontSize: '12px', display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>• {t.cr5db_taskname}</span>
-                            <span style={{ color: t.cr5db_status === 'Completed' ? '#107C41' : '#E29E2E', fontWeight: 600 }}>{t.cr5db_status}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {myObjectives.length > 3 && (
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
-                And {myObjectives.length - 3} more strategic objectives linked to your performance scope.
-              </div>
-            )}
-          </div>
-        );
-      }
+      render: () => <StrategicAlignmentWidget />
     },
     my_progress_rings: {
       title: language === 'vi' ? 'Tiến độ làm việc của tôi' : 'My Work Progress Rings',
       size: 'medium',
       roles: ['Employee', 'Admin'],
-      render: () => {
-        const myKpis = kpiTargets.filter(k => k.cr5db_user_email?.toLowerCase() === currentUserEmail.toLowerCase());
-        let totalKpiRate = 0;
-        myKpis.forEach(k => {
-          const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-          totalKpiRate += calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
-        });
-        const kpiRate = myKpis.length > 0 ? Math.round(totalKpiRate / myKpis.length) : 0;
-
-        const myTasks = tasks.filter(t => t.cr5db_assignee_email?.toLowerCase() === currentUserEmail.toLowerCase());
-        const completedTasks = myTasks.filter(t => t.cr5db_status === 'Completed').length;
-        const taskRate = myTasks.length > 0 ? Math.round((completedTasks / myTasks.length) * 100) : 0;
-
-        const timesheetRate = Math.min(100, Math.round((totalHoursThisWeek / 40) * 100));
-
-        const ringData = [
-          { label: 'KPIs', val: kpiRate, color: '#107C41' },
-          { label: 'Tasks', val: taskRate, color: '#b6393a' },
-          { label: 'Hours', val: timesheetRate, color: '#742774' }
-        ];
-
-        return (
-          <div style={{ display: 'flex', justifyContent: 'space-around', padding: '10px 0' }}>
-            {ringData.map((r, idx) => {
-              const radius = 32;
-              const circ = 2 * Math.PI * radius;
-              const strokeDashoffset = circ - (r.val / 100) * circ;
-              return (
-                <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                  <svg width="84" height="84" viewBox="0 0 84 84">
-                    <circle cx="42" cy="42" r={radius} fill="none" stroke="#f3f2f1" strokeWidth="6" />
-                    <circle
-                      cx="42"
-                      cy="42"
-                      r={radius}
-                      fill="none"
-                      stroke={r.color}
-                      strokeWidth="6"
-                      strokeDasharray={circ}
-                      strokeDashoffset={strokeDashoffset}
-                      strokeLinecap="round"
-                      transform="rotate(-90 42 42)"
-                    />
-                    <text x="42" y="46" textAnchor="middle" fontSize="15px" fontWeight="bold" fill="var(--color-text)">
-                      {r.val}%
-                    </text>
-                  </svg>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>{r.label}</span>
-                </div>
-              );
-            })}
-          </div>
-        );
-      }
+      render: () => <MyProgressRingsWidget />
     },
     integrated_action_panel: {
       title: language === 'vi' ? 'Bảng hành động tích hợp' : 'Integrated Action Panel',
       size: 'large',
       roles: ['Employee', 'Admin'],
-      render: () => {
-        const myTasks = tasks.filter(t => t.cr5db_assignee_email?.toLowerCase() === currentUserEmail.toLowerCase() && t.cr5db_status !== 'Completed');
-        const myTimesheets = timesheets.filter(ts => ts.cr5db_username?.toLowerCase() === currentUserEmail.toLowerCase() && ts.cr5db_status === 'Draft');
-        const myKpis = kpiTargets.filter(k => k.cr5db_user_email?.toLowerCase() === currentUserEmail.toLowerCase());
-        const attentionKpis = myKpis.filter(k => {
-          const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-          return calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction) < 100;
-        });
-
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-            <div style={{ borderRight: '1px solid var(--color-border-light)', paddingRight: '12px' }}>
-              <div style={{ fontWeight: 700, fontSize: '12px', color: 'var(--color-primary)', textTransform: 'uppercase', marginBottom: '8px' }}>
-                📋 Tasks To Complete ({myTasks.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '110px', overflowY: 'auto' }}>
-                {myTasks.slice(0, 2).map((t, idx) => (
-                  <div key={idx} style={{ fontSize: '11.5px', padding: '4px', backgroundColor: '#fafafa', borderRadius: '4px' }}>
-                    <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.cr5db_taskname}</div>
-                    <div style={{ color: 'var(--color-text-secondary)', fontSize: '10.5px' }}>
-                      Due: {t.cr5db_due_date ? new Date(t.cr5db_due_date).toLocaleDateString() : 'N/A'}
-                    </div>
-                  </div>
-                ))}
-                {myTasks.length === 0 && <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>All clear!</span>}
-              </div>
-            </div>
-
-            <div style={{ borderRight: '1px solid var(--color-border-light)', paddingRight: '12px', paddingLeft: '4px' }}>
-              <div style={{ fontWeight: 700, fontSize: '12px', color: '#742774', textTransform: 'uppercase', marginBottom: '8px' }}>
-                ⏰ Timesheets (Draft) ({myTimesheets.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '110px', overflowY: 'auto' }}>
-                {myTimesheets.slice(0, 2).map((ts, idx) => (
-                  <div key={idx} style={{ fontSize: '11.5px', padding: '4px', backgroundColor: '#fafafa', borderRadius: '4px' }}>
-                    <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ts.cr5db_timesheetlog1}</div>
-                    <div style={{ color: 'var(--color-text-secondary)', fontSize: '10.5px' }}>{ts.cr5db_actualhoursworked} hours logged</div>
-                  </div>
-                ))}
-                {myTimesheets.length === 0 && <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>No draft timesheets.</span>}
-              </div>
-            </div>
-
-            <div style={{ paddingLeft: '4px' }}>
-              <div style={{ fontWeight: 700, fontSize: '12px', color: '#107C41', textTransform: 'uppercase', marginBottom: '8px' }}>
-                🎯 KPIs to Improve ({attentionKpis.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '110px', overflowY: 'auto' }}>
-                {attentionKpis.slice(0, 2).map((k, idx) => {
-                  const kpiLib = kpiLibrariesList.find(x => x.cr5db_kpilibraryid === k._cr5db_kpicode_value);
-                  const rate = calculateKpiAchievementRate(k.cr5db_targetvalue ?? 100, resolveKpiActualValue(k), kpiLib?.new_direction);
-                  return (
-                    <div key={idx} style={{ fontSize: '11.5px', padding: '4px', backgroundColor: '#fafafa', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100px' }}>{k.cr5db_kpiname}</span>
-                      <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{rate}%</span>
-                    </div>
-                  );
-                })}
-                {attentionKpis.length === 0 && <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>All KPIs achieved!</span>}
-              </div>
-            </div>
-          </div>
-        );
-      }
+      render: () => <IntegratedActionPanelWidget />
     },
     status_tracker: {
       title: language === 'vi' ? 'Tiến độ chu kỳ đánh giá cá nhân' : 'Personal Appraisal Cycle Tracker',
       size: 'large',
       roles: ['Employee', 'Admin'],
-      render: () => {
-        const activePeriod = evaluationPeriodsList.find(p => !p.cr5db_islocked);
-        const myAppraisal = appraisals.find(ap =>
-          ap.cr5db_employeeemail?.toLowerCase() === currentUserEmail.toLowerCase() &&
-          ap.cr5db_periodname === activePeriod?.cr5db_evaluationperiod1
-        );
-
-        const isSubmitted = myAppraisal?.statecode === 1 || myAppraisal?.statuscode === 2;
-        const isManagerReviewed = myAppraisal?.cr5db_finalscore !== null && myAppraisal?.cr5db_finalscore > 0;
-        const isLocked = activePeriod?.cr5db_islocked;
-
-        const steps = [
-          { label: 'Draft', completed: true },
-          { label: language === 'vi' ? 'Đã Nộp' : 'Submitted', completed: isSubmitted || isManagerReviewed || isLocked },
-          { label: language === 'vi' ? 'Đã Duyệt' : 'Reviewed', completed: isManagerReviewed || isLocked },
-          { label: language === 'vi' ? 'Hoàn tất' : 'Finalized', completed: isLocked }
-        ];
-
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-              {language === 'vi' ? 'Chu kỳ hiện tại: ' : 'Active Period: '} <strong>{activePeriod?.cr5db_evaluationperiod1 || 'N/A'}</strong>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', padding: '10px 0' }}>
-              <div style={{ position: 'absolute', top: '24px', left: '20px', right: '20px', height: '3px', backgroundColor: '#e5e7eb', zIndex: 1 }} />
-
-              {steps.map((st, idx) => (
-                <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2, position: 'relative', width: '60px' }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    backgroundColor: st.completed ? 'var(--color-primary)' : '#e5e7eb',
-                    color: st.completed ? '#ffffff' : 'var(--color-text-secondary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 700,
-                    fontSize: '13px',
-                    border: '3px solid #ffffff',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-                  }}>
-                    {st.completed ? '✓' : idx + 1}
-                  </div>
-                  <span style={{ fontSize: '11px', marginTop: '6px', fontWeight: 600, color: st.completed ? 'var(--color-text)' : 'var(--color-text-secondary)' }}>{st.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      }
+      render: () => <StatusTrackerWidget />
     }
   };
 
