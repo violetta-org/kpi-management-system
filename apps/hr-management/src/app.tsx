@@ -70,6 +70,11 @@ import { TaskModal } from './components/modals/TaskModal';
 import { LeaveRequestModal } from './components/modals/LeaveRequestModal';
 import { TimesheetModal } from './components/modals/TimesheetModal';
 import { KpiModal } from './components/modals/KpiModal';
+import { HeadcountRequestModal } from './components/modals/HeadcountRequestModal';
+import { KpiLibraryModal } from './components/modals/KpiLibraryModal';
+import { ObjectiveModal } from './components/modals/ObjectiveModal';
+import { BonusMatrixModal } from './components/modals/BonusMatrixModal';
+
 
 
 
@@ -133,7 +138,7 @@ function App() {
 
   // AI KPI Generator states
   const [isAiGenerating, setIsAiGenerating] = React.useState(false);
-  const [kpiQualityScore, setKpiQualityScore] = React.useState(0);
+
 
   // KPI custom date filter states
   const [kpiCustomStartDate, setKpiCustomStartDate] = React.useState('2026-05-01');
@@ -265,15 +270,15 @@ function App() {
     timesheetToRejectId, setTimesheetToRejectId,
     rejectionReason, setRejectionReason,
     showHeadcountRequestModal, setShowHeadcountRequestModal,
-    newRequestName, setNewRequestName,
-    newRequestType, setNewRequestType,
-    newReqDeptId, setNewReqDeptId,
-    newReqCatalogId, setNewReqCatalogId,
-    newReqQty, setNewReqQty,
-    newReqReason, setNewReqReason,
+    setNewRequestName,
+    setNewRequestType,
+    setNewReqDeptId,
+    setNewReqCatalogId,
+    setNewReqQty,
+    setNewReqReason,
     editingHeadcountRequest, setEditingHeadcountRequest,
-    newReqStatus, setNewReqStatus,
-    newReqReportsToId, setNewReqReportsToId,
+    setNewReqStatus,
+    setNewReqReportsToId,
     showCompanyModal, setShowCompanyModal,
     newCompanyCode, setNewCompanyCode,
     newCompanyName, setNewCompanyName,
@@ -315,15 +320,15 @@ function App() {
     activeKpiCatalogSubTab, setActiveKpiCatalogSubTab,
     showKpiLibraryModal, setShowKpiLibraryModal,
     editingKpiLibrary, setEditingKpiLibrary,
-    kpiLibName, setKpiLibName,
-    kpiLibUnit, setKpiLibUnit,
-    kpiLibFormula, setKpiLibFormula,
-    kpiLibDirection, setKpiLibDirection,
+    setKpiLibName,
+    setKpiLibUnit,
+    setKpiLibFormula,
+    setKpiLibDirection,
     showObjectiveModal, setShowObjectiveModal,
     editingObjective, setEditingObjective,
-    objectiveName, setObjectiveName,
-    objectiveTarget, setObjectiveTarget,
-    objectivePeriodId, setObjectivePeriodId,
+    setObjectiveName,
+    setObjectiveTarget,
+    setObjectivePeriodId,
     permissionGroups, setPermissionGroups,
     defaultGroups, setDefaultGroups,
     defaultGroupsDbId, setDefaultGroupsDbId,
@@ -332,9 +337,9 @@ function App() {
     bonusMatrixList, setBonusMatrixList,
     showBonusMatrixModal, setShowBonusMatrixModal,
     editingBonusMatrix, setEditingBonusMatrix,
-    newMinScore, setNewMinScore,
-    newMaxScore, setNewMaxScore,
-    newMultiplier, setNewMultiplier,
+    setNewMinScore,
+    setNewMaxScore,
+    setNewMultiplier,
     competencyCatalogList, setCompetencyCatalogList,
     jobCompetenciesList, setJobCompetenciesList,
     competencyAssessmentsList, setCompetencyAssessmentsList,
@@ -1842,8 +1847,8 @@ function App() {
   };
 
   // Bonus Matrix CRUD
-  const handleSaveBonusMatrix = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveBonusMatrix = async (data: any) => {
+    const { newMinScore, newMaxScore, newMultiplier } = data;
     if (newMinScore < 0 || newMaxScore < newMinScore) {
       alert("Dải điểm không hợp lệ (Min >= 0, Max >= Min).");
       return;
@@ -1973,46 +1978,9 @@ function App() {
     }
   };
   // AI KPI Generator Logic
-  const evaluateKpiSmartScore = (name: string, unit: string) => {
-    let score = 0;
-    const lowerName = name.toLowerCase();
 
-    // 1. Specific (30%): Action verbs
-    const actionVerbs = ['tăng', 'giảm', 'cải thiện', 'hoàn thành', 'duy trì', 'xây dựng', 'đạt', 'tối ưu', 'tạo', 'phát triển'];
-    if (actionVerbs.some(v => lowerName.includes(v))) {
-      score += 30;
-    }
-
-    // 2. Measurable (40%): Numbers or units
-    const hasNumbers = /\d/.test(lowerName);
-    const hasUnit = unit && unit !== '%' && unit.trim().length > 0;
-    const hasMeasureWords = ['tỷ', 'triệu', 'phần trăm', '%', 'vnd', 'usd', 'người', 'giờ', 'ngày'];
-    if (hasNumbers || hasUnit || hasMeasureWords.some(w => lowerName.includes(w))) {
-      score += 40;
-    }
-
-    // 3. Attainable/Relevant (20%): Reasonable length
-    if (name.trim().length > 15) {
-      score += 20;
-    }
-
-    // 4. Time-bound (10%): Time keywords
-    const timeWords = ['tháng', 'quý', 'năm', 'kỳ', 'tuần', 'ngày', 'trước', 'deadline'];
-    if (timeWords.some(w => lowerName.includes(w))) {
-      score += 10;
-    }
-
-    return score;
-  };
-
-  React.useEffect(() => {
-    if (showKpiLibraryModal) {
-      setKpiQualityScore(evaluateKpiSmartScore(kpiLibName, kpiLibUnit));
-    }
-  }, [kpiLibName, kpiLibUnit, showKpiLibraryModal]);
-
-  const handleAiImproveKpi = async () => {
-    if (!kpiLibName.trim()) {
+  const handleAiImproveKpi = async (name: string, callback: (improvedName: string) => void) => {
+    if (!name.trim()) {
       alert("Vui lòng nhập Tên KPI trước khi nhấn làm mượt bằng AI!");
       return;
     }
@@ -2030,7 +1998,7 @@ function App() {
         geminiKey = "AQ.Ab8RN6LeX5xGlbM8m3ses5e0A_GSqcCq8rj2fclEtRf0_Kmwjw";
       }
 
-      const prompt = `Bạn là chuyên gia nhân sự (HR Expert). Nhiệm vụ của bạn là tối ưu hóa tên mục tiêu KPI sau đây để đạt chuẩn S.M.A.R.T (Cụ thể, Đo lường được, Khả thi, Liên quan, Có thời hạn). Hãy trả về duy nhất một câu KPI tiếng Việt đã được tối ưu, độ dài không quá 25 từ, ngôn ngữ chuyên nghiệp. Tuyệt đối không giải thích hay thêm bất kỳ chữ nào ngoài câu trả lời.\n\nOriginal KPI: ${kpiLibName}`;
+      const prompt = `Bạn là chuyên gia nhân sự (HR Expert). Nhiệm vụ của bạn là tối ưu hóa tên mục tiêu KPI sau đây để đạt chuẩn S.M.A.R.T (Cụ thể, Đo lường được, Khả thi, Liên quan, Có thời hạn). Hãy trả về duy nhất một câu KPI tiếng Việt đã được tối ưu, độ dài không quá 25 từ, ngôn ngữ chuyên nghiệp. Tuyệt đối không giải thích hay thêm bất kỳ chữ nào ngoài câu trả lời.\n\nOriginal KPI: ${name}`;
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
         method: 'POST',
@@ -2054,7 +2022,7 @@ function App() {
       const optimizedKpi = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
       
       if (optimizedKpi) {
-        setKpiLibName(optimizedKpi);
+        callback(optimizedKpi);
       } else {
         alert("Không nhận được câu trả lời từ AI.");
       }
@@ -2067,8 +2035,8 @@ function App() {
   };
 
 // KPI Library CRUD
-const handleSaveKpiLibrary = async (e: React.FormEvent) => {
-  e.preventDefault();
+const handleSaveKpiLibrary = async (data: any) => {
+  const { kpiLibName, kpiLibUnit, kpiLibFormula, kpiLibDirection } = data;
   if (!kpiLibName.trim()) return;
   try {
     setIsLoading(true);
@@ -2101,8 +2069,8 @@ const handleDeleteKpiLibrary = async (id: string) => {
 };
 
 // Objectives CRUD
-const handleSaveObjective = async (e: React.FormEvent) => {
-  e.preventDefault();
+const handleSaveObjective = async (data: any) => {
+  const { objectiveName, objectiveTarget, objectivePeriodId } = data;
   if (!objectiveName.trim()) return;
   if (editingObjective && getObjectivePeriodLockStatus(editingObjective.cr5db_objectiveid)) {
     alert("Mục tiêu này thuộc chu kỳ đánh giá đã bị khóa. Không thể cập nhật.");
@@ -2459,8 +2427,8 @@ const handleDeleteJobPosition = async (id: string) => {
 
 // Headcount Requests
 // Headcount Requests CRUD
-const handleSaveHeadcountRequest = async (e: React.FormEvent) => {
-  e.preventDefault();
+const handleSaveHeadcountRequest = async (data: any) => {
+  const { newRequestName, newRequestType, newReqDeptId, newReqCatalogId, newReqQty, newReqReportsToId, newReqReason, newReqStatus } = data;
   if (!newRequestName.trim() || !newReqReason.trim()) return;
   try {
     setIsLoading(true);
@@ -8307,104 +8275,23 @@ return (
     onSave={handleSaveTask}
   />
   
-  {/* Headcount Request Modal */ }
-{
-  showHeadcountRequestModal && (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>{editingHeadcountRequest ? 'Cập nhật đề xuất định biên' : 'Đề xuất bổ sung định biên'}</h3>
-        <form onSubmit={handleSaveHeadcountRequest} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Tên đề xuất</label>
-            <input type="text" value={newRequestName} onChange={(e) => setNewRequestName(e.target.value)} className="input-spec" required placeholder="Đề xuất bổ sung..." />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Loại đề xuất</label>
-              <select value={newRequestType} onChange={(e) => setNewRequestType(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
-                <option value="Increase Headcount">Tăng định biên</option>
-                <option value="Decrease Headcount">Giảm định biên</option>
-                <option value="New Position">Vị trí mới</option>
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Phòng ban</label>
-              <select required value={newReqDeptId} onChange={(e) => setNewReqDeptId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
-                <option value="" disabled>-- Chọn phòng ban --</option>
-                {departmentsList.map(d => {
-                  const company = companiesList.find(c => c.cr5db_companyid === d._cr5db_companyid_value);
-                  const displayLabel = company ? `${d.cr5db_departmentname} (${company.cr5db_companyname})` : d.cr5db_departmentname;
-                  return (
-                    <option key={d.cr5db_departmentid} value={d.cr5db_departmentid}>{displayLabel}</option>
-                  );
-                })}
-              </select>
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Chức danh (Catalog)</label>
-              <select required value={newReqCatalogId} onChange={(e) => setNewReqCatalogId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
-                <option value="" disabled>-- Chọn chức danh gốc --</option>
-                {positionCatalogList.map(c => (
-                  <option key={c.cr5db_positioncatalogid} value={c.cr5db_positioncatalogid}>{c.cr5db_positioncatalog1}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Số lượng</label>
-              <input type="number" min={1} value={newReqQty} onChange={(e) => setNewReqQty(Number(e.target.value))} className="input-spec" style={{ height: '38px' }} />
-            </div>
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Quản lý trực tiếp (Reports To)</label>
-            <select value={newReqReportsToId} onChange={(e) => setNewReqReportsToId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
-              <option value="">Không có / Vị trí cấp cao nhất</option>
-              {jobPositionsList.map(pos => {
-                const dept = departmentsList.find(d => d.cr5db_departmentid === pos._cr5db_department_value);
-                const company = dept ? companiesList.find(c => c.cr5db_companyid === dept._cr5db_companyid_value) : null;
-                const deptPart = dept ? dept.cr5db_departmentname : '';
-                const compPart = company ? ` - ${company.cr5db_companyname}` : '';
-                const displayLabel = deptPart || compPart ? `${pos.cr5db_positionname} (${deptPart}${compPart})` : pos.cr5db_positionname;
-                return (
-                  <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>{displayLabel}</option>
-                );
-              })}
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Lý do đề xuất</label>
-            <textarea value={newReqReason} onChange={(e) => setNewReqReason(e.target.value)} className="input-spec" style={{ height: '70px', fontFamily: 'inherit' }} placeholder="Lý do..." />
-          </div>
-
-          {editingHeadcountRequest && activeRole === 'Admin' && (
-            <div>
-              <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Trạng thái phê duyệt</label>
-              <select value={newReqStatus} onChange={(e) => setNewReqStatus(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
-                <option value="Pending">Chờ duyệt</option>
-                <option value="Approved">Đã duyệt</option>
-                <option value="Rejected">Từ chối</option>
-              </select>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-            <button type="button" onClick={() => {
-              setShowHeadcountRequestModal(false);
-              setEditingHeadcountRequest(null);
-              setNewRequestName('');
-              setNewReqReason('');
-              setNewReqReportsToId('');
-            }} className="btn-filled-3">Hủy</button>
-            <button type="submit" className="btn-primary">{editingHeadcountRequest ? 'Lưu thay đổi' : 'Gửi đề xuất'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-{/* Approval Route Modal */ }
+  {/* Headcount Request Modal */}
+  <HeadcountRequestModal
+    isOpen={showHeadcountRequestModal}
+    editingHeadcountRequest={editingHeadcountRequest}
+    activeRole={activeRole}
+    departmentsList={departmentsList}
+    companiesList={companiesList}
+    positionCatalogList={positionCatalogList}
+    jobPositionsList={jobPositionsList}
+    onClose={() => {
+      setShowHeadcountRequestModal(false);
+      setEditingHeadcountRequest(null);
+    }}
+    onSave={handleSaveHeadcountRequest}
+  />
+  
+  {/* Approval Route Modal */ }
 {
   showRouteModal && (activeRole === 'Admin' || checkPermission('routes')) && (
     <div className="modal-overlay">
@@ -8567,167 +8454,43 @@ return (
     onSave={handleAddTimesheet}
   />
   
-  {/* KPI Library Modal */ }
-{
-  showKpiLibraryModal && (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ width: '460px' }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>{editingKpiLibrary ? 'Chinh sua KPI' : 'Them KPI moi vao thu vien'}</h3>
-        <form onSubmit={handleSaveKpiLibrary} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <label style={{ display: 'block', fontWeight: 600, fontSize: '13px' }}>Tên KPI <span style={{ color: '#dc2626' }}>*</span></label>
-              <button
-                type="button"
-                onClick={handleAiImproveKpi}
-                disabled={isAiGenerating || !kpiLibName.trim()}
-                style={{ background: 'none', border: 'none', color: isAiGenerating ? 'var(--color-text-secondary)' : 'var(--color-primary)', fontSize: '13px', fontWeight: 600, cursor: (isAiGenerating || !kpiLibName.trim()) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-              >
-                {isAiGenerating ? <i className="fas fa-spinner fa-spin"></i> : '🪄'} {isAiGenerating ? 'Đang xử lý...' : 'Làm mượt bằng AI'}
-              </button>
-            </div>
-            <input value={kpiLibName} onChange={e => setKpiLibName(e.target.value)} required placeholder="Ví dụ: Doanh số tháng, Tỷ lệ điểm danh..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-
-            {kpiLibName.trim() && (
-              <div style={{ marginTop: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontSize: '11px', fontWeight: 600 }}>
-                  <span style={{ color: 'var(--color-text-secondary)' }}>S.M.A.R.T Score</span>
-                  <span style={{ color: kpiQualityScore < 50 ? '#dc2626' : kpiQualityScore < 80 ? '#d97706' : '#10b981' }}>{kpiQualityScore}/100</span>
-                </div>
-                <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--color-border-light)', borderRadius: '3px', overflow: 'hidden' }}>
-                  <div style={{
-                    height: '100%',
-                    width: `${kpiQualityScore}%`,
-                    backgroundColor: kpiQualityScore < 50 ? '#dc2626' : kpiQualityScore < 80 ? '#d97706' : '#10b981',
-                    transition: 'width 0.3s ease, background-color 0.3s ease'
-                  }}></div>
-                </div>
-                {kpiQualityScore < 70 && (
-                  <div style={{ fontSize: '11px', color: '#d97706', marginTop: '6px', fontStyle: 'italic' }}>
-                    * Gợi ý: Hãy thêm động từ (Tăng/Giảm), số liệu đo lường hoặc thời hạn để câu KPI chuẩn S.M.A.R.T hơn.
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Don vi do luong</label>
-            <input
-              value={kpiLibUnit}
-              onChange={e => setKpiLibUnit(e.target.value)}
-              list="kpi-unit-options"
-              placeholder="Chon hoac nhap don vi (vd: %, VND, km...)"
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-            />
-            <datalist id="kpi-unit-options">
-              <option value="%">% (Phan tram)</option>
-              <option value="VND">VND (Dong)</option>
-              <option value="USD">USD (Do la)</option>
-              <option value="Days">Days (Ngay)</option>
-              <option value="Units">Units (Don vi)</option>
-              <option value="Score">Score (Diem)</option>
-              <option value="Tasks">Tasks (Nhiem vu)</option>
-              <option value="Hours">Hours (Gio)</option>
-            </datalist>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Cong thuc tinh (tuy chon)</label>
-            <input value={kpiLibFormula} onChange={e => setKpiLibFormula(e.target.value)} placeholder="Vi du: (Actual / Target) * 100" style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', fontFamily: 'monospace', boxSizing: 'border-box' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Chiều hướng tối ưu</label>
-            <select
-              value={kpiLibDirection}
-              onChange={e => setKpiLibDirection(Number(e.target.value))}
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', height: '40px', backgroundColor: '#ffffff' }}
-            >
-              <option value={1}>Tối đa hóa (Higher is better)</option>
-              <option value={2}>Tối thiểu hóa (Lower is better)</option>
-              <option value={3}>Đạt / Không đạt (Binary)</option>
-              <option value={4}>Cột mốc (Milestone)</option>
-            </select>
-          </div>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
-            <button type="button" onClick={() => setShowKpiLibraryModal(false)} className="btn-filled-3">Huy</button>
-            <button type="submit" className="btn-primary">Luu KPI</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-{/* Objective Modal */ }
-{
-  showObjectiveModal && (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ width: '420px' }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>{editingObjective ? 'Chinh sua muc tieu' : 'Them muc tieu moi'}</h3>
-        <form onSubmit={handleSaveObjective} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Ten muc tieu <span style={{ color: '#dc2626' }}>*</span></label>
-            <input value={objectiveName} onChange={e => setObjectiveName(e.target.value)} required placeholder="Vi du: Phai dat top 1 QLDA, Tang truong doanh so 20%..." style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Gia tri muc tieu</label>
-            <input type="number" value={objectiveTarget} onChange={e => setObjectiveTarget(Number(e.target.value))} style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Chu kỳ đánh giá (Evaluation Period) <span style={{ color: '#dc2626' }}>*</span></label>
-            <select
-              value={objectivePeriodId}
-              onChange={e => setObjectivePeriodId(e.target.value)}
-              required
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', backgroundColor: '#ffffff' }}
-            >
-              <option value="">-- Chọn chu kỳ đánh giá --</option>
-              {evaluationPeriodsList.map(ep => (
-                <option key={ep.cr5db_evaluationperiodid} value={ep.cr5db_evaluationperiodid}>
-                  {ep.cr5db_evaluationperiod1}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
-            <button type="button" onClick={() => setShowObjectiveModal(false)} className="btn-filled-3">Huy</button>
-            <button type="submit" className="btn-primary">Luu muc tieu</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-{/* Bonus Matrix Modal */ }
-{
-  showBonusMatrixModal && (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ width: '420px' }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>{editingBonusMatrix ? 'Chỉnh sửa dải điểm' : 'Thêm dải điểm thưởng'}</h3>
-        <form onSubmit={handleSaveBonusMatrix} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Điểm tối thiểu (Min Score) <span style={{ color: '#dc2626' }}>*</span></label>
-            <input type="number" step="0.01" value={newMinScore} onChange={e => setNewMinScore(Number(e.target.value))} required style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Điểm tối đa (Max Score) <span style={{ color: '#dc2626' }}>*</span></label>
-            <input type="number" step="0.01" value={newMaxScore} onChange={e => setNewMaxScore(Number(e.target.value))} required style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Hệ số thưởng (Multiplier) <span style={{ color: '#dc2626' }}>*</span></label>
-            <input type="number" step="0.01" value={newMultiplier} onChange={e => setNewMultiplier(Number(e.target.value))} required style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-          </div>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
-            <button type="button" onClick={() => setShowBonusMatrixModal(false)} className="btn-filled-3">Hủy</button>
-            <button type="submit" className="btn-primary">Lưu cấu hình</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-{/* Competency Catalog Modal */ }
+  {/* KPI Library Modal */}
+  <KpiLibraryModal
+    isOpen={showKpiLibraryModal}
+    editingKpiLibrary={editingKpiLibrary}
+    isAiGenerating={isAiGenerating}
+    onAiImprove={(name, callback) => handleAiImproveKpi(name, callback)}
+    onClose={() => {
+      setShowKpiLibraryModal(false);
+      setEditingKpiLibrary(null);
+    }}
+    onSave={handleSaveKpiLibrary}
+  />
+  
+  {/* Objective Modal */}
+  <ObjectiveModal
+    isOpen={showObjectiveModal}
+    editingObjective={editingObjective}
+    evaluationPeriodsList={evaluationPeriodsList}
+    onClose={() => {
+      setShowObjectiveModal(false);
+      setEditingObjective(null);
+    }}
+    onSave={handleSaveObjective}
+  />
+  
+  {/* Bonus Matrix Modal */}
+  <BonusMatrixModal
+    isOpen={showBonusMatrixModal}
+    editingBonusMatrix={editingBonusMatrix}
+    onClose={() => {
+      setShowBonusMatrixModal(false);
+      setEditingBonusMatrix(null);
+    }}
+    onSave={handleSaveBonusMatrix}
+  />
+  
+  {/* Competency Catalog Modal */ }
 {
   showCompetencyModal && (
     <div className="modal-overlay">
