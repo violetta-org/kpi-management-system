@@ -1,5 +1,0 @@
-<fetch>
-  <entity name="importjob">
-    <attribute name="data" />
-  </entity>
-</fetch>

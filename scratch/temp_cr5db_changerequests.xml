@@ -1,5 +1,0 @@
-<fetch count="1">
-  <entity name="cr5db_changerequests">
-    <attribute name="cr5db_changerequestsid" />
-  </entity>
-</fetch>
