@@ -74,6 +74,11 @@ import { HeadcountRequestModal } from './components/modals/HeadcountRequestModal
 import { KpiLibraryModal } from './components/modals/KpiLibraryModal';
 import { ObjectiveModal } from './components/modals/ObjectiveModal';
 import { BonusMatrixModal } from './components/modals/BonusMatrixModal';
+import { CompanyModal } from './components/modals/CompanyModal';
+import { DepartmentModal } from './components/modals/DepartmentModal';
+import { PositionCatalogModal } from './components/modals/PositionCatalogModal';
+import { JobPositionModal } from './components/modals/JobPositionModal';
+
 
 
 
@@ -253,7 +258,6 @@ function App() {
     newRiskProbability, setNewRiskProbability,
     newRiskMitigation, setNewRiskMitigation,
     selectedDeptCompanyId, setSelectedDeptCompanyId,
-    selectedReportsToPositionId, setSelectedReportsToPositionId,
     selectedKpiEmployeeFilter, setSelectedKpiEmployeeFilter,
     selectedKpiObjectiveFilter, setSelectedKpiObjectiveFilter,
     selectedKpiPeriodFilter, setSelectedKpiPeriodFilter,
@@ -280,24 +284,13 @@ function App() {
     setNewReqStatus,
     setNewReqReportsToId,
     showCompanyModal, setShowCompanyModal,
-    newCompanyCode, setNewCompanyCode,
-    newCompanyName, setNewCompanyName,
     showDeptModal, setShowDeptModal,
-    newDeptCode, setNewDeptCode,
-    newDeptName, setNewDeptName,
     editingCompany, setEditingCompany,
     editingDept, setEditingDept,
     showCatalogModal, setShowCatalogModal,
-    newCatalogCode, setNewCatalogCode,
-    newCatalogName, setNewCatalogName,
     editingCatalog, setEditingCatalog,
     showJobPositionModal, setShowJobPositionModal,
-    newJobPosName, setNewJobPosName,
-    newJobPosDeptId, setNewJobPosDeptId,
-    newJobPosCatalogId, setNewJobPosCatalogId,
-    newJobPosQuota, setNewJobPosQuota,
     editingJobPosition, setEditingJobPosition,
-    newJobPosCompetencyIds, setNewJobPosCompetencyIds,
     showAssignRoleModal, setShowAssignRoleModal,
     assignRoleUserId, setAssignRoleUserId,
     assignRoleName, setAssignRoleName,
@@ -621,9 +614,7 @@ function App() {
     setApprovalRoutesList, setChangeRequestsList, setProjectTeamsList,
     setTasks, setHeadcountRequests, setKpiTargets,
     setTimesheets, setAppraisals, setEvaluationPeriodsList,
-    setNewReqDeptId, setNewJobPosDeptId,
     setAssignRoleUserId,
-    setNewReqCatalogId, setNewJobPosCatalogId,
     setSelectedDeptCompanyId, setPermissionGroups, setDefaultGroups,
     setDefaultGroupsDbId, setBonusMatrixList,
     setCompetencyCatalogList, setJobCompetenciesList, setCompetencyAssessmentsList,
@@ -1709,26 +1700,23 @@ function App() {
   };
 
   // Company and Departments
-  const handleAddCompany = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCompanyCode.trim() || !newCompanyName.trim()) return;
+  const handleAddCompany = async (data: { code: string; name: string }) => {
+    if (!data.code.trim() || !data.name.trim()) return;
     try {
       setIsLoading(true);
       if (editingCompany) {
         await Cr5db_companiesService.update(editingCompany.cr5db_companyid, {
-          cr5db_companycode: newCompanyCode,
-          cr5db_companyname: newCompanyName
+          cr5db_companycode: data.code,
+          cr5db_companyname: data.name
         } as any);
       } else {
         await Cr5db_companiesService.create({
-          cr5db_companycode: newCompanyCode,
-          cr5db_companyname: newCompanyName
+          cr5db_companycode: data.code,
+          cr5db_companyname: data.name
         } as any);
       }
       setShowCompanyModal(false);
       setEditingCompany(null);
-      setNewCompanyCode('');
-      setNewCompanyName('');
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
@@ -1761,28 +1749,25 @@ function App() {
     }
   };
 
-  const handleAddDepartment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newDeptCode.trim() || !newDeptName.trim()) return;
+  const handleAddDepartment = async (data: { code: string; name: string; companyId: string }) => {
+    if (!data.code.trim() || !data.name.trim()) return;
     try {
       setIsLoading(true);
       if (editingDept) {
         await Cr5db_departmentsService.update(editingDept.cr5db_departmentid, {
-          cr5db_departmentcode: newDeptCode,
-          cr5db_departmentname: newDeptName,
-          "cr5db_CompanyID@odata.bind": selectedDeptCompanyId ? `/cr5db_companies(${selectedDeptCompanyId})` : undefined
+          cr5db_departmentcode: data.code,
+          cr5db_departmentname: data.name,
+          "cr5db_CompanyID@odata.bind": data.companyId ? `/cr5db_companies(${data.companyId})` : undefined
         } as any);
       } else {
         await Cr5db_departmentsService.create({
-          cr5db_departmentcode: newDeptCode,
-          cr5db_departmentname: newDeptName,
-          "cr5db_CompanyID@odata.bind": selectedDeptCompanyId ? `/cr5db_companies(${selectedDeptCompanyId})` : undefined
+          cr5db_departmentcode: data.code,
+          cr5db_departmentname: data.name,
+          "cr5db_CompanyID@odata.bind": data.companyId ? `/cr5db_companies(${data.companyId})` : undefined
         } as any);
       }
       setShowDeptModal(false);
       setEditingDept(null);
-      setNewDeptCode('');
-      setNewDeptName('');
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
@@ -1805,26 +1790,23 @@ function App() {
   };
 
   // Positions Catalog
-  const handleAddCatalog = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCatalogCode.trim() || !newCatalogName.trim()) return;
+  const handleAddCatalog = async (data: { code: string; name: string }) => {
+    if (!data.code.trim() || !data.name.trim()) return;
     try {
       setIsLoading(true);
       if (editingCatalog) {
         await Cr5db_positioncatalogsService.update(editingCatalog.cr5db_positioncatalogid, {
-          cr5db_code: newCatalogCode,
-          cr5db_positioncatalog1: newCatalogName
+          cr5db_code: data.code,
+          cr5db_positioncatalog1: data.name
         } as any);
       } else {
         await Cr5db_positioncatalogsService.create({
-          cr5db_code: newCatalogCode,
-          cr5db_positioncatalog1: newCatalogName
+          cr5db_code: data.code,
+          cr5db_positioncatalog1: data.name
         } as any);
       }
       setShowCatalogModal(false);
       setEditingCatalog(null);
-      setNewCatalogCode('');
-      setNewCatalogName('');
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
@@ -2304,31 +2286,29 @@ const handleSaveDefaultGroups = async (groupIds: string[]) => {
 };
 
 // Job Positions (Headcount)
-const handleAddJobPosition = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!newJobPosName.trim()) return;
+const handleAddJobPosition = async (data: { name: string; deptId: string; catalogId: string; quota: number; reportsToId: string; competencyIds: string[] }) => {
+  if (!data.name.trim()) return;
   try {
     setIsLoading(true);
     const payload: any = {
-      cr5db_positionname: newJobPosName,
-      cr5db_headcountquota: Number(newJobPosQuota)
+      cr5db_positionname: data.name,
+      cr5db_headcountquota: Number(data.quota)
     };
-
     if (editingJobPosition) {
-      if (newJobPosDeptId) {
-        payload["cr5db_Department@odata.bind"] = `/cr5db_departments(${newJobPosDeptId})`;
+      if (data.deptId) {
+        payload["cr5db_Department@odata.bind"] = `/cr5db_departments(${data.deptId})`;
       } else {
         payload.cr5db_Department = null;
       }
 
-      if (newJobPosCatalogId) {
-        payload["cr5db_PositionCatalogTitle@odata.bind"] = `/cr5db_positioncatalogs(${newJobPosCatalogId})`;
+      if (data.catalogId) {
+        payload["cr5db_PositionCatalogTitle@odata.bind"] = `/cr5db_positioncatalogs(${data.catalogId})`;
       } else {
         payload.cr5db_PositionCatalogTitle = null;
       }
 
-      if (selectedReportsToPositionId) {
-        payload["cr5db_ReportsToPositionID@odata.bind"] = `/cr5db_jobpositions(${selectedReportsToPositionId})`;
+      if (data.reportsToId) {
+        payload["cr5db_ReportsToPositionID@odata.bind"] = `/cr5db_jobpositions(${data.reportsToId})`;
       } else {
         payload.cr5db_ReportsToPositionID = null;
       }
@@ -2338,7 +2318,7 @@ const handleAddJobPosition = async (e: React.FormEvent) => {
         "Update",
         payload,
         editingJobPosition.cr5db_jobpositionid,
-        `Cập nhật vị trí công việc: ${newJobPosName}`,
+        `Cập nhật vị trí công việc: ${data.name}`,
         editingJobPosition
       );
 
@@ -2346,8 +2326,8 @@ const handleAddJobPosition = async (e: React.FormEvent) => {
         const posId = editingJobPosition.cr5db_jobpositionid;
         const existingComps = jobCompetenciesList.filter(jc => jc._cr5db_jobposition_value === posId);
         
-        const toDelete = existingComps.filter(jc => !newJobPosCompetencyIds.includes(jc._new_competencyid_value));
-        const toAdd = newJobPosCompetencyIds.filter(id => !existingComps.some(jc => jc._new_competencyid_value === id));
+        const toDelete = existingComps.filter(jc => !data.competencyIds.includes(jc._new_competencyid_value));
+        const toAdd = data.competencyIds.filter(id => !existingComps.some(jc => jc._new_competencyid_value === id));
         
         for (const jc of toDelete) {
           await New_jobcompetencyService.delete(jc.new_jobcompetencyid);
@@ -2362,14 +2342,14 @@ const handleAddJobPosition = async (e: React.FormEvent) => {
       }
     } else {
       // For creation, only include lookup fields if they are selected (avoid null properties)
-      if (newJobPosDeptId) {
-        payload["cr5db_Department@odata.bind"] = `/cr5db_departments(${newJobPosDeptId})`;
+      if (data.deptId) {
+        payload["cr5db_Department@odata.bind"] = `/cr5db_departments(${data.deptId})`;
       }
-      if (newJobPosCatalogId) {
-        payload["cr5db_PositionCatalogTitle@odata.bind"] = `/cr5db_positioncatalogs(${newJobPosCatalogId})`;
+      if (data.catalogId) {
+        payload["cr5db_PositionCatalogTitle@odata.bind"] = `/cr5db_positioncatalogs(${data.catalogId})`;
       }
-      if (selectedReportsToPositionId) {
-        payload["cr5db_ReportsToPositionID@odata.bind"] = `/cr5db_jobpositions(${selectedReportsToPositionId})`;
+      if (data.reportsToId) {
+        payload["cr5db_ReportsToPositionID@odata.bind"] = `/cr5db_jobpositions(${data.reportsToId})`;
       }
 
       const res = await executeCrudWithApproval(
@@ -2377,12 +2357,12 @@ const handleAddJobPosition = async (e: React.FormEvent) => {
         "Create",
         payload,
         undefined,
-        `Tạo vị trí công việc mới: ${newJobPosName}`
+        `Tạo vị trí công việc mới: ${data.name}`
       );
 
       if (res && res.data && res.data.cr5db_jobpositionid) {
         // Nếu tạo thành công (Admin), tạo luôn các năng lực đã chọn
-        for (const compId of newJobPosCompetencyIds) {
+        for (const compId of data.competencyIds) {
           await New_jobcompetencyService.create({
             new_requiredlevel: 3,
             "cr5db_JobPosition@odata.bind": `/cr5db_jobpositions(${res.data.cr5db_jobpositionid})`,
@@ -2393,11 +2373,6 @@ const handleAddJobPosition = async (e: React.FormEvent) => {
     }
     setShowJobPositionModal(false);
     setEditingJobPosition(null);
-    setNewJobPosName('');
-    setNewJobPosQuota(1);
-    setNewJobPosDeptId('');
-    setNewJobPosCatalogId('');
-    setNewJobPosCompetencyIds([]);
   } catch (err: any) {
     console.error(err);
     alert(`Lỗi khi lưu job position: ${err.message || err}`);
@@ -6028,8 +6003,6 @@ return (
                       <button
                         onClick={() => {
                           setEditingCompany(c);
-                          setNewCompanyCode(c.cr5db_companycode);
-                          setNewCompanyName(c.cr5db_companyname);
                           setShowCompanyModal(true);
                         }}
                         className="btn-filled-3"
@@ -6073,8 +6046,6 @@ return (
                       <button
                         onClick={() => {
                           setEditingDept(d);
-                          setNewDeptCode(d.cr5db_departmentcode);
-                          setNewDeptName(d.cr5db_departmentname);
                           setShowDeptModal(true);
                         }}
                         className="btn-filled-3"
@@ -6134,8 +6105,6 @@ return (
                       style={{ padding: '4px 12px', fontSize: '12px' }}
                       onClick={() => {
                         setEditingCatalog(pc);
-                        setNewCatalogCode(pc.cr5db_code || '');
-                        setNewCatalogName(pc.cr5db_positioncatalog1 || '');
                         setShowCatalogModal(true);
                       }}
                     >Edit</button>
@@ -6219,11 +6188,6 @@ return (
                         style={{ padding: '4px 12px', fontSize: '12px' }}
                         onClick={() => {
                           setEditingJobPosition(pos);
-                          setNewJobPosName(pos.cr5db_positionname || '');
-                          setNewJobPosQuota(pos.cr5db_headcountquota || 1);
-                          setNewJobPosDeptId(pos._cr5db_department_value || '');
-                          setNewJobPosCatalogId(pos._cr5db_positioncatalogtitle_value || '');
-                          setSelectedReportsToPositionId(pos._cr5db_reportstopositionid_value || '');
                           setShowJobPositionModal(true);
                         }}
                       >Edit</button>
@@ -8803,185 +8767,61 @@ return (
 }
 
 {
-  showCompanyModal && (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>
-          {editingCompany ? 'Edit Company' : 'Add Company'}
-        </h3>
-        <form onSubmit={handleAddCompany} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Mã công ty</label>
-            <input type="text" value={newCompanyCode} onChange={(e) => setNewCompanyCode(e.target.value)} className="input-spec" required placeholder="VNX" />
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Tên công ty</label>
-            <input type="text" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="input-spec" required placeholder="Vietnam Express Corp" />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-            <button type="button" onClick={() => { setShowCompanyModal(false); setEditingCompany(null); setNewCompanyCode(''); setNewCompanyName(''); }} className="btn-filled-3">Hủy</button>
-            <button type="submit" className="btn-primary">{editingCompany ? 'Update' : 'Add'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
+  <CompanyModal
+    isOpen={showCompanyModal}
+    editingCompany={editingCompany}
+    onClose={() => {
+      setShowCompanyModal(false);
+      setEditingCompany(null);
+    }}
+    onSave={handleAddCompany}
+  />
 }
 
 {/* Department Modal */ }
 {
-  showDeptModal && (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>
-          {editingDept ? 'Edit Department' : 'Add Department'}
-        </h3>
-        <form onSubmit={handleAddDepartment} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Mã phòng ban</label>
-            <input type="text" value={newDeptCode} onChange={(e) => setNewDeptCode(e.target.value)} className="input-spec" required placeholder="HR" />
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Tên phòng ban</label>
-            <input type="text" value={newDeptName} onChange={(e) => setNewDeptName(e.target.value)} className="input-spec" required placeholder="Human Resources" />
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Công ty trực thuộc</label>
-            <select value={selectedDeptCompanyId} onChange={(e) => setSelectedDeptCompanyId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
-              {companiesList.map(c => (
-                <option key={c.cr5db_companyid} value={c.cr5db_companyid}>{c.cr5db_companyname}</option>
-              ))}
-            </select>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-            <button type="button" onClick={() => { setShowDeptModal(false); setEditingDept(null); setNewDeptCode(''); setNewDeptName(''); }} className="btn-filled-3">Hủy</button>
-            <button type="submit" className="btn-primary">{editingDept ? 'Update' : 'Add'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
+  <DepartmentModal
+    isOpen={showDeptModal}
+    editingDept={editingDept}
+    companiesList={companiesList}
+    defaultCompanyId={companiesList[0]?.cr5db_companyid || ''}
+    onClose={() => {
+      setShowDeptModal(false);
+      setEditingDept(null);
+    }}
+    onSave={handleAddDepartment}
+  />
 }
 
 {/* Position Catalog Modal */ }
 {
-  showCatalogModal && (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>{editingCatalog ? 'Edit Standard Title' : 'Add Standard Title'}</h3>
-        <form onSubmit={handleAddCatalog} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Mã</label>
-            <input type="text" value={newCatalogCode} onChange={(e) => setNewCatalogCode(e.target.value)} className="input-spec" required placeholder="DEV" />
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Tên chức danh</label>
-            <input type="text" value={newCatalogName} onChange={(e) => setNewCatalogName(e.target.value)} className="input-spec" required placeholder="Developer" />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-            <button type="button" onClick={() => { setShowCatalogModal(false); setEditingCatalog(null); setNewCatalogCode(''); setNewCatalogName(''); }} className="btn-filled-3">Hủy</button>
-            <button type="submit" className="btn-primary">{editingCatalog ? 'Update' : 'Add'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
+  <PositionCatalogModal
+    isOpen={showCatalogModal}
+    editingCatalog={editingCatalog}
+    onClose={() => {
+      setShowCatalogModal(false);
+      setEditingCatalog(null);
+    }}
+    onSave={handleAddCatalog}
+  />
 }
 
 {/* Job Position Modal */ }
 {
-  showJobPositionModal && (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <h3 style={{ marginBottom: '16px', fontSize: '14px', fontWeight: 700 }}>{editingJobPosition ? 'Edit Job Position' : 'Create Job Position'}</h3>
-        <form onSubmit={handleAddJobPosition} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Tên vị trí</label>
-            <input type="text" value={newJobPosName} onChange={(e) => setNewJobPosName(e.target.value)} className="input-spec" required placeholder="Ví dụ: Senior Frontend Engineer..." />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Phòng ban</label>
-              <select required value={newJobPosDeptId} onChange={(e) => setNewJobPosDeptId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
-                <option value="" disabled>-- Chọn phòng ban --</option>
-                {departmentsList.map(d => {
-                  const company = companiesList.find(c => c.cr5db_companyid === d._cr5db_companyid_value);
-                  const displayLabel = company ? `${d.cr5db_departmentname} (${company.cr5db_companyname})` : d.cr5db_departmentname;
-                  return (
-                    <option key={d.cr5db_departmentid} value={d.cr5db_departmentid}>{displayLabel}</option>
-                  );
-                })}
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Chức danh gốc (Catalog)</label>
-              <select required value={newJobPosCatalogId} onChange={(e) => setNewJobPosCatalogId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
-                <option value="" disabled>-- Chọn chức danh gốc --</option>
-                {positionCatalogList.map(pc => (
-                  <option key={pc.cr5db_positioncatalogid} value={pc.cr5db_positioncatalogid}>{pc.cr5db_positioncatalog1}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Quota định biên</label>
-              <input type="number" min={1} value={newJobPosQuota} onChange={(e) => setNewJobPosQuota(Number(e.target.value))} className="input-spec" style={{ height: '38px' }} />
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Quản lý trực tiếp (Reports To)</label>
-              <select value={selectedReportsToPositionId} onChange={(e) => setSelectedReportsToPositionId(e.target.value)} className="input-spec" style={{ height: '38px', padding: '6px 12px' }}>
-                <option value="">Không có</option>
-                {jobPositionsList
-                  .filter(pos => !editingJobPosition || pos.cr5db_jobpositionid !== editingJobPosition.cr5db_jobpositionid)
-                  .map(pos => {
-                    const dept = departmentsList.find(d => d.cr5db_departmentid === pos._cr5db_department_value);
-                    const company = dept ? companiesList.find(c => c.cr5db_companyid === dept._cr5db_companyid_value) : null;
-                    const deptPart = dept ? dept.cr5db_departmentname : '';
-                    const compPart = company ? ` - ${company.cr5db_companyname}` : '';
-                    const displayLabel = deptPart || compPart ? `${pos.cr5db_positionname} (${deptPart}${compPart})` : pos.cr5db_positionname;
-                    return (
-                      <option key={pos.cr5db_jobpositionid} value={pos.cr5db_jobpositionid}>{displayLabel}</option>
-                    );
-                  })}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Năng lực yêu cầu</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '10px' }}>
-              {competencyCatalogList.map(comp => {
-                const isChecked = newJobPosCompetencyIds.includes(comp.new_competencycatalogid);
-                return (
-                  <label key={comp.new_competencycatalogid} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setNewJobPosCompetencyIds([...newJobPosCompetencyIds, comp.new_competencycatalogid]);
-                        } else {
-                          setNewJobPosCompetencyIds(newJobPosCompetencyIds.filter(id => id !== comp.new_competencycatalogid));
-                        }
-                      }}
-                    />
-                    <span>{comp.new_name} ({comp.new_type === 'Core' ? 'Lõi' : comp.new_type === 'Leadership' ? 'Lãnh đạo' : 'Chuyên môn'})</span>
-                  </label>
-                );
-              })}
-              {competencyCatalogList.length === 0 && (
-                <span style={{ fontSize: '12px', color: '#666' }}>Chưa có từ điển năng lực nào.</span>
-              )}
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-            <button type="button" onClick={() => { setShowJobPositionModal(false); setEditingJobPosition(null); setNewJobPosName(''); setNewJobPosQuota(1); setNewJobPosDeptId(''); setNewJobPosCatalogId(''); setNewJobPosCompetencyIds([]); }} className="btn-filled-3">Hủy</button>
-            <button type="submit" className="btn-primary">{editingJobPosition ? 'Update' : 'Tạo mới'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
+  <JobPositionModal
+    isOpen={showJobPositionModal}
+    editingJobPosition={editingJobPosition}
+    departmentsList={departmentsList}
+    companiesList={companiesList}
+    positionCatalogList={positionCatalogList}
+    jobPositionsList={jobPositionsList}
+    competencyCatalogList={competencyCatalogList}
+    onClose={() => {
+      setShowJobPositionModal(false);
+      setEditingJobPosition(null);
+    }}
+    onSave={handleAddJobPosition}
+  />
 }
 
 {/* Role Assignment Modal */ }

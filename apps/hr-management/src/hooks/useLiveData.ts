@@ -87,12 +87,8 @@ export interface LiveDataSetters {
   setDefaultGroups: (v: string) => void;
   setDefaultGroupsDbId: (v: string) => void;
   // Default select setters populated on first load
-  setNewReqDeptId: (v: string) => void;
-  setNewJobPosDeptId: (v: string) => void;
   
   setAssignRoleUserId: (v: string) => void;
-  setNewReqCatalogId: (v: string) => void;
-  setNewJobPosCatalogId: (v: string) => void;
   setSelectedDeptCompanyId: (v: string) => void;
   
 }
@@ -380,15 +376,11 @@ export function useLiveData(setters: LiveDataSetters) {
 
       // Populate default select values
       if (allDepts.length > 0) {
-        setters.setNewReqDeptId(allDepts[0].cr5db_departmentid);
-        setters.setNewJobPosDeptId(allDepts[0].cr5db_departmentid);
       }
       if (allUsers.length > 0) {
         setters.setAssignRoleUserId(allUsers[0].cr5db_userid);
       }
       if (allCatalogs.length > 0) {
-        setters.setNewReqCatalogId(allCatalogs[0].cr5db_positioncatalogid);
-        setters.setNewJobPosCatalogId(allCatalogs[0].cr5db_positioncatalogid);
       }
       if (allCompanies.length > 0) {
         setters.setSelectedDeptCompanyId(allCompanies[0].cr5db_companyid);
