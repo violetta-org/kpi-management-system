@@ -82,6 +82,12 @@ import { OvertimeModal } from './components/modals/OvertimeModal';
 import { OtApprovalModal } from './components/modals/OtApprovalModal';
 import { DashboardSettingsModal } from './components/modals/DashboardSettingsModal';
 import { NotificationsModal } from './components/modals/NotificationsModal';
+import { ChangeRequestApprovalModal } from './components/modals/ChangeRequestApprovalModal';
+import { ResourceAllocationModal } from './components/modals/ResourceAllocationModal';
+import { RiskModal } from './components/modals/RiskModal';
+
+
+
 
 import { CompanyModal } from './components/modals/CompanyModal';
 import { DepartmentModal } from './components/modals/DepartmentModal';
@@ -138,18 +144,12 @@ function App() {
 
   // Resource Allocation Modal local states
   const [showAllocationModal, setShowAllocationModal] = React.useState(false);
-  const [allocationUser, setAllocationUser] = React.useState('');
-  const [allocationProject, setAllocationProject] = React.useState('');
-  const [allocationPercentage, setAllocationPercentage] = React.useState(100);
-  const [allocationName, setAllocationName] = React.useState('');
-  const [editingAllocation, setEditingAllocation] = React.useState<any | null>(null);
+          const [editingAllocation, setEditingAllocation] = React.useState<any | null>(null);
   const [editingHoliday, setEditingHoliday] = React.useState<Holiday | null>(null);
 
   // AI Suggestion states
-  const [showAiSuggestions, setShowAiSuggestions] = React.useState(false);
-  const [aiSuggestions, setAiSuggestions] = React.useState<any[]>([]);
-  const [aiFilterSameDept, setAiFilterSameDept] = React.useState(false);
-
+    const [aiSuggestions, setAiSuggestions] = React.useState<any[]>([]);
+  
   // AI KPI Generator states
   const [isAiGenerating, setIsAiGenerating] = React.useState(false);
 
@@ -250,11 +250,7 @@ function App() {
     newPhaseEndDate, setNewPhaseEndDate,
     showRiskModal, setShowRiskModal,
     editingRisk, setEditingRisk,
-    newRiskName, setNewRiskName,
-    newRiskImpact, setNewRiskImpact,
-    newRiskProbability, setNewRiskProbability,
-    newRiskMitigation, setNewRiskMitigation,
-    selectedDeptCompanyId, setSelectedDeptCompanyId,
+                    selectedDeptCompanyId, setSelectedDeptCompanyId,
     selectedKpiEmployeeFilter, setSelectedKpiEmployeeFilter,
     selectedKpiObjectiveFilter, setSelectedKpiObjectiveFilter,
     selectedKpiPeriodFilter, setSelectedKpiPeriodFilter,
@@ -294,9 +290,7 @@ function App() {
     assignRoleNotes, setAssignRoleNotes,
     showApprovalModal, setShowApprovalModal,
     approvalModalData, setApprovalModalData,
-    requestReason, setRequestReason,
-    selectedApproverId, setSelectedApproverId,
-    showRouteModal, setShowRouteModal,
+            showRouteModal, setShowRouteModal,
     editingRoute, setEditingRoute,
     routeName, setRouteName,
     routeTargetEntity, setRouteTargetEntity,
@@ -624,9 +618,8 @@ function App() {
   } = buildApprovalEngine({
     activeRole, currentUserEmail,
     usersList, jobPositionsList, approvalRoutesList,
-    setIsLoading, setApprovalModalData, setSelectedApproverId,
-    setRequestReason, setShowApprovalModal,
-    approvalModalData, requestReason, selectedApproverId,
+    setIsLoading, setApprovalModalData, setShowApprovalModal,
+    approvalModalData, 
     fetchLiveValues,
   });
 
@@ -2957,17 +2950,16 @@ const handleSavePhase = async (e: React.FormEvent) => {
   }
 };
 
-const handleSaveRisk = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!activeProjectDetails || !newRiskName.trim()) return;
+const handleSaveRisk = async (data: { name: string; impact: string; probability: string; mitigation: string }) => {
+    if (!activeProjectDetails || !data.name.trim()) return;
   try {
     setIsLoading(true);
 
     const payload: any = {
-      cr5db_projectrisk1: newRiskName,
-      cr5db_impactlevel: newRiskImpact === 'High' ? 122650000 : newRiskImpact === 'Medium' ? 122650001 : 122650002,
-      cr5db_probabilitypercentage: newRiskProbability === 'High' ? 80 : newRiskProbability === 'Medium' ? 50 : 20,
-      new_mitigationplan: newRiskMitigation
+      cr5db_projectrisk1: data.name,
+      cr5db_impactlevel: data.impact === 'High' ? 122650000 : data.impact === 'Medium' ? 122650001 : 122650002,
+      cr5db_probabilitypercentage: data.probability === 'High' ? 80 : data.probability === 'Medium' ? 50 : 20,
+      new_mitigationplan: data.mitigation
     };
 
     // DEBUG: Log payload keys to verify no old field names
@@ -2998,11 +2990,7 @@ const handleSaveRisk = async (e: React.FormEvent) => {
 
     setShowRiskModal(false);
     setEditingRisk(null);
-    setNewRiskName('');
-    setNewRiskImpact('Medium');
-    setNewRiskProbability('Medium');
-    setNewRiskMitigation('');
-    await fetchLiveValues();
+                    await fetchLiveValues();
   } catch (err: any) {
     console.error('[handleSaveRisk] Exception:', err);
     const errMsg = err?.message || err?.error?.message || JSON.stringify(err);
@@ -3075,36 +3063,34 @@ const generateAiSuggestions = (filterSameDept: boolean) => {
 
   scoredUsers.sort((a, b) => b.fitScore - a.fitScore);
   setAiSuggestions(scoredUsers.slice(0, 3));
-  setShowAiSuggestions(true);
-};
+  };
 
-const handleSaveAllocation = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!allocationUser || !allocationProject) {
+const handleSaveAllocation = async (data: { userId: string; projectId: string; name: string; percentage: number }) => {
+    if (!data.userId || !data.projectId) {
     alert("Vui lòng chọn đầy đủ nhân sự và dự án.");
     return;
   }
   try {
     setIsLoading(true);
-    const user = usersList.find(u => u.cr5db_userid === allocationUser);
-    const proj = projects.find(p => p.cr5db_projectid === allocationProject);
+    const user = usersList.find(u => u.cr5db_userid === data.userId);
+    const proj = projects.find(p => p.cr5db_projectid === data.projectId);
     const uName = user?.cr5db_fullname || 'User';
     const pName = proj?.cr5db_projectname || 'Project';
-    const name = allocationName || `Allocation of ${uName} to ${pName}`;
+    const name = data.name || `Allocation of ${uName} to ${pName}`;
 
     // 1. Resolve project team for the selected project
     const matchedTeam = projectTeamsList.find(
-      team => team._cr5db_projectid_value === allocationProject || team.cr5db_projectid === allocationProject
+      team => team._cr5db_projectid_value === data.projectId || team.cr5db_projectid === data.projectId
     );
 
     let teamId = matchedTeam?.cr5db_projectteamid;
 
     // 2. Dynamic Fallback: if no project team exists in the database, create one on the fly
     if (!teamId) {
-      console.log(`[SaveAllocation] No ProjectTeam found for project ${pName} (${allocationProject}). Creating team dynamically...`);
+      console.log(`[SaveAllocation] No ProjectTeam found for project ${pName} (${data.projectId}). Creating team dynamically...`);
       const newTeamRes = await Cr5db_projectteamsService.create({
         cr5db_teamname: `${pName} Team`,
-        "cr5db_ProjectID@odata.bind": `/cr5db_projects(${allocationProject})`,
+        "cr5db_ProjectID@odata.bind": `/cr5db_projects(${data.projectId})`,
         statecode: 0
       } as any);
 
@@ -3119,8 +3105,8 @@ const handleSaveAllocation = async (e: React.FormEvent) => {
     if (editingAllocation) {
       await Cr5db_resourceallocationsService.update(editingAllocation.cr5db_resourceallocationid, {
         cr5db_resourceallocation1: name,
-        cr5db_allocationpercentage: Number(allocationPercentage) || 100,
-        "cr5db_UserID@odata.bind": `/cr5db_users(${allocationUser})`,
+        cr5db_allocationpercentage: Number(data.percentage) || 100,
+        "cr5db_UserID@odata.bind": `/cr5db_users(${data.userId})`,
         "cr5db_ProjectTeamID@odata.bind": `/cr5db_projectteams(${teamId})`
       } as any);
 
@@ -3129,7 +3115,7 @@ const handleSaveAllocation = async (e: React.FormEvent) => {
       if (recipientOwnerId) {
         await Cr5db_systemnotificationsService.create({
           cr5db_systemnotification1: 'Thay đổi phân bổ dự án',
-          cr5db_content: `Phân bổ của bạn trong dự án "${pName}" đã được cập nhật thành ${allocationPercentage}% bởi Admin.`,
+          cr5db_content: `Phân bổ của bạn trong dự án "${pName}" đã được cập nhật thành ${data.percentage}% bởi Admin.`,
           cr5db_deeplinkurl: '#resources',
           cr5db_isread: false,
           ownerid: recipientOwnerId,
@@ -3141,15 +3127,15 @@ const handleSaveAllocation = async (e: React.FormEvent) => {
       // Audit log
       await Cr5db_audittraillogsService.create({
         cr5db_logname: 'Resource Allocation Updated',
-        cr5db_actionexecuted: `Updated allocation for ${uName} in ${pName} to ${allocationPercentage}%`,
+        cr5db_actionexecuted: `Updated allocation for ${uName} in ${pName} to ${data.percentage}%`,
         cr5db_changedfromvalue: `Old percentage: ${editingAllocation.cr5db_allocationpercentage}%`,
-        cr5db_changedtovalue: `New percentage: ${allocationPercentage}%`
+        cr5db_changedtovalue: `New percentage: ${data.percentage}%`
       } as any).catch(e => console.error('Audit trail error:', e));
     } else {
       await Cr5db_resourceallocationsService.create({
         cr5db_resourceallocation1: name,
-        cr5db_allocationpercentage: Number(allocationPercentage) || 100,
-        "cr5db_UserID@odata.bind": `/cr5db_users(${allocationUser})`,
+        cr5db_allocationpercentage: Number(data.percentage) || 100,
+        "cr5db_UserID@odata.bind": `/cr5db_users(${data.userId})`,
         "cr5db_ProjectTeamID@odata.bind": `/cr5db_projectteams(${teamId})`,
         statecode: 0
       } as any);
@@ -3159,7 +3145,7 @@ const handleSaveAllocation = async (e: React.FormEvent) => {
       if (recipientOwnerId) {
         await Cr5db_systemnotificationsService.create({
           cr5db_systemnotification1: 'Phân bổ dự án mới',
-          cr5db_content: `Bạn đã được phân bổ vào dự án "${pName}" với tỷ lệ ${allocationPercentage}% bởi Admin.`,
+          cr5db_content: `Bạn đã được phân bổ vào dự án "${pName}" với tỷ lệ ${data.percentage}% bởi Admin.`,
           cr5db_deeplinkurl: '#resources',
           cr5db_isread: false,
           ownerid: recipientOwnerId,
@@ -3171,17 +3157,15 @@ const handleSaveAllocation = async (e: React.FormEvent) => {
       // Audit log
       await Cr5db_audittraillogsService.create({
         cr5db_logname: 'Resource Allocation Created',
-        cr5db_actionexecuted: `Allocated ${uName} to project team ${pName} at ${allocationPercentage}%`,
+        cr5db_actionexecuted: `Allocated ${uName} to project team ${pName} at ${data.percentage}%`,
         cr5db_changedfromvalue: 'None',
-        cr5db_changedtovalue: `Allocation: ${name} (${allocationPercentage}%)`
+        cr5db_changedtovalue: `Allocation: ${name} (${data.percentage}%)`
       } as any).catch(e => console.error('Audit trail error:', e));
     }
 
     setShowAllocationModal(false);
     setEditingAllocation(null);
-    setAllocationName('');
-    setAllocationPercentage(100);
-    await fetchLiveValues();
+            await fetchLiveValues();
     alert(editingAllocation ? "Cập nhật phân bổ nhân sự thành công!" : "Phân bổ nhân sự thành công!");
   } catch (err: any) {
     console.error("Save allocation error:", err);
@@ -6425,11 +6409,7 @@ return (
           <button
             onClick={() => {
               setEditingAllocation(null);
-              setAllocationUser(usersList[0]?.cr5db_userid || '');
-              setAllocationProject(projects[0]?.cr5db_projectid || '');
-              setAllocationPercentage(100);
-              setAllocationName('');
-              setShowAllocationModal(true);
+                                                                      setShowAllocationModal(true);
             }}
             className="btn-primary"
           >
@@ -6602,11 +6582,7 @@ return (
                                       <button
                                         onClick={() => {
                                           setEditingAllocation(a);
-                                          setAllocationUser(a._cr5db_userid_value || '');
-                                          setAllocationProject(a.cr5db_projectid || '');
-                                          setAllocationPercentage(a.cr5db_allocationpercentage || 100);
-                                          setAllocationName(a.cr5db_resourceallocation1 || '');
-                                          setShowAllocationModal(true);
+                                                                                                                                                                                                                  setShowAllocationModal(true);
                                         }}
                                         style={{
                                           background: 'none',
@@ -6984,11 +6960,7 @@ return (
                         {canManageProject && (
                           <button
                             onClick={() => {
-                              setNewRiskName('');
-                              setNewRiskImpact('Medium');
-                              setNewRiskProbability('Medium');
-                              setNewRiskMitigation('');
-                              setShowRiskModal(true);
+                                                                                                                                                      setShowRiskModal(true);
                             }}
                             className="btn-filled-3"
                             style={{ padding: '2px 8px', fontSize: '11px', color: 'var(--color-primary)', borderColor: 'var(--color-primary)' }}
@@ -7051,17 +7023,9 @@ return (
                                         <button
                                           onClick={() => {
                                             setEditingRisk(r);
-                                            setNewRiskName(r.cr5db_riskname || r.cr5db_projectrisk1 || '');
-                                            setNewRiskImpact(
-                                              impact === 'High' ? 'High' :
-                                                impact === 'Medium' ? 'Medium' : 'Low'
-                                            );
-                                            setNewRiskProbability(
-                                              probRaw === 80 || probRaw === '80' || probRaw === 'High' ? 'High' :
-                                                probRaw === 20 || probRaw === '20' || probRaw === 'Low' ? 'Low' : 'Medium'
-                                            );
-                                            setNewRiskMitigation(r.new_mitigationplan || '');
-                                            setShowRiskModal(true);
+                                                                                        
+                                            
+                                                                                        setShowRiskModal(true);
                                           }}
                                           className="btn-filled-3"
                                           style={{ padding: '2px 6px', fontSize: '10px', minWidth: 'auto' }}
@@ -9182,85 +9146,16 @@ return (
 {/* Risk Modal */ }
 {
   showRiskModal && (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '450px' }}>
-        <h3 style={{ marginBottom: '16px', fontSize: '15px', fontWeight: 700 }}>
-          {editingRisk ? 'Chỉnh sửa rủi ro dự án' : 'Ghi nhận rủi ro dự án'}
-        </h3>
-        <form onSubmit={handleSaveRisk} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Tên/Mô tả rủi ro</label>
-            <input
-              type="text"
-              value={newRiskName}
-              onChange={(e) => setNewRiskName(e.target.value)}
-              className="input-spec"
-              required
-              placeholder="Ví dụ: Thiếu hụt nhân lực chủ chốt"
-            />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Mức độ ảnh hưởng (Impact)</label>
-              <select
-                value={newRiskImpact}
-                onChange={(e) => setNewRiskImpact(e.target.value)}
-                className="input-spec"
-                style={{ height: '38px', padding: '6px 12px' }}
-              >
-                <option value="High">Cao (High)</option>
-                <option value="Medium">Trung bình (Medium)</option>
-                <option value="Low">Thấp (Low)</option>
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Khả năng xảy ra (Probability)</label>
-              <select
-                value={newRiskProbability}
-                onChange={(e) => setNewRiskProbability(e.target.value)}
-                className="input-spec"
-                style={{ height: '38px', padding: '6px 12px' }}
-              >
-                <option value="High">Cao (High)</option>
-                <option value="Medium">Trung bình (Medium)</option>
-                <option value="Low">Thấp (Low)</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 500 }}>Kế hoạch giảm thiểu (Mitigation Plan)</label>
-            <textarea
-              value={newRiskMitigation}
-              onChange={(e) => setNewRiskMitigation(e.target.value)}
-              className="input-spec"
-              rows={3}
-              placeholder="Phương án dự phòng, phân công người phụ trách..."
-              style={{ fontFamily: 'inherit', resize: 'vertical' }}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-            <button
-              type="button"
-              onClick={() => {
-                setShowRiskModal(false);
-                setEditingRisk(null);
-                setNewRiskName('');
-                setNewRiskImpact('Medium');
-                setNewRiskProbability('Medium');
-                setNewRiskMitigation('');
-              }}
-              className="btn-filled-3"
-            >
-              Hủy
-            </button>
-            <button type="submit" className="btn-filled-2" style={{ backgroundColor: '#742774' }}>
-              {editingRisk ? 'Cập nhật' : 'Lưu rủi ro'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
+  <RiskModal
+    isOpen={showRiskModal}
+    onClose={() => {
+      setShowRiskModal(false);
+      setEditingRisk(null);
+    }}
+    onSave={handleSaveRisk}
+    editingRisk={editingRisk}
+  />
+)
 }
 
 {/* KPI Modal */}
@@ -9277,142 +9172,17 @@ return (
   {/* Resource Allocation Modal */ }
 {
   showAllocationModal && (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ width: '420px' }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>
-          {editingAllocation ? 'Cập nhật phân bổ nhân sự' : 'Phân bổ nhân sự vào dự án'}
-        </h3>
-        <form onSubmit={handleSaveAllocation} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <label style={{ display: 'block', fontWeight: 600, fontSize: '13px' }}>Nhân sự <span style={{ color: '#dc2626' }}>*</span></label>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!showAiSuggestions) {
-                    generateAiSuggestions(aiFilterSameDept);
-                  } else {
-                    setShowAiSuggestions(false);
-                  }
-                }}
-                style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-              >
-                🪄 Đề xuất AI
-              </button>
-            </div>
-
-            {showAiSuggestions ? (
-              <div style={{ marginBottom: '12px', border: '1px solid var(--color-border-light)', borderRadius: '8px', padding: '12px', backgroundColor: '#F9FAFB' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>TOP GỢI Ý (60% Skill + 40% Avail)</span>
-                  <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={aiFilterSameDept}
-                      onChange={e => {
-                        setAiFilterSameDept(e.target.checked);
-                        generateAiSuggestions(e.target.checked);
-                      }}
-                    />
-                    Cùng phòng ban
-                  </label>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {aiSuggestions.map(sug => (
-                    <div
-                      key={sug.user.cr5db_userid}
-                      onClick={() => {
-                        setAllocationUser(sug.user.cr5db_userid);
-                        setShowAiSuggestions(false);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        padding: '10px',
-                        backgroundColor: '#fff',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--color-primary)'}
-                      onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--color-border)'}
-                    >
-                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)', fontWeight: 700, fontSize: '12px' }}>
-                        {sug.user.cr5db_fullname?.charAt(0) || 'U'}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{sug.user.cr5db_fullname}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>{sug.user.cr5db_email}</div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-primary)' }}>{sug.fitScore}%</div>
-                        <div style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>Fit Score</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            <select
-              value={allocationUser}
-              onChange={e => setAllocationUser(e.target.value)}
-              required
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', backgroundColor: '#ffffff' }}
-            >
-              <option value="">-- Chọn nhân sự --</option>
-              {usersList.map(u => (
-                <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname} ({u.cr5db_email})</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Dự án <span style={{ color: '#dc2626' }}>*</span></label>
-            <select
-              value={allocationProject}
-              onChange={e => setAllocationProject(e.target.value)}
-              required
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', backgroundColor: '#ffffff' }}
-            >
-              <option value="">-- Chọn dự án --</option>
-              {projects.map(p => (
-                <option key={p.cr5db_projectid} value={p.cr5db_projectid}>{p.cr5db_projectname}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Tên phân bổ</label>
-            <input
-              value={allocationName}
-              onChange={e => setAllocationName(e.target.value)}
-              placeholder="Ví dụ: Phân bổ nhân viên A làm PM dự án B"
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Tỷ lệ phân bổ (%) <span style={{ color: '#dc2626' }}>*</span></label>
-            <input
-              type="number"
-              min="1"
-              max="100"
-              value={allocationPercentage}
-              onChange={e => setAllocationPercentage(Number(e.target.value))}
-              required
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-            />
-          </div>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
-            <button type="button" onClick={() => { setShowAllocationModal(false); setEditingAllocation(null); }} className="btn-filled-3">Hủy</button>
-            <button type="submit" className="btn-primary">
-              {editingAllocation ? 'Cập nhật' : 'Giao việc'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
+  <ResourceAllocationModal
+    isOpen={showAllocationModal}
+    onClose={() => { setShowAllocationModal(false); setEditingAllocation(null); }}
+    onSave={handleSaveAllocation}
+    editingAllocation={editingAllocation}
+    usersList={usersList}
+    projects={projects}
+    aiSuggestions={aiSuggestions}
+    onGenerateAiSuggestions={generateAiSuggestions}
+  />
+)
 }
 
 {/* System Notifications Modal */ }
@@ -9432,84 +9202,19 @@ return (
 {/* 8. Universal Change Request Reason & Approver Selection Modal */ }
 {
   showApprovalModal && approvalModalData && (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '450px' }}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--color-primary)' }}>
-            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-            <path d="M12 6v6l4 2" />
-          </svg>
-          Yêu cầu phê duyệt thay đổi
-        </h3>
-
-        <div style={{ padding: '12px', backgroundColor: '#FAF9F9', border: '1px solid var(--color-border-light)', borderRadius: '6px', marginBottom: '16px', fontSize: '13px' }}>
-          <div style={{ marginBottom: '6px' }}><strong>Thao tác:</strong> {approvalModalData.operation} ({ENTITY_MAPPINGS[approvalModalData.entityName]?.label || approvalModalData.entityName})</div>
-          <div style={{ overflowWrap: 'anywhere' }}><strong>Mô tả:</strong> {approvalModalData.description}</div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '6px' }}>Lý do đề xuất <span style={{ color: '#a80000' }}>*</span></label>
-            <textarea
-              value={requestReason}
-              onChange={(e) => setRequestReason(e.target.value)}
-              placeholder="Nhập lý do chi tiết cho đề xuất thay đổi này..."
-              style={{
-                width: '100%', minHeight: '80px', padding: '8px 12px', borderRadius: '4px',
-                border: '1px solid var(--color-border)', outline: 'none', fontSize: '13px',
-                fontFamily: 'inherit', resize: 'vertical'
-              }}
-              required
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '6px' }}>Chọn người phê duyệt <span style={{ color: '#a80000' }}>*</span></label>
-            <select
-              value={selectedApproverId}
-              onChange={(e) => setSelectedApproverId(e.target.value)}
-              style={{
-                width: '100%', padding: '8px 12px', borderRadius: '4px',
-                border: '1px solid var(--color-border)', outline: 'none', fontSize: '13px',
-                backgroundColor: '#ffffff'
-              }}
-              required
-            >
-              <option value="">-- Chọn người phê duyệt --</option>
-              {approvalModalData.validApprovers.map((user: User) => (
-                <option key={user.cr5db_userid} value={user.cr5db_userid}>
-                  {user.cr5db_fullname} ({user.cr5db_email}) - {user.cr5db_systemrole}
-                </option>
-              ))}
-            </select>
-            <p style={{ margin: '6px 0 0 0', fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-              Danh sách hiển thị tối ưu dựa trên quy tắc định tuyến của hệ thống.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-            <button
-              onClick={() => {
-                setShowApprovalModal(false);
-                setIsLoading(false);
-              }}
-              className="btn-filled-3"
-              style={{ padding: '8px 16px' }}
-            >
-              Hủy bỏ
-            </button>
-            <button
-              onClick={handleSubmittingApprovalRequest}
-              className="btn-primary"
-              style={{ padding: '8px 16px', borderRadius: '4px' }}
-            >
-              Gửi yêu cầu
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+  <ChangeRequestApprovalModal
+    isOpen={showApprovalModal}
+    onClose={() => {
+      setShowApprovalModal(false);
+      setIsLoading(false);
+    }}
+    approvalModalData={approvalModalData}
+    entityLabel={ENTITY_MAPPINGS[approvalModalData.entityName]?.label || approvalModalData.entityName}
+    onSubmit={(reason, approverId) => {
+      handleSubmittingApprovalRequest(reason, approverId);
+    }}
+  />
+)
 }
 
 

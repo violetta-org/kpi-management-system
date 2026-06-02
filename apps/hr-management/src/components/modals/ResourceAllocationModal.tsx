@@ -1,0 +1,203 @@
+import React, { useState, useEffect } from 'react';
+
+
+export interface AiSuggestion {
+  user: any;
+  fitScore: number;
+}
+
+interface ResourceAllocationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: { userId: string; projectId: string; name: string; percentage: number }) => void;
+  editingAllocation?: any | null;
+  usersList: any[];
+  projects: any[];
+  aiSuggestions: AiSuggestion[];
+  onGenerateAiSuggestions: (sameDept: boolean) => void;
+}
+
+export const ResourceAllocationModal: React.FC<ResourceAllocationModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  editingAllocation,
+  usersList,
+  projects,
+  aiSuggestions,
+  onGenerateAiSuggestions
+}) => {
+  const [allocationUser, setAllocationUser] = useState('');
+  const [allocationProject, setAllocationProject] = useState('');
+  const [allocationName, setAllocationName] = useState('');
+  const [allocationPercentage, setAllocationPercentage] = useState<number>(100);
+
+  const [showAiSuggestions, setShowAiSuggestions] = useState(false);
+  const [aiFilterSameDept, setAiFilterSameDept] = useState(false);
+
+  useEffect(() => {
+    if (editingAllocation) {
+      setAllocationUser(editingAllocation._cr5db_userid_value || '');
+      setAllocationProject(editingAllocation._cr5db_projectid_value || '');
+      setAllocationName(editingAllocation.cr5db_name || '');
+      setAllocationPercentage(editingAllocation.cr5db_allocationpercentage || 100);
+    } else {
+      setAllocationUser('');
+      setAllocationProject('');
+      setAllocationName('');
+      setAllocationPercentage(100);
+    }
+    setShowAiSuggestions(false);
+  }, [editingAllocation, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({
+      userId: allocationUser,
+      projectId: allocationProject,
+      name: allocationName,
+      percentage: allocationPercentage
+    });
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ width: '420px' }}>
+        <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '24px' }}>
+          {editingAllocation ? 'Cập nhật phân bổ nhân sự' : 'Phân bổ nhân sự vào dự án'}
+        </h3>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontWeight: 600, fontSize: '13px' }}>Nhân sự <span style={{ color: '#dc2626' }}>*</span></label>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!showAiSuggestions) {
+                    onGenerateAiSuggestions(aiFilterSameDept);
+                    setShowAiSuggestions(true);
+                  } else {
+                    setShowAiSuggestions(false);
+                  }
+                }}
+                style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                🪄 Đề xuất AI
+              </button>
+            </div>
+
+            {showAiSuggestions && (
+              <div style={{ marginBottom: '12px', border: '1px solid var(--color-border-light)', borderRadius: '8px', padding: '12px', backgroundColor: '#F9FAFB' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>TOP GỢI Ý (60% Skill + 40% Avail)</span>
+                  <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={aiFilterSameDept}
+                      onChange={e => {
+                        setAiFilterSameDept(e.target.checked);
+                        onGenerateAiSuggestions(e.target.checked);
+                      }}
+                    />
+                    Cùng phòng ban
+                  </label>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {aiSuggestions.map(sug => (
+                    <div
+                      key={sug.user.cr5db_userid}
+                      onClick={() => {
+                        setAllocationUser(sug.user.cr5db_userid);
+                        setShowAiSuggestions(false);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '10px',
+                        backgroundColor: '#fff',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+                      onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--color-border)'}
+                    >
+                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)', fontWeight: 700, fontSize: '12px' }}>
+                        {sug.user.cr5db_fullname?.charAt(0) || 'U'}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{sug.user.cr5db_fullname}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>{sug.user.cr5db_email}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-primary)' }}>{sug.fitScore}%</div>
+                        <div style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>Fit Score</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <select
+              value={allocationUser}
+              onChange={e => setAllocationUser(e.target.value)}
+              required
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', backgroundColor: '#ffffff' }}
+            >
+              <option value="">-- Chọn nhân sự --</option>
+              {usersList.map(u => (
+                <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname} ({u.cr5db_email})</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Dự án <span style={{ color: '#dc2626' }}>*</span></label>
+            <select
+              value={allocationProject}
+              onChange={e => setAllocationProject(e.target.value)}
+              required
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', backgroundColor: '#ffffff' }}
+            >
+              <option value="">-- Chọn dự án --</option>
+              {projects.map(p => (
+                <option key={p.cr5db_projectid} value={p.cr5db_projectid}>{p.cr5db_projectname}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Tên phân bổ</label>
+            <input
+              value={allocationName}
+              onChange={e => setAllocationName(e.target.value)}
+              placeholder="Ví dụ: Phân bổ nhân viên A làm PM dự án B"
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Tỷ lệ phân bổ (%) <span style={{ color: '#dc2626' }}>*</span></label>
+            <input
+              type="number"
+              min="1"
+              max="100"
+              value={allocationPercentage}
+              onChange={e => setAllocationPercentage(Number(e.target.value))}
+              required
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+            <button type="button" onClick={onClose} className="btn-filled-3">Hủy</button>
+            <button type="submit" className="btn-primary">
+              {editingAllocation ? 'Cập nhật' : 'Giao việc'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};

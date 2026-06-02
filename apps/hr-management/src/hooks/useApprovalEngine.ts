@@ -39,12 +39,12 @@ export interface ApprovalEngineContext {
   approvalRoutesList: any[];
   setIsLoading: (v: boolean) => void;
   setApprovalModalData: (v: any) => void;
-  setSelectedApproverId: (v: string) => void;
-  setRequestReason: (v: string) => void;
+  setSelectedApproverId?: (v: string) => void;
+  setRequestReason?: (v: string) => void;
   setShowApprovalModal: (v: boolean) => void;
   approvalModalData: any;
-  requestReason: string;
-  selectedApproverId: string;
+  requestReason?: string;
+  selectedApproverId?: string;
   fetchLiveValues: () => Promise<void>;
 }
 
@@ -308,8 +308,7 @@ export function buildApprovalEngine(ctx: ApprovalEngineContext) {
       validApprovers: validApprovers.filter(u => u.cr5db_email?.toLowerCase() !== ctx.currentUserEmail.toLowerCase()),
       appliedRouteId: matchedRoute.cr5db_approvalroutesid
     });
-    ctx.setSelectedApproverId(defaultApproverId);
-    ctx.setRequestReason('');
+
     ctx.setShowApprovalModal(true);
     ctx.setIsLoading(false);
     return null;
@@ -368,10 +367,12 @@ export function buildApprovalEngine(ctx: ApprovalEngineContext) {
     }
   };
 
-  const handleSubmittingApprovalRequest = async () => {
+  const handleSubmittingApprovalRequest = async (reason?: string, approverId?: string) => {
+    const finalReason = reason || ctx.requestReason;
+    const finalApproverId = approverId || ctx.selectedApproverId;
     if (!ctx.approvalModalData) return;
-    if (!ctx.requestReason.trim()) { alert('Vui lòng nhập lý do gửi yêu cầu.'); return; }
-    if (!ctx.selectedApproverId) { alert('Vui lòng chọn người phê duyệt.'); return; }
+    if (!finalReason?.trim()) { alert('Vui lòng nhập lý do gửi yêu cầu.'); return; }
+    if (!finalApproverId) { alert('Vui lòng chọn người phê duyệt.'); return; }
 
     try {
       ctx.setIsLoading(true);
@@ -389,9 +390,9 @@ export function buildApprovalEngine(ctx: ApprovalEngineContext) {
         cr5db_targetrecordid: ctx.approvalModalData.targetRecordId || '',
         cr5db_oldvaluejson: ctx.approvalModalData.oldValue ? JSON.stringify(ctx.approvalModalData.oldValue) : '',
         cr5db_status: 1,
-        cr5db_reason: ctx.requestReason,
+        cr5db_reason: finalReason,
         'cr5db_Requester@odata.bind': `/cr5db_users(${requesterRecord.cr5db_userid})`,
-        'cr5db_Approver@odata.bind': `/cr5db_users(${ctx.selectedApproverId})`,
+        'cr5db_Approver@odata.bind': `/cr5db_users(${finalApproverId})`,
         'cr5db_AppliedRoute@odata.bind': ctx.approvalModalData.appliedRouteId ? `/cr5db_approvalrouteses(${ctx.approvalModalData.appliedRouteId})` : undefined,
         statecode: 0
       } as any);
@@ -400,7 +401,7 @@ export function buildApprovalEngine(ctx: ApprovalEngineContext) {
         throw new Error(createRes.error.message || "Lỗi lưu trữ yêu cầu thay đổi vào Dataverse.");
       }
 
-      const approverUser = ctx.usersList.find(u => u.cr5db_userid === ctx.selectedApproverId);
+      const approverUser = ctx.usersList.find(u => u.cr5db_userid === finalApproverId);
       const approverOwnerId = approverUser?.ownerid || (approverUser as any)?._ownerid_value;
       if (approverOwnerId) {
         await Cr5db_systemnotificationsService.create({ cr5db_systemnotification1: 'Yêu cầu phê duyệt mới', cr5db_content: `${requesterRecord.cr5db_fullname} đã gửi yêu cầu thay đổi: ${ctx.approvalModalData.description}. Vui lòng phê duyệt hoặc từ chối.`, cr5db_deeplinkurl: '#requests', cr5db_isread: false, ownerid: approverOwnerId, owneridtype: approverUser?.owneridtype || 'systemusers', statecode: 0 }).catch(e => console.error('Notification error:', e));
