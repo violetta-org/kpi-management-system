@@ -74,6 +74,8 @@ import { HeadcountRequestModal } from './components/modals/HeadcountRequestModal
 import { KpiLibraryModal } from './components/modals/KpiLibraryModal';
 import { ObjectiveModal } from './components/modals/ObjectiveModal';
 import { BonusMatrixModal } from './components/modals/BonusMatrixModal';
+import { PeriodModal } from './components/modals/PeriodModal';
+import { AssignAppraisalModal } from './components/modals/AssignAppraisalModal';
 import { CompanyModal } from './components/modals/CompanyModal';
 import { DepartmentModal } from './components/modals/DepartmentModal';
 import { PositionCatalogModal } from './components/modals/PositionCatalogModal';
@@ -363,16 +365,9 @@ function App() {
     // Appraisal cycles
     evaluationPeriodsList, setEvaluationPeriodsList,
     showPeriodModal, setShowPeriodModal,
-    newPeriodName, setNewPeriodName,
-    newPeriodStartDate, setNewPeriodStartDate,
-    newPeriodEndDate, setNewPeriodEndDate,
-    editingPeriod, setEditingPeriod,
+                editingPeriod, setEditingPeriod,
     showAssignAppraisalModal, setShowAssignAppraisalModal,
-    newAppraisalName, setNewAppraisalName,
-    newAppraisalEmployeeId, setNewAppraisalEmployeeId,
-    newAppraisalEvaluatorId, setNewAppraisalEvaluatorId,
-    newAppraisalPeriodId, setNewAppraisalPeriodId,
-    language, toggleLanguage,
+                    language, toggleLanguage,
   } = s;
 
   const [] = React.useState<number>(0);
@@ -1593,9 +1588,8 @@ function App() {
     }
   };
 
-  const handleSavePeriod = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPeriodName.trim()) return;
+  const handleSavePeriod = async (data: { name: string; startDate: string; endDate: string }) => {
+    if (!data.name.trim()) return;
     if (editingPeriod && editingPeriod.cr5db_islocked) {
       alert("Chu kỳ đang khóa. Vui lòng mở khóa chu kỳ trước khi sửa thông tin.");
       return;
@@ -1604,23 +1598,20 @@ function App() {
       setIsLoading(true);
       if (editingPeriod) {
         await Cr5db_evaluationperiodsService.update(editingPeriod.cr5db_evaluationperiodid, {
-          cr5db_evaluationperiod1: newPeriodName,
-          cr5db_startdate: newPeriodStartDate || undefined,
-          cr5db_enddate: newPeriodEndDate || undefined
+          cr5db_evaluationperiod1: data.name,
+          cr5db_startdate: data.startDate || undefined,
+          cr5db_enddate: data.endDate || undefined
         } as any);
       } else {
         await Cr5db_evaluationperiodsService.create({
-          cr5db_evaluationperiod1: newPeriodName,
-          cr5db_startdate: newPeriodStartDate || undefined,
-          cr5db_enddate: newPeriodEndDate || undefined,
+          cr5db_evaluationperiod1: data.name,
+          cr5db_startdate: data.startDate || undefined,
+          cr5db_enddate: data.endDate || undefined,
           cr5db_islocked: false
         } as any);
       }
       setShowPeriodModal(false);
       setEditingPeriod(null);
-      setNewPeriodName('');
-      setNewPeriodStartDate('');
-      setNewPeriodEndDate('');
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
@@ -1659,42 +1650,24 @@ function App() {
     }
   };
 
-  const handleAssignAppraisal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const empId = newAppraisalEmployeeId || usersList[0]?.cr5db_userid;
-    const evalId = newAppraisalEvaluatorId || usersList[0]?.cr5db_userid;
-    const periodId = newAppraisalPeriodId || evaluationPeriodsList[0]?.cr5db_evaluationperiodid;
-    if (!empId || !evalId || !periodId) {
-      alert("Vui lòng điền đầy đủ các trường thông tin bắt buộc.");
-      return;
-    }
-
-    const pRecord = evaluationPeriodsList.find(x => x.cr5db_evaluationperiodid === periodId);
-    const empRecord = usersList.find(x => x.cr5db_userid === empId);
-
-    const finalAppraisalName = newAppraisalName.trim() ||
-      `Đánh giá hiệu suất ${empRecord?.cr5db_fullname || ''} ${pRecord?.cr5db_evaluationperiod1 || ''}`;
-
+  const handleAssignAppraisal = async (data: { employeeId: string; evaluatorId: string; periodId: string; appraisalName: string; }) => {
     try {
       setIsLoading(true);
-      await Cr5db_performanceappraisalsService.create({
-        cr5db_performanceappraisal1: finalAppraisalName,
-        "cr5db_EmployeeID@odata.bind": `/cr5db_users(${empId})`,
-        "cr5db_EvaluatorID@odata.bind": `/cr5db_users(${evalId})`,
-        "cr5db_PeriodID@odata.bind": `/cr5db_evaluationperiods(${periodId})`,
-        cr5db_finalscore: 0,
-        cr5db_selfscore: 0
+      await Cr5db_objectivesService.create({
+        _cr5db_employee_value: data.employeeId,
+        _cr5db_manager_value: data.evaluatorId,
+        _cr5db_periodname_value: data.periodId,
+        cr5db_objective1: data.appraisalName || 'Kỳ đánh giá mới',
+        cr5db_status: 'Mục tiêu',
+        cr5db_progress: 0,
+        cr5db_totalweight: 0,
+        cr5db_targetvalue: 100
       } as any);
-
       setShowAssignAppraisalModal(false);
-      setNewAppraisalName('');
-      setNewAppraisalEmployeeId('');
-      setNewAppraisalEvaluatorId('');
-      setNewAppraisalPeriodId('');
       await fetchLiveValues();
     } catch (err) {
       console.error(err);
-      alert("Không thể phát động đợt đánh giá mới.");
+      alert("Không thể phát động đợt đánh giá.");
       setIsLoading(false);
     }
   };
@@ -5753,10 +5726,7 @@ return (
             <button
               onClick={() => {
                 setEditingPeriod(null);
-                setNewPeriodName('');
-                setNewPeriodStartDate('');
-                setNewPeriodEndDate('');
-                setShowPeriodModal(true);
+                                                                setShowPeriodModal(true);
               }}
               className="btn-primary"
               style={{ fontSize: '13px' }}
@@ -5765,11 +5735,7 @@ return (
             </button>
             <button
               onClick={() => {
-                setNewAppraisalName('');
-                setNewAppraisalEmployeeId(usersList[0]?.cr5db_userid || '');
-                setNewAppraisalEvaluatorId(usersList[0]?.cr5db_userid || '');
-                setNewAppraisalPeriodId(evaluationPeriodsList[0]?.cr5db_evaluationperiodid || '');
-                setShowAssignAppraisalModal(true);
+                                                                                setShowAssignAppraisalModal(true);
               }}
               className="btn-filled-3"
               style={{ fontSize: '13px' }}
@@ -5831,9 +5797,6 @@ return (
                           <button
                             onClick={() => {
                               setEditingPeriod(p);
-                              setNewPeriodName(p.cr5db_evaluationperiod1);
-                              setNewPeriodStartDate(p.cr5db_startdate ? p.cr5db_startdate.split('T')[0] : '');
-                              setNewPeriodEndDate(p.cr5db_enddate ? p.cr5db_enddate.split('T')[0] : '');
                               setShowPeriodModal(true);
                             }}
                             className="btn-filled-3"
@@ -9621,152 +9584,22 @@ return (
 
 {/* Period Modal */ }
 {
-  showPeriodModal && (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ width: '400px', padding: '24px' }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>
-          {editingPeriod ? 'Cập nhật chu kỳ đánh giá' : 'Tạo mới chu kỳ đánh giá'}
-        </h3>
-        <form onSubmit={handleSavePeriod} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Tên chu kỳ <span style={{ color: '#dc2626' }}>*</span></label>
-            <input
-              type="text"
-              required
-              placeholder="Ví dụ: Đánh giá hiệu suất Q3/2026"
-              value={newPeriodName}
-              onChange={e => setNewPeriodName(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Ngày bắt đầu</label>
-            <input
-              type="date"
-              value={newPeriodStartDate}
-              onChange={e => setNewPeriodStartDate(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Ngày kết thúc</label>
-            <input
-              type="date"
-              value={newPeriodEndDate}
-              onChange={e => setNewPeriodEndDate(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
-            <button
-              type="button"
-              onClick={() => setShowPeriodModal(false)}
-              className="btn-filled-3"
-              style={{ padding: '8px 16px' }}
-            >
-              Hủy bỏ
-            </button>
-            <button
-              type="submit"
-              className="btn-primary"
-              style={{ padding: '8px 16px' }}
-            >
-              Lưu lại
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
+  <PeriodModal
+    isOpen={showPeriodModal}
+    editingPeriod={editingPeriod}
+    onClose={() => setShowPeriodModal(false)}
+    onSave={handleSavePeriod}
+  />
 }
 
 
 {/* Assign Appraisal Modal */ }
 {
-  showAssignAppraisalModal && (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ width: '450px', padding: '24px' }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>
-          Phát động đợt đánh giá mới
-        </h3>
-        <form onSubmit={handleAssignAppraisal} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Nhân sự cần đánh giá <span style={{ color: '#dc2626' }}>*</span></label>
-            <select
-              value={newAppraisalEmployeeId}
-              onChange={e => setNewAppraisalEmployeeId(e.target.value)}
-              required
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', backgroundColor: '#ffffff', boxSizing: 'border-box' }}
-            >
-              {usersList.map(u => (
-                <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname} ({u.cr5db_email || 'No email'})</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Người đánh giá (HR/Manager) <span style={{ color: '#dc2626' }}>*</span></label>
-            <select
-              value={newAppraisalEvaluatorId}
-              onChange={e => setNewAppraisalEvaluatorId(e.target.value)}
-              required
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', backgroundColor: '#ffffff', boxSizing: 'border-box' }}
-            >
-              {usersList.map(u => (
-                <option key={u.cr5db_userid} value={u.cr5db_userid}>{u.cr5db_fullname} ({u.cr5db_email || 'No email'})</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Chu kỳ đánh giá <span style={{ color: '#dc2626' }}>*</span></label>
-            <select
-              value={newAppraisalPeriodId}
-              onChange={e => setNewAppraisalPeriodId(e.target.value)}
-              required
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', backgroundColor: '#ffffff', boxSizing: 'border-box' }}
-            >
-              {evaluationPeriodsList.map(p => (
-                <option key={p.cr5db_evaluationperiodid} value={p.cr5db_evaluationperiodid}>{p.cr5db_evaluationperiod1}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Tên đợt đánh giá hiển thị (Tự chọn)</label>
-            <input
-              type="text"
-              placeholder="Để trống để hệ thống tự động sinh tên"
-              value={newAppraisalName}
-              onChange={e => setNewAppraisalName(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
-            <button
-              type="button"
-              onClick={() => setShowAssignAppraisalModal(false)}
-              className="btn-filled-3"
-              style={{ padding: '8px 16px' }}
-            >
-              Hủy bỏ
-            </button>
-            <button
-              type="submit"
-              className="btn-primary"
-              style={{ padding: '8px 16px' }}
-            >
-              Phát động
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
+  <AssignAppraisalModal
+    isOpen={showAssignAppraisalModal}
+    onClose={() => setShowAssignAppraisalModal(false)}
+    onSave={handleAssignAppraisal}
+  />
 }
 
 {/* Leave Request Modal */}
